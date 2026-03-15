@@ -45,6 +45,26 @@
         <div id="textoResultado" style="margin-top: 15px; font-weight: bold;"></div>
     </div>
 
+<div class="panel" style="border: 2px solid #ffd700;">
+        <h2>🏆 Cerrar Torneo (Pozo de Puntos)</h2>
+        <p style="font-size: 0.9em; color: #555;">Reparte el bono extra por posición final.</p>
+        
+        <label>👑 Campeón:</label>
+        <select id="selectCampeon"></select>
+
+        <label>🥈 Subcampeón:</label>
+        <select id="selectSub"></select>
+
+        <label>🥉 Semifinalista 1:</label>
+        <select id="selectSemi1"></select>
+
+        <label>🥉 Semifinalista 2:</label>
+        <select id="selectSemi2"></select>
+
+        <button onclick="repartirPozo()" style="background-color: #ffc107; color: black;">Repartir Pozo y Cerrar</button>
+        <div id="resultadoPozo" style="margin-top: 15px; font-weight: bold; color: #b8860b;"></div>
+    </div>    
+
     <div class="panel" style="flex: 2; min-width: 400px;">
         <h2>3. Tabla de Posiciones</h2>
         <table class="tabla-ranking">

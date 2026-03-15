@@ -95,8 +95,16 @@ function guardarYActualizar() {
         `;
     });
 
-    document.getElementById('selectMc1').innerHTML = htmlSelects;
+document.getElementById('selectMc1').innerHTML = htmlSelects;
     document.getElementById('selectMc2').innerHTML = htmlSelects;
+    
+    // Llenar selectores del torneo si existen en el HTML
+    if(document.getElementById('selectCampeon')) {
+        document.getElementById('selectCampeon').innerHTML = htmlSelects;
+        document.getElementById('selectSub').innerHTML = htmlSelects;
+        document.getElementById('selectSemi1').innerHTML = htmlSelects;
+        document.getElementById('selectSemi2').innerHTML = htmlSelects;
+    }
     document.getElementById('cuerpoRanking').innerHTML = htmlTabla;
 }
 
@@ -110,5 +118,54 @@ function borrarDatos() {
     }
 }
 
+// --- NUEVA LÓGICA: POZO DE PREMIOS DEL TORNEO ---
+
+function repartirPozo() {
+    let idCampeon = parseInt(document.getElementById('selectCampeon').value);
+    let idSub = parseInt(document.getElementById('selectSub').value);
+    let idSemi1 = parseInt(document.getElementById('selectSemi1').value);
+    let idSemi2 = parseInt(document.getElementById('selectSemi2').value);
+
+    // Validar que se seleccionaron los 4 y que no hay repetidos
+    let idsSeleccionados = [idCampeon, idSub, idSemi1, idSemi2];
+    let idsUnicos = new Set(idsSeleccionados);
+    
+    if (idsSeleccionados.includes(NaN)) return alert("Faltan competidores por seleccionar.");
+    if (idsUnicos.size !== 4) return alert("Un MC no puede ocupar dos puestos al mismo tiempo.");
+
+    // Traer a los objetos MC de la memoria
+    let campeon = listaMCs.find(mc => mc.id === idCampeon);
+    let sub = listaMCs.find(mc => mc.id === idSub);
+    let semi1 = listaMCs.find(mc => mc.id === idSemi1);
+    let semi2 = listaMCs.find(mc => mc.id === idSemi2);
+
+    // 1. Calcular la Media de Elo del Top 4 (Esto define el peso del torneo)
+    let mediaElo = (campeon.elo + sub.elo + semi1.elo + semi2.elo) / 4;
+
+    // 2. Calcular el Pozo Total (5% de la media)
+    let pozoTotal = Math.round(mediaElo * 0.05);
+
+    // 3. Definir los porcentajes de repartición
+    let bonoCampeon = Math.round(pozoTotal * 0.40); // 40%
+    let bonoSub = Math.round(pozoTotal * 0.20);     // 20%
+    let bonoSemi = Math.round(pozoTotal * 0.10);    // 10% para cada semi
+
+    // 4. Sumar los puntos
+    campeon.elo += bonoCampeon;
+    sub.elo += bonoSub;
+    semi1.elo += bonoSemi;
+    semi2.elo += bonoSemi;
+
+    // 5. Mostrar el resumen en pantalla
+    document.getElementById('resultadoPozo').innerHTML = `
+        Pozo Total Generado: ${pozoTotal} pts (Media: ${Math.round(mediaElo)})<br><br>
+        👑 ${campeon.nombre}: +${bonoCampeon} pts<br>
+        🥈 ${sub.nombre}: +${bonoSub} pts<br>
+        🥉 ${semi1.nombre} y ${semi2.nombre}: +${bonoSemi} pts c/u
+    `;
+
+    // 6. Guardar y refrescar tabla
+    guardarYActualizar();
+}
 // Al cargar la página, dibujar todo por primera vez
 guardarYActualizar();
