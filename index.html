@@ -2,42 +2,126 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Panel de Torneos - Liga Fénix</title>
+    <title>Registro Histórico - Liga Fénix</title>
     <style>
         body { font-family: Arial, sans-serif; background-color: #1e1e2f; color: white; padding: 20px; }
         .panel { background: #2a2a40; padding: 20px; border-radius: 8px; max-width: 600px; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
-        input[type="text"] { width: 100%; padding: 10px; margin: 10px 0; border-radius: 5px; border: none; box-sizing: border-box; }
+        input[type="text"], select { width: 100%; padding: 10px; margin: 10px 0; border-radius: 5px; border: none; box-sizing: border-box; background: #fff; color: #333;}
         button { background-color: #ff4757; color: white; border: none; padding: 12px; width: 100%; cursor: pointer; font-weight: bold; border-radius: 5px; font-size: 16px; margin-top: 15px; }
         button:hover { background-color: #ff6b81; }
-        
-        /* Estilo para la lista de checkboxes */
-        .grid-mcs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: #1e1e2f; padding: 15px; border-radius: 5px; max-height: 300px; overflow-y: auto; }
-        .grid-mcs label { cursor: pointer; display: flex; align-items: center; gap: 10px; background: #373752; padding: 8px; border-radius: 4px; }
-        
         .navegacion { text-align: center; margin-bottom: 20px; }
         .navegacion a { color: #1e90ff; text-decoration: none; font-weight: bold; }
+        
+        /* Estilos del Bracket */
+        .batalla-caja { background: #1e1e2f; padding: 15px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #ff4757; text-align: center; }
+        .batalla-caja h4 { margin-top: 0; color: #ff6b81; margin-bottom: 15px;}
+        .versus { font-size: 18px; font-weight: bold; margin-bottom: 15px; background: #2f3542; padding: 10px; border-radius: 5px; display: flex; justify-content: space-around; align-items: center;}
+        .mc-name { color: #1e90ff; flex: 1; text-align: center;}
+        .vs-text { color: white; font-size: 14px; margin: 0 10px; }
+        
+        .setup-cruce { background: #1e1e2f; padding: 10px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #373752; }
+        
+        .btn-batalla { background-color: #1e90ff; margin-top: 10px; }
+        .btn-batalla:hover { background-color: #3742fa; }
+        .btn-batalla:disabled { background-color: #2ed573; cursor: not-allowed; }
+        .btn-cerrar { background-color: #eccc68; color: #2f3542; font-size: 18px; margin-top: 20px;}
+        .btn-cerrar:hover { background-color: #ffa502; }
     </style>
 </head>
 <body>
 
     <div class="navegacion">
-        <a href="batallas.html">⚙️ Ir a la Calculadora de Batallas (Modo Libre)</a>
+        <a href="batallas.html">⚙️ Ir a la Calculadora Libre</a>
     </div>
 
-    <div class="panel">
-        <h2>🏆 Organizar Nuevo Evento</h2>
-        
-        <label>Nombre del Torneo:</label>
+    <div class="panel" id="panelCreacion">
+        <h2>🏆 Registrar Evento Histórico</h2>
         <input type="text" id="nombreTorneo" placeholder="Ej: Red Bull Nacional 2026">
-
-        <h3>Elige a los participantes (Selecciona 4)</h3>
-        <div id="listaCheckboxes" class="grid-mcs">
-            Cargando competidores desde la nube...
+        
+        <h3>Arma los Cruces Oficiales</h3>
+        
+        <div class="setup-cruce">
+            <h4 style="margin: 0 0 10px 0; color: #ff6b81;">Llave 1 (Semifinal 1)</h4>
+            <select id="setup_s1_mc1"><option value="">Cargando MCs...</option></select> 
+            <div style="text-align: center; font-weight: bold;">VS</div>
+            <select id="setup_s1_mc2"><option value="">Cargando MCs...</option></select>
         </div>
 
-        <button onclick="iniciarTorneo()">Generar Cuadro y Calcular Pozo</button>
-        
-        <div id="mensajeConsola" style="margin-top: 20px; font-weight: bold; text-align: center; color: #2ed573;"></div>
+        <div class="setup-cruce">
+            <h4 style="margin: 0 0 10px 0; color: #ff6b81;">Llave 2 (Semifinal 2)</h4>
+            <select id="setup_s2_mc1"><option value="">Cargando MCs...</option></select> 
+            <div style="text-align: center; font-weight: bold;">VS</div>
+            <select id="setup_s2_mc2"><option value="">Cargando MCs...</option></select>
+        </div>
+
+        <button onclick="iniciarTorneo()">Fijar Cruces y Calcular Pozo</button>
+        <div id="mensajeConsola" style="margin-top: 20px; text-align: center; color: #2ed573;"></div>
+    </div>
+
+    <div class="panel" id="panelTorneoActivo" style="display: none;">
+        <h2 id="tituloTorneoActivo" style="text-align: center;">Torneo en Curso</h2>
+        <p id="infoPozoActivo" style="color: #eccc68; font-weight: bold; text-align: center;"></p>
+
+        <div class="batalla-caja">
+            <h4>Semifinal 1</h4>
+            <div class="versus">
+                <span class="mc-name" id="s1_mc1_nombre">???</span> 
+                <span class="vs-text">VS</span> 
+                <span class="mc-name" id="s1_mc2_nombre">???</span>
+            </div>
+            <select id="s1_res">
+                <option value="victoria">Victoria Izquierda</option>
+                <option value="victoria_replica">Victoria Réplica Izquierda</option>
+                <option value="derrota_replica">Victoria Réplica Derecha</option>
+                <option value="derrota">Victoria Derecha</option>
+                <option value="victoria_total">Victoria Total Izquierda</option>
+                <option value="derrota_total">Victoria Total Derecha</option>
+            </select>
+            <button class="btn-batalla" id="btn_s1" onclick="procesarBatallaAuto('S1')">⚔️ Registrar Resultado</button>
+        </div>
+
+        <div class="batalla-caja">
+            <h4>Semifinal 2</h4>
+            <div class="versus">
+                <span class="mc-name" id="s2_mc1_nombre">???</span> 
+                <span class="vs-text">VS</span> 
+                <span class="mc-name" id="s2_mc2_nombre">???</span>
+            </div>
+            <select id="s2_res">
+                <option value="victoria">Victoria Izquierda</option>
+                <option value="victoria_replica">Victoria Réplica Izquierda</option>
+                <option value="derrota_replica">Victoria Réplica Derecha</option>
+                <option value="derrota">Victoria Derecha</option>
+                <option value="victoria_total">Victoria Total Izquierda</option>
+                <option value="derrota_total">Victoria Total Derecha</option>
+            </select>
+            <button class="btn-batalla" id="btn_s2" onclick="procesarBatallaAuto('S2')">⚔️ Registrar Resultado</button>
+        </div>
+
+        <div class="batalla-caja" style="border-left-color: #eccc68;">
+            <h4 style="color: #eccc68;">🏆 La Gran Final</h4>
+            <div class="versus" style="background: #3d3d2b;">
+                <span class="mc-name" id="f_mc1_nombre" style="color: #eccc68;">Ganador S1</span> 
+                <span class="vs-text">VS</span> 
+                <span class="mc-name" id="f_mc2_nombre" style="color: #eccc68;">Ganador S2</span>
+            </div>
+            <select id="f_res">
+                <option value="victoria">Victoria Izquierda</option>
+                <option value="victoria_replica">Victoria Réplica Izquierda</option>
+                <option value="derrota_replica">Victoria Réplica Derecha</option>
+                <option value="derrota">Victoria Derecha</option>
+                <option value="victoria_total">Victoria Total Izquierda</option>
+                <option value="derrota_total">Victoria Total Derecha</option>
+            </select>
+            <button class="btn-batalla" id="btn_f" onclick="procesarBatallaAuto('F')" disabled style="background-color: #57606f;">⚔️ Registrar Gran Final</button>
+        </div>
+
+        <div id="resumen_final" style="display: none; text-align: center; margin-top: 30px; background: #1e1e2f; padding: 20px; border-radius: 5px;">
+            <h3 style="color: #2ed573;">Resultados Finales</h3>
+            <p>👑 Campeón: <strong id="c_camp" style="color: #eccc68;"></strong></p>
+            <p>🥈 Subcampeón: <strong id="c_sub"></strong></p>
+            <button class="btn-cerrar" onclick="cerrarTorneoAutomatico()">Repartir Pozo y Finalizar Registro</button>
+        </div>
     </div>
 
     <script type="module" src="torneos.js"></script>
