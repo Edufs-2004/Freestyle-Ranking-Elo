@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Ranking Freestyle Oficial</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f4f9; padding: 20px; display: flex; gap: 20px; flex-wrap: wrap; }
+        .panel { background: white; padding: 20px; border-radius: 8px; flex: 1; min-width: 300px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        input, select, button { width: 100%; margin-top: 10px; padding: 10px; box-sizing: border-box; }
+        button { background-color: #28a745; color: white; border: none; cursor: pointer; font-weight: bold; }
+        button:hover { background-color: #218838; }
+        .tabla-ranking { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        .tabla-ranking th, .tabla-ranking td { border-bottom: 1px solid #ddd; padding: 10px; text-align: left; }
+        .tabla-ranking th { background-color: #333; color: white; }
+    </style>
+</head>
+<body>
+
+    <div class="panel">
+        <h2>1. Registrar MC</h2>
+        <input type="text" id="nuevoAka" placeholder="A.K.A del competidor">
+        <button onclick="agregarMC()">Añadir al Roster</button>
+    </div>
+
+    <div class="panel">
+        <h2>2. Registrar Batalla</h2>
+        
+        <label>Competidor 1:</label>
+        <select id="selectMc1"></select>
+
+        <label>Competidor 2:</label>
+        <select id="selectMc2"></select>
+
+        <label>Resultado para el Competidor 1:</label>
+        <select id="resultadoBatalla">
+            <option value="victoria_total">Victoria Total (100% votos a favor)</option>
+            <option value="victoria">Victoria Normal</option>
+            <option value="victoria_replica">Victoria tras Réplica</option>
+            <option value="derrota_replica">Derrota tras Réplica</option>
+            <option value="derrota">Derrota Directa</option>
+            <option value="derrota_total">Derrota Total (100% votos en contra)</option>
+        </select>
+
+        <button onclick="procesarBatalla()">Calcular y Guardar</button>
+        <div id="textoResultado" style="margin-top: 15px; font-weight: bold;"></div>
+    </div>
+
+    <div class="panel" style="flex: 2; min-width: 400px;">
+        <h2>3. Tabla de Posiciones</h2>
+        <table class="tabla-ranking">
+            <thead>
+                <tr>
+                    <th>Pos</th>
+                    <th>A.K.A</th>
+                    <th>Elo</th>
+                    <th>Batallas</th>
+                </tr>
+            </thead>
+            <tbody id="cuerpoRanking">
+                </tbody>
+        </table>
+        <button onclick="borrarDatos()" style="background-color: #dc3545; margin-top: 20px;">Borrar Todos los Datos</button>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
