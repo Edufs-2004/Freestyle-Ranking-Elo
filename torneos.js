@@ -13,7 +13,7 @@ const RUTA_TORNEO = {
     'F':  { sig: 'FIN', slot: null }
 };
 
-let evento = { id: null, pozo: 0, nombre: "", franquicia: "", formato: "" };
+let evento = { id: null, pozo: 0, nombre: "", franquicia: "", formatoStr: "", fecha: "" };
 Object.keys(RUTA_TORNEO).forEach(fase => { evento[fase] = { mc1: null, mc2: null, ganador: null, perdedor: null }; });
 
 let mcsDisponibles = [];
@@ -90,8 +90,10 @@ function irACruces() {
     evento.nombre = document.getElementById('nombreTorneo').value.trim();
     evento.franquicia = document.getElementById('franquiciaTorneo').value;
     evento.formatoStr = document.getElementById('formatoTorneo').options[document.getElementById('formatoTorneo').selectedIndex].text;
+    evento.fecha = document.getElementById('fechaTorneo').value;
     
     if (!evento.nombre) return alert("Ponle un nombre al evento.");
+    if (!evento.fecha) return alert("Por favor, selecciona la fecha oficial en la que ocurrió el evento.");
     if (mcsSeleccionados.length !== limiteMcsActual) return alert(`Necesitas exactamente ${limiteMcsActual} MCs. Llevas ${mcsSeleccionados.length}.`);
 
     let htmlSetup = '';
@@ -188,11 +190,18 @@ async function iniciarTorneo() {
     evento.pozo = Math.round((sumaElo / limiteMcsActual) * 0.05);
     document.getElementById('mensajeConsola').innerHTML = "Registrando en la base de datos...";
 
-    // Guardar en DB con Franquicia y Formato
-    const { data: torneoDB } = await supabase.from('torneos').insert([{ 
+    // Guardar en DB con Franquicia, Formato y FECHA (V0.9.0)
+    const { data: torneoDB, error } = await supabase.from('torneos').insert([{ 
         nombre: evento.nombre, franquicia: evento.franquicia, formato: evento.formatoStr,
+        fecha_evento: evento.fecha,
         estado: 'En Curso', elo_medio_calculado: Math.round(sumaElo/limiteMcsActual), pozo_total: evento.pozo 
     }]).select();
+    
+    if (error) {
+        console.error(error);
+        return alert("Error al guardar en la nube. Revisa que agregaste la columna 'fecha_evento' en Supabase.");
+    }
+    
     evento.id = torneoDB[0].id;
 
     let registrosInscripcion = idsAValidar.map(id => ({ torneo_id: evento.id, competidor_id: id }));
@@ -215,7 +224,7 @@ async function iniciarTorneo() {
         for(let i=1; i<=maxIteraciones; i++) {
             let idFase = faseLetra + (faseLetra === 'F' ? '' : i);
             let titulo = faseLetra === 'O' ? `Octavos ${i}` : (faseLetra === 'C' ? `Cuartos ${i}` : (faseLetra === 'S' ? `Semifinal ${i}` : 'Final'));
-            htmlAcumulado += generarHTMLBatalla(idFase, titulo, prefijo); // Le pasamos el prefijo de arranque para desbloquear botones
+            htmlAcumulado += generarHTMLBatalla(idFase, titulo, prefijo); 
         }
         contenedorDiv.innerHTML = htmlAcumulado;
     });
@@ -295,7 +304,6 @@ async function procesarBatallaAuto(faseStr) {
 async function cerrarTorneoAutomatico() {
     if(!confirm("¿Cerrar el evento y sumar la distribución de puntos?")) return;
 
-    // Matemáticas dinámicas según el tamaño del evento
     let bonoCamp = 0, bonoSub = 0, bonoSemi = 0, bonoCuartos = 0;
 
     if(limiteMcsActual === 16) {
