@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Museo Histórico - Liga Fénix</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #1e1e2f; color: white; padding: 20px; }
+        .panel { background: #2a2a40; padding: 20px; border-radius: 8px; max-width: 900px; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.5); margin-bottom: 20px; }
+        .navegacion { text-align: center; margin-bottom: 20px; display: flex; justify-content: center; gap: 15px;}
+        .navegacion a { color: #1e90ff; text-decoration: none; font-weight: bold; background: #2f3542; padding: 10px 20px; border-radius: 5px; }
+        .navegacion a:hover { background: #373752; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #1e1e2f; }
+        th, td { border: 1px solid #373752; padding: 12px; text-align: left; }
+        th { background-color: #ff4757; color: white; }
+        
+        button { cursor: pointer; font-weight: bold; border-radius: 5px; border: none; padding: 8px 12px; }
+        .btn-ver { background-color: #1e90ff; color: white; }
+        .btn-borrar { background-color: #ff4757; color: white; margin-left: 5px; }
+        .btn-recalcular { background-color: #eccc68; color: black; width: 100%; padding: 15px; font-size: 16px; margin-top: 10px;}
+        
+        /* Estilos del visualizador de llaves */
+        .fase-titulo { color: #2ed573; margin-top: 20px; border-bottom: 1px solid #373752; padding-bottom: 5px;}
+        .batalla-item { background: #2f3542; padding: 10px; margin: 5px 0; border-radius: 5px; display: flex; justify-content: space-between; align-items: center;}
+        .ganador-text { color: #eccc68; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="navegacion">
+        <a href="batallas.html">⚙️ Calculadora Global</a>
+        <a href="index.html">🏆 Organizar Torneo</a>
+    </div>
+
+    <div class="panel" style="border: 2px solid #eccc68;">
+        <h2 style="color: #eccc68; margin-top: 0;">⚠️ Zona de Reparación (Hard Reset)</h2>
+        <p style="color: #aaa; font-size: 14px;">Si eliminas un torneo de prueba, los puntos de la tabla global quedarán desfasados. Usa este botón para formatear a todos los MCs a 1500 pts y resimular toda la historia en un segundo.</p>
+        <button class="btn-recalcular" onclick="repararEloGlobal()">🔄 Recalcular Elo Global Desde Cero</button>
+        <div id="msgReparacion" style="text-align: center; margin-top: 10px; font-weight: bold;"></div>
+    </div>
+
+    <div class="panel" id="panelLista">
+        <h2>🏛️ Museo de Torneos Oficiales</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Franquicia</th>
+                    <th>Nombre</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="cuerpoTorneos">
+                <tr><td colspan="5" style="text-align: center;">Cargando historial...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="panel" id="panelDetalle" style="display: none;">
+        <button onclick="cerrarDetalle()" style="background-color: #57606f; color: white; margin-bottom: 20px;">⬅️ Volver al Museo</button>
+        <h2 id="detalleTitulo" style="color: #1e90ff; margin-top: 0;">Detalles del Torneo</h2>
+        <p id="detalleInfo" style="color: #aaa;"></p>
+        
+        <div id="contenedorBatallas"></div>
+    </div>
+
+    <script type="module" src="museo.js"></script>
+</body>
+</html>

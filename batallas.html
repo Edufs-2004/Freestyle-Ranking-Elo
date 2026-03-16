@@ -4,80 +4,82 @@
     <meta charset="UTF-8">
     <title>Ranking Freestyle Oficial</title>
     <style>
-        body { font-family: Arial, sans-serif; background-color: #f4f4f9; padding: 20px; display: flex; gap: 20px; flex-wrap: wrap; }
-        .panel { background: white; padding: 20px; border-radius: 8px; flex: 1; min-width: 300px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        input, select, button { width: 100%; margin-top: 10px; padding: 10px; box-sizing: border-box; border-radius: 5px; border: 1px solid #ccc;}
-        button { background-color: #28a745; color: white; border: none; cursor: pointer; font-weight: bold; }
-        button:hover { background-color: #218838; }
-        .tabla-ranking { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        .tabla-ranking th, .tabla-ranking td { border-bottom: 1px solid #ddd; padding: 10px; text-align: left; }
-        .tabla-ranking th { background-color: #333; color: white; }
-        .btn-enlace { display: inline-block; background-color: #1e90ff; color: white; text-align: center; text-decoration: none; padding: 12px; border-radius: 5px; font-weight: bold; width: 100%; box-sizing: border-box; margin-top: 15px;}
-        .btn-enlace:hover { background-color: #3742fa; }
+        body { font-family: Arial, sans-serif; background-color: #1e1e2f; color: white; padding: 20px; }
+        .panel { background: #2a2a40; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); margin-bottom: 20px; }
+        input, select, button { width: 100%; margin-top: 10px; padding: 10px; box-sizing: border-box; border-radius: 5px; border: none; }
+        button { background-color: #ff4757; color: white; cursor: pointer; font-weight: bold; font-size: 16px;}
+        button:hover { background-color: #ff6b81; }
+        
+        .tabla-ranking { width: 100%; border-collapse: collapse; margin-top: 15px; background: #1e1e2f; }
+        .tabla-ranking th, .tabla-ranking td { border: 1px solid #373752; padding: 10px; text-align: left; }
+        .tabla-ranking th { background-color: #ff4757; color: white; }
+        
+        /* LA NAVEGACIÓN UNIFICADA */
+        .navegacion { text-align: center; margin-bottom: 20px; display: flex; justify-content: center; gap: 15px;}
+        .navegacion a { color: #1e90ff; text-decoration: none; font-weight: bold; background: #2f3542; padding: 10px 20px; border-radius: 5px; }
+        .navegacion a:hover { background: #373752; }
+        
+        /* Estructura de columnas */
+        .layout-container { display: flex; gap: 20px; flex-wrap: wrap; }
+        .col-izq { flex: 1; min-width: 300px; }
+        .col-der { flex: 2; min-width: 400px; }
     </style>
 </head>
 <body>
 
-    <div style="display: flex; flex-direction: column; gap: 20px; flex: 1; min-width: 300px;">
-        <div class="panel">
-            <h2>1. Registrar MC Nuevo</h2>
-            <input type="text" id="nuevoAka" placeholder="A.K.A del competidor">
-            <button onclick="agregarMC()">Añadir al Roster Global</button>
-        </div>
-
-        <div class="panel" style="border: 2px solid #1e90ff; background-color: #f0f8ff;">
-            <h2 style="color: #1e90ff; margin-top: 0;">🏆 Crear Evento Histórico</h2>
-            <p style="font-size: 0.9em; color: #555;">Calcula pozos, llaves y registra torneos completos con fecha.</p>
-            <a href="index.html" class="btn-enlace">Ir al Organizador de Torneos</a>
-        </div>
+    <div class="navegacion">
+        <a href="index.html">🏆 Organizar Torneo</a>
+        <a href="museo.html">🏛️ Museo Histórico</a>
     </div>
 
-    <div style="flex: 2; min-width: 400px; display: flex; flex-direction: column; gap: 20px;">
-        
-        <div class="panel" style="border-left: 5px solid #ff4757;">
-            <h2 style="margin-top: 0;">🔍 Motor de Recálculo (Filtros)</h2>
-            <p style="font-size: 0.9em; color: #555;">Aísla estadísticas. El sistema bajará a todos a 1500 pts y simulará la historia aplicando solo los eventos que coincidan.</p>
-            
-            <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-                <div style="flex: 1; min-width: 140px;">
-                    <label>Franquicia:</label>
-                    <select id="filtroFranquicia">
-                        <option value="TODAS">Todas (Global)</option>
-                        <option value="Red Bull">Red Bull Batalla</option>
-                        <option value="FMS">FMS</option>
-                        <option value="God Level">God Level</option>
-                        <option value="BDM">BDM</option>
-                        <option value="Quinto Escalón">Quinto Escalón</option>
-                        <option value="Otro">Otro</option>
-                    </select>
-                </div>
-                <div style="flex: 1; min-width: 140px;">
-                    <label>Desde Fecha:</label>
-                    <input type="date" id="filtroDesde">
-                </div>
-                <div style="flex: 1; min-width: 140px;">
-                    <label>Hasta Fecha:</label>
-                    <input type="date" id="filtroHasta">
-                </div>
-                <div style="display: flex; align-items: flex-end; flex: 1; min-width: 140px;">
-                    <button onclick="aplicarFiltros()" style="background-color: #ff4757; margin-top: 0;">⚙️ Recalcular Tabla</button>
-                </div>
+    <div class="layout-container">
+        <div class="col-izq">
+            <div class="panel">
+                <h2 style="color: #1e90ff; margin-top: 0;">1. Registrar MC Nuevo</h2>
+                <input type="text" id="nuevoAka" placeholder="A.K.A del competidor">
+                <button onclick="agregarMC()" style="background-color: #1e90ff;">Añadir al Roster Global</button>
+            </div>
+
+            <div class="panel" style="border-left: 5px solid #ff4757;">
+                <h2 style="margin-top: 0; color: #ff4757;">🔍 Motor de Recálculo</h2>
+                <p style="font-size: 0.9em; color: #aaa;">Aísla estadísticas. Simula la historia aplicando solo los eventos que coincidan.</p>
+                
+                <label>Franquicia:</label>
+                <select id="filtroFranquicia">
+                    <option value="TODAS">Todas (Global)</option>
+                    <option value="Red Bull">Red Bull Batalla</option>
+                    <option value="FMS">FMS</option>
+                    <option value="God Level">God Level</option>
+                    <option value="BDM">BDM</option>
+                    <option value="Quinto Escalón">Quinto Escalón</option>
+                    <option value="Otro">Otro</option>
+                </select>
+                
+                <label>Desde Fecha:</label>
+                <input type="date" id="filtroDesde">
+                
+                <label>Hasta Fecha:</label>
+                <input type="date" id="filtroHasta">
+                
+                <button onclick="aplicarFiltros()" style="margin-top: 15px;">⚙️ Recalcular Tabla</button>
             </div>
         </div>
 
-        <div class="panel">
-            <h2 id="tituloTabla">3. Tabla de Posiciones Global</h2>
-            <table class="tabla-ranking">
-                <thead>
-                    <tr>
-                        <th>Pos</th>
-                        <th>A.K.A</th>
-                        <th>Elo</th>
-                        <th>Batallas</th>
-                    </tr>
-                </thead>
-                <tbody id="cuerpoRanking"></tbody>
-            </table>
+        <div class="col-der">
+            <div class="panel">
+                <h2 id="tituloTabla" style="margin-top: 0;">3. Tabla de Posiciones Global</h2>
+                <table class="tabla-ranking">
+                    <thead>
+                        <tr>
+                            <th>Pos</th>
+                            <th>A.K.A</th>
+                            <th>Elo</th>
+                            <th>Batallas</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cuerpoRanking"></tbody>
+                </table>
+            </div>
         </div>
     </div>
 
