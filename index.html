@@ -10,7 +10,6 @@
         button { background-color: #ff4757; color: white; border: none; padding: 12px; width: 100%; cursor: pointer; font-weight: bold; border-radius: 5px; font-size: 16px; margin-top: 15px; }
         button:hover { background-color: #ff6b81; }
         
-        /* LA NAVEGACIÓN UNIFICADA */
         .navegacion { text-align: center; margin-bottom: 20px; display: flex; justify-content: center; gap: 15px;}
         .navegacion a { color: #1e90ff; text-decoration: none; font-weight: bold; background: #2f3542; padding: 10px 20px; border-radius: 5px; }
         .navegacion a:hover { background: #373752; }
@@ -42,13 +41,13 @@
 </head>
 <body>
 
-<div class="navegacion">
+    <div class="navegacion">
         <a href="batallas.html">⚙️ Calculadora</a>
-        <a href="index.html">🏆 Torneos</a>
+        <a href="index.html" style="background: #1e90ff; color: white;">🏆 Torneos</a>
         <a href="museo.html">🏛️ Museo</a>
         <a href="perfil.html">👤 Perfil Atleta</a>
     </div>
-    
+
     <div class="panel" id="panelSeleccion">
         <h2>Paso 1: Datos del Evento Histórico</h2>
         <input type="text" id="nombreTorneo" placeholder="Ej: Red Bull Nacional España 2026">
@@ -58,7 +57,7 @@
                 <label>Franquicia:</label>
                 <select id="franquiciaTorneo">
                     <option value="Red Bull">Red Bull Batalla</option>
-                    <option value="FMS">FMS (Formato Copa)</option>
+                    <option value="FMS">FMS (Modo Liga)</option>
                     <option value="God Level">God Level</option>
                     <option value="BDM">BDM</option>
                     <option value="Quinto Escalón">Quinto Escalón</option>
@@ -68,9 +67,10 @@
             <div>
                 <label>Formato (Tamaño):</label>
                 <select id="formatoTorneo" onchange="cambiarFormato()">
-                    <option value="16">Octavos de Final (16 MCs)</option>
-                    <option value="8">Cuartos de Final (8 MCs)</option>
-                    <option value="4">Semifinales (4 MCs)</option>
+                    <option value="16">Eliminatoria (16 MCs)</option>
+                    <option value="8">Eliminatoria (8 MCs)</option>
+                    <option value="4">Eliminatoria (4 MCs)</option>
+                    <option value="liga" style="font-weight: bold; color: #1e90ff;">📊 Modo Liga (Jornada Libre)</option>
                 </select>
             </div>
             <div>
@@ -86,7 +86,7 @@
         </div>
         <div id="contenedorChips" class="chips-container"><span style="color: #57606f; margin: auto;">Esperando competidores...</span></div>
         
-        <button onclick="irACruces()">Continuar a las Llaves ➡️</button>
+        <button onclick="irACruces()">Continuar a los Cruces ➡️</button>
     </div>
 
     <div class="panel" id="panelCreacion" style="display: none;">
@@ -94,6 +94,21 @@
         <p id="tituloPaso2" style="color: #2ed573; font-weight: bold;"></p>
         
         <div id="contenedorSetupCruces" class="grid-fase"></div> 
+
+        <div id="setupLigaDiv" style="display: none; background: #2a2a40; border: 2px dashed #1e90ff; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+            <h3 style="margin-top: 0; color: #1e90ff;">Crear Enfrentamientos de Jornada</h3>
+            <p style="font-size: 13px; color: #aaa;">Puedes añadir tantas batallas como quieras. Recuerda registrar los resultados en orden cronológico.</p>
+            
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <input type="text" id="ligaFase" placeholder="Fase (Ej: Jornada 1)" value="Jornada 1" style="flex: 1; min-width: 100px; margin: 0;">
+                <select id="ligaMC1" style="flex: 2; min-width: 150px; margin: 0;"></select>
+                <span style="font-weight: bold;">VS</span>
+                <select id="ligaMC2" style="flex: 2; min-width: 150px; margin: 0;"></select>
+                <button onclick="agregarBatallaLiga()" style="margin: 0; background: #2ed573; flex: 1;">➕ Añadir Batalla</button>
+            </div>
+            
+            <div id="listaBatallasLiga" style="margin-top: 15px;"></div>
+        </div>
 
         <button onclick="iniciarTorneo()">Confirmar Cuadro e Iniciar Evento</button>
         <button onclick="location.reload()" style="background-color: #57606f; margin-top: 10px;">⬅️ Volver y Reiniciar</button>
@@ -108,27 +123,36 @@
             <h3 style="color: #1e90ff; border-bottom: 1px solid #373752; padding-bottom: 10px;">🔥 Octavos de Final</h3>
             <div id="bracketOctavos" class="grid-fase"></div>
         </div>
-
         <div id="zonaCuartos">
             <h3 style="color: #2ed573; border-bottom: 1px solid #373752; padding-bottom: 10px; margin-top: 40px;">⚡ Cuartos de Final</h3>
             <div id="bracketCuartos" class="grid-fase"></div>
         </div>
-
         <div id="zonaSemis">
             <h3 style="color: #ff6b81; border-bottom: 1px solid #373752; padding-bottom: 10px; margin-top: 40px;">🌪️ Semifinales</h3>
             <div id="bracketSemis" class="grid-fase"></div>
         </div>
-
         <div id="zonaFinal">
             <h3 style="color: #eccc68; border-bottom: 1px solid #373752; padding-bottom: 10px; margin-top: 40px;">🏆 Gran Final</h3>
             <div id="bracketFinal" class="grid-fase" style="grid-template-columns: 1fr;"></div>
         </div>
 
+        <div id="zonaLigaActiva" style="display: none;">
+            <h3 style="color: #1e90ff; border-bottom: 1px solid #373752; padding-bottom: 10px;">📊 Panel de Jornada Activa</h3>
+            <div id="bracketLiga" class="grid-fase"></div>
+        </div>
+
         <div id="resumen_final" style="display: none; text-align: center; margin-top: 40px; background: #1e1e2f; padding: 20px; border-radius: 5px; border: 2px solid #eccc68;">
-            <h3 style="color: #2ed573; margin-top: 0;">¡Torneo Concluido!</h3>
-            <p>👑 Campeón: <strong id="c_camp" style="color: #eccc68; font-size: 20px;"></strong></p>
-            <p>🥈 Subcampeón: <strong id="c_sub"></strong></p>
-            <button class="btn-cerrar" onclick="cerrarTorneoAutomatico()">Repartir Pozo y Finalizar Registro</button>
+            <div id="cierre_eliminatoria">
+                <h3 style="color: #2ed573; margin-top: 0;">¡Torneo Concluido!</h3>
+                <p>👑 Campeón: <strong id="c_camp" style="color: #eccc68; font-size: 20px;"></strong></p>
+                <p>🥈 Subcampeón: <strong id="c_sub"></strong></p>
+                <button class="btn-cerrar" onclick="cerrarTorneoAutomatico()">Repartir Pozo y Finalizar Registro</button>
+            </div>
+            <div id="cierre_liga" style="display: none;">
+                <h3 style="color: #2ed573; margin-top: 0;">Opciones de Liga</h3>
+                <p style="color: #aaa;">Las batallas de liga se guardan al instante. Cuando termines la jornada, cierra el panel.</p>
+                <button class="btn-cerrar" onclick="cerrarLiga()">🏁 Finalizar Jornada</button>
+            </div>
         </div>
     </div>
 
