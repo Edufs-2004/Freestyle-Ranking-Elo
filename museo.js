@@ -31,14 +31,12 @@ async function cargarTorneos() {
 }
 
 // ==========================================
-// 2. ELIMINAR TORNEO (EL BORRADO SEGURO)
+// 2. ELIMINAR TORNEO
 // ==========================================
 async function eliminarTorneo(id, nombre) {
     let confirmacion = confirm(`⚠️ PELIGRO ⚠️\n¿Estás seguro de que quieres borrar para siempre el torneo "${nombre}"?\n\nRecuerda darle al botón amarillo de "Recalcular Elo" después de borrarlo para arreglar los puntajes.`);
     if (!confirmacion) return;
 
-    // Supabase no borra en cascada por defecto a menos que se configure en SQL, 
-    // así que borramos manualmente a los "hijos" primero para que no haya errores.
     document.getElementById('cuerpoTorneos').innerHTML = '<tr><td colspan="5" style="text-align:center; color: #ff4757;">Borrando de la nube...</td></tr>';
 
     await supabase.from('batallas').delete().eq('torneo_id', id);
@@ -50,31 +48,29 @@ async function eliminarTorneo(id, nombre) {
 }
 
 // ==========================================
-// 3. REPARAR ELO (LA MÁQUINA DEL TIEMPO)
+// 3. REPARAR ELO (LA MÁQUINA DEL TIEMPO V1.2.0)
 // ==========================================
 async function repararEloGlobal() {
-    let confirmacion = confirm("🔄 ¿Iniciar Recálculo Global?\n\nEsto bajará a todos los MCs a 1500 puntos y simulará la historia completa leyendo los torneos que existen actualmente para corregir el Elo.\n\nÚsalo después de borrar torneos de prueba.");
+    let confirmacion = confirm("🔄 ¿Iniciar Recálculo Global?\n\nEsto bajará a todos los MCs a 1500 puntos y simulará la historia completa re-escribiendo los registros contables.");
     if (!confirmacion) return;
 
     let msg = document.getElementById('msgReparacion');
     msg.style.color = "#eccc68";
     msg.innerText = "⏳ 1. Reseteando a todos los MCs a 1500 puntos...";
 
-    // 1. Traer todos los MCs y resetearlos localmente
     const { data: mcs } = await supabase.from('competidores').select('*');
     let rankingNube = {};
     mcs.forEach(mc => { rankingNube[mc.id] = { id: mc.id, elo: 1500, batallas: 0 }; });
 
     msg.innerText = "⏳ 2. Descargando el archivo histórico...";
-    // 2. Traer TODAS las batallas ordenadas cronológicamente
     const { data: batallas } = await supabase.from('batallas').select(`*, torneos(fecha_evento)`).order('id', { ascending: true });
     
-    // Orden estricto por fecha del torneo
     batallas.sort((a, b) => new Date(a.torneos.fecha_evento) - new Date(b.torneos.fecha_evento));
 
-    msg.innerText = "⏳ 3. Simulando años de batallas en un segundo...";
-    // 3. Simular todas las matemáticas en memoria
-    batallas.forEach(b => {
+    msg.innerText = "⏳ 3. Simulando años de batallas y re-escribiendo el Libro Mayor...";
+    
+    // Este ciclo reescribe la tabla de batallas con los puntos reales (Aísla errores)
+    for (let b of batallas) {
         let R1 = rankingNube[b.mc1_id].elo;
         let R2 = rankingNube[b.mc2_id].elo;
         let E1 = 1 / (1 + Math.pow(10, (R2 - R1) / 400));
@@ -92,28 +88,35 @@ async function repararEloGlobal() {
         let p1 = K * (S1 - E1); let p2 = K * (S2 - E2);
         if (bono1) p1 *= 1.2; if (bono2) p2 *= 1.2;
 
-        rankingNube[b.mc1_id].elo = Math.round(R1 + p1);
-        rankingNube[b.mc2_id].elo = Math.round(R2 + p2);
+        let p1_red = Math.round(p1);
+        let p2_red = Math.round(p2);
+
+        // ¡ACTUALIZAMOS EL LIBRO MAYOR EN SUPABASE CON LOS PUNTOS CORREGIDOS!
+        await supabase.from('batallas').update({
+            elo_previo_mc1: R1,
+            elo_previo_mc2: R2,
+            cambio_mc1: p1_red,
+            cambio_mc2: p2_red
+        }).eq('id', b.id);
+
+        rankingNube[b.mc1_id].elo = R1 + p1_red;
+        rankingNube[b.mc2_id].elo = R2 + p2_red;
         rankingNube[b.mc1_id].batallas += 1;
         rankingNube[b.mc2_id].batallas += 1;
-    });
-
-    // POZOS: Por ahora la simulación recalcula batallas individuales. Los bonos de pozo (Campeón, Sub) 
-    // requieren una lógica más extensa, pero este botón arregla el 95% del desfase estadístico al borrar tests.
+    }
 
     msg.innerText = "⏳ 4. Guardando nueva realidad en la Base de Datos...";
-    // 4. Subir los nuevos puntos a Supabase (Actualización masiva)
     for (const key in rankingNube) {
         let mc = rankingNube[key];
         await supabase.from('competidores').update({ elo_actual: mc.elo, batallas_totales: mc.batallas }).eq('id', mc.id);
     }
 
     msg.style.color = "#2ed573";
-    msg.innerText = "✅ ¡Línea temporal reparada con éxito!";
+    msg.innerText = "✅ ¡Línea temporal y Libro Mayor reparados con éxito!";
 }
 
 // ==========================================
-// 4. VER EL BRACKET (VISUALIZADOR)
+// 4. VER EL BRACKET
 // ==========================================
 async function verTorneo(idTorneo, nombre) {
     document.getElementById('panelLista').style.display = 'none';
@@ -121,18 +124,20 @@ async function verTorneo(idTorneo, nombre) {
     document.getElementById('detalleTitulo').innerText = `🏆 ${nombre}`;
     document.getElementById('contenedorBatallas').innerHTML = '<p>Cargando llaves...</p>';
 
-    // Traer batallas del torneo con los nombres de los MCs
-    const { data: batallas } = await supabase
+    const { data: batallas, error } = await supabase
         .from('batallas')
-        .select(`fase, resultado, mc1:competidores!batallas_mc1_id_fkey(aka), mc2:competidores!batallas_mc2_id_fkey(aka)`)
+        .select(`fase, resultado, mc1_id, mc2_id`)
         .eq('torneo_id', idTorneo);
 
-    if(!batallas || batallas.length === 0) {
+    if(error || !batallas || batallas.length === 0) {
         document.getElementById('contenedorBatallas').innerHTML = '<p>No hay batallas registradas en este evento.</p>';
         return;
     }
 
-    // Agrupar batallas por fase
+    const { data: competidores } = await supabase.from('competidores').select('id, aka');
+    let mapMcs = {};
+    competidores.forEach(c => mapMcs[c.id] = c.aka);
+
     let fasesOrdenadas = { 'O': [], 'C': [], 'S': [], 'F': [] };
     
     batallas.forEach(b => {
@@ -141,7 +146,6 @@ async function verTorneo(idTorneo, nombre) {
     });
 
     let htmlVisual = '';
-    
     const dicNombresFases = { 'O': '🔥 Octavos', 'C': '⚡ Cuartos', 'S': '🌪️ Semifinales', 'F': '🏆 Final' };
 
     ['O', 'C', 'S', 'F'].forEach(letra => {
@@ -149,11 +153,13 @@ async function verTorneo(idTorneo, nombre) {
             htmlVisual += `<h3 class="fase-titulo">${dicNombresFases[letra]}</h3>`;
             
             fasesOrdenadas[letra].forEach(batalla => {
+                let nombre1 = mapMcs[batalla.mc1_id] || 'Desconocido';
+                let nombre2 = mapMcs[batalla.mc2_id] || 'Desconocido';
+
                 let ganoIzquierda = ['victoria', 'victoria_replica', 'victoria_total'].includes(batalla.resultado);
-                let mc1Final = ganoIzquierda ? `<span class="ganador-text">👑 ${batalla.mc1.aka}</span>` : batalla.mc1.aka;
-                let mc2Final = !ganoIzquierda ? `<span class="ganador-text">${batalla.mc2.aka} 👑</span>` : batalla.mc2.aka;
+                let mc1Final = ganoIzquierda ? `<span class="ganador-text">👑 ${nombre1}</span>` : nombre1;
+                let mc2Final = !ganoIzquierda ? `<span class="ganador-text">${nombre2} 👑</span>` : nombre2;
                 
-                // Limpiar el texto del resultado para que se vea bonito
                 let textoRes = batalla.resultado.replace('_', ' ').toUpperCase();
 
                 htmlVisual += `
@@ -175,10 +181,7 @@ function cerrarDetalle() {
     document.getElementById('panelLista').style.display = 'block';
 }
 
-// Exportar funciones
-window.verTorneo = verTorneo;
-window.eliminarTorneo = eliminarTorneo;
-window.repararEloGlobal = repararEloGlobal;
-window.cerrarDetalle = cerrarDetalle;
+window.verTorneo = verTorneo; window.eliminarTorneo = eliminarTorneo;
+window.repararEloGlobal = repararEloGlobal; window.cerrarDetalle = cerrarDetalle;
 
 cargarTorneos();

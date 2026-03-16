@@ -18,10 +18,10 @@ Object.keys(RUTA_TORNEO).forEach(fase => { evento[fase] = { mc1: null, mc2: null
 
 let mcsDisponibles = [];
 let mcsSeleccionados = []; 
-let limiteMcsActual = 16; // Por defecto es Octavos
+let limiteMcsActual = 16; 
 
 // ==========================================
-// 1. CARGA INICIAL, BUSCADOR Y FORMATOS
+// 1. CARGA INICIAL Y BUSCADOR
 // ==========================================
 async function cargarBD() {
     const { data } = await supabase.from('competidores').select('*').order('aka', { ascending: true });
@@ -32,7 +32,6 @@ function cambiarFormato() {
     limiteMcsActual = parseInt(document.getElementById('formatoTorneo').value);
     document.getElementById('tituloRoster').innerText = `Roster del Torneo (Elige ${limiteMcsActual} MCs)`;
     
-    // Si el usuario cambia el formato y ya tenía más chips de la cuenta, los borramos
     if(mcsSeleccionados.length > limiteMcsActual) {
         mcsSeleccionados = mcsSeleccionados.slice(0, limiteMcsActual);
         dibujarChips();
@@ -58,8 +57,6 @@ function filtrarBuscador() {
         });
     }
 
-    // --- LA MAGIA DE LA V1.1.0: BOTÓN DE CREACIÓN RÁPIDA ---
-    // Buscamos si ya existe alguien con ese nombre exacto para no sugerir crearlo duplicado
     let coincidenciaExacta = mcsDisponibles.find(mc => mc.aka.toLowerCase() === texto);
     
     if (!coincidenciaExacta && textoOriginal.length > 0) {
@@ -86,6 +83,35 @@ function agregarChip(id) {
     dibujarChips();
 }
 
+async function crearYAgregarMC(nombre) {
+    if (mcsSeleccionados.length >= limiteMcsActual) {
+        alert(`Límite alcanzado: El formato elegido solo admite ${limiteMcsActual} competidores.`);
+        document.getElementById('buscadorMCs').value = '';
+        document.getElementById('sugerenciasMCs').style.display = 'none';
+        return;
+    }
+
+    document.getElementById('sugerenciasMCs').innerHTML = '<div class="sugerencia-item">⏳ Creando en la nube...</div>';
+
+    const { data, error } = await supabase
+        .from('competidores')
+        .insert([{ aka: nombre, elo_actual: 1500, batallas_totales: 0 }])
+        .select();
+
+    if (error) {
+        console.error(error);
+        return alert("Error al crear el MC en la base de datos.");
+    }
+
+    let nuevoMC = data[0]; 
+    mcsDisponibles.push(nuevoMC);
+    mcsSeleccionados.push(nuevoMC);
+
+    document.getElementById('buscadorMCs').value = '';
+    document.getElementById('sugerenciasMCs').style.display = 'none';
+    dibujarChips();
+}
+
 function quitarChip(id) { mcsSeleccionados = mcsSeleccionados.filter(mc => mc.id !== id); dibujarChips(); }
 
 function dibujarChips() {
@@ -101,7 +127,7 @@ function dibujarChips() {
 }
 
 // ==========================================
-// 2. CONSTRUIR HTML DINÁMICO SEGÚN FORMATO
+// 2. CONSTRUIR HTML DINÁMICO
 // ==========================================
 function irACruces() {
     evento.nombre = document.getElementById('nombreTorneo').value.trim();
@@ -207,7 +233,6 @@ async function iniciarTorneo() {
     evento.pozo = Math.round((sumaElo / limiteMcsActual) * 0.05);
     document.getElementById('mensajeConsola').innerHTML = "Registrando en la base de datos...";
 
-    // Guardar en DB con Franquicia, Formato y FECHA (V0.9.0)
     const { data: torneoDB, error } = await supabase.from('torneos').insert([{ 
         nombre: evento.nombre, franquicia: evento.franquicia, formato: evento.formatoStr,
         fecha_evento: evento.fecha,
@@ -216,7 +241,7 @@ async function iniciarTorneo() {
     
     if (error) {
         console.error(error);
-        return alert("Error al guardar en la nube. Revisa que agregaste la columna 'fecha_evento' en Supabase.");
+        return alert("Error al guardar en la nube.");
     }
     
     evento.id = torneoDB[0].id;
@@ -224,11 +249,9 @@ async function iniciarTorneo() {
     let registrosInscripcion = idsAValidar.map(id => ({ torneo_id: evento.id, competidor_id: id }));
     await supabase.from('inscripciones').insert(registrosInscripcion);
 
-    // Ocultar zonas que no se usarán
     if(limiteMcsActual <= 8) document.getElementById('zonaOctavos').style.display = 'none';
     if(limiteMcsActual === 4) document.getElementById('zonaCuartos').style.display = 'none';
 
-    // DIBUJAR BRACKET
     let fasesAdibujar = ['O', 'C', 'S', 'F'];
     if(limiteMcsActual === 8) fasesAdibujar = ['C', 'S', 'F'];
     if(limiteMcsActual === 4) fasesAdibujar = ['S', 'F'];
@@ -246,7 +269,6 @@ async function iniciarTorneo() {
         contenedorDiv.innerHTML = htmlAcumulado;
     });
 
-    // Rellenar los nombres reales de la primera fase
     for(let i=1; i<=totalLlaves; i++) {
         document.getElementById(`${prefijo}${i}_mc1_nombre`).innerText = evento[`${prefijo}${i}`].mc1.aka;
         document.getElementById(`${prefijo}${i}_mc2_nombre`).innerText = evento[`${prefijo}${i}`].mc2.aka;
@@ -259,7 +281,7 @@ async function iniciarTorneo() {
 }
 
 // ==========================================
-// 4. PROCESAR BATALLAS
+// 4. PROCESAR BATALLAS (CON LIBRO MAYOR V1.2.0)
 // ==========================================
 async function procesarBatallaAuto(faseStr) {
     let llave = evento[faseStr];
@@ -269,7 +291,9 @@ async function procesarBatallaAuto(faseStr) {
     const { data: db1 } = await supabase.from('competidores').select('elo_actual, batallas_totales').eq('id', llave.mc1.id).single();
     const { data: db2 } = await supabase.from('competidores').select('elo_actual, batallas_totales').eq('id', llave.mc2.id).single();
 
+    // Guardamos la foto del momento (Elo Previo)
     let R1 = db1.elo_actual; let R2 = db2.elo_actual;
+    
     let E1 = 1 / (1 + Math.pow(10, (R2 - R1) / 400));
     let E2 = 1 / (1 + Math.pow(10, (R1 - R2) / 400));
 
@@ -285,10 +309,25 @@ async function procesarBatallaAuto(faseStr) {
     let p1 = K * (S1 - E1); let p2 = K * (S2 - E2);
     if (bonoTotal1) p1 *= 1.2; if (bonoTotal2) p2 *= 1.2;
 
-    await supabase.from('competidores').update({ elo_actual: Math.round(R1 + p1), batallas_totales: db1.batallas_totales + 1 }).eq('id', llave.mc1.id);
-    await supabase.from('competidores').update({ elo_actual: Math.round(R2 + p2), batallas_totales: db2.batallas_totales + 1 }).eq('id', llave.mc2.id);
+    // Redondeamos los cambios para el Libro Mayor
+    let p1_redondeado = Math.round(p1);
+    let p2_redondeado = Math.round(p2);
 
-    await supabase.from('batallas').insert([{ torneo_id: evento.id, fase: faseStr, mc1_id: llave.mc1.id, mc2_id: llave.mc2.id, resultado: resultado }]);
+    await supabase.from('competidores').update({ elo_actual: R1 + p1_redondeado, batallas_totales: db1.batallas_totales + 1 }).eq('id', llave.mc1.id);
+    await supabase.from('competidores').update({ elo_actual: R2 + p2_redondeado, batallas_totales: db2.batallas_totales + 1 }).eq('id', llave.mc2.id);
+
+    // Registro Histórico en DB (AHORA CON LAS 4 COLUMNAS NUEVAS)
+    await supabase.from('batallas').insert([{ 
+        torneo_id: evento.id, 
+        fase: faseStr, 
+        mc1_id: llave.mc1.id, 
+        mc2_id: llave.mc2.id, 
+        resultado: resultado,
+        elo_previo_mc1: R1,
+        elo_previo_mc2: R2,
+        cambio_mc1: p1_redondeado,
+        cambio_mc2: p2_redondeado
+    }]);
 
     let ganoElUno = ['victoria', 'victoria_replica', 'victoria_total'].includes(resultado);
     llave.ganador = ganoElUno ? llave.mc1 : llave.mc2;
@@ -326,16 +365,16 @@ async function cerrarTorneoAutomatico() {
     if(limiteMcsActual === 16) {
         bonoCamp = Math.round(evento.pozo * 0.40);
         bonoSub = Math.round(evento.pozo * 0.20);
-        bonoSemi = Math.round(evento.pozo * 0.10); // x2
-        bonoCuartos = Math.round(evento.pozo * 0.05); // x4
+        bonoSemi = Math.round(evento.pozo * 0.10); 
+        bonoCuartos = Math.round(evento.pozo * 0.05); 
     } else if (limiteMcsActual === 8) {
         bonoCamp = Math.round(evento.pozo * 0.40);
         bonoSub = Math.round(evento.pozo * 0.30);
-        bonoSemi = Math.round(evento.pozo * 0.15); // x2
+        bonoSemi = Math.round(evento.pozo * 0.15); 
     } else if (limiteMcsActual === 4) {
         bonoCamp = Math.round(evento.pozo * 0.50);
         bonoSub = Math.round(evento.pozo * 0.30);
-        bonoSemi = Math.round(evento.pozo * 0.10); // x2
+        bonoSemi = Math.round(evento.pozo * 0.10); 
     }
 
     async function sumarPremio(idMC, bono) {
