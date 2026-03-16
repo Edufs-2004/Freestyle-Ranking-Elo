@@ -30,9 +30,8 @@ function filtrarBuscador() {
     cajaSugerencias.style.display = 'block';
 }
 
-// 3. CARGAR EL PERFIL DEL MC
+// 3. CARGAR EL PERFIL DEL MC (AHORA DETECTA PREMIOS)
 async function cargarPerfil(idMC) {
-    // Esconder sugerencias y poner el nombre en el buscador
     let mcPrincipal = listaMCs.find(m => m.id == idMC);
     document.getElementById('buscadorMCs').value = mcPrincipal.aka;
     document.getElementById('sugerenciasMCs').style.display = 'none';
@@ -41,7 +40,6 @@ async function cargarPerfil(idMC) {
     document.getElementById('statEloActual').innerText = mcPrincipal.elo_actual;
     document.getElementById('statBatallas').innerText = mcPrincipal.batallas_totales;
 
-    // SE AGREGA 'id' AL SELECT PARA PODER ORDENAR CRONOLÓGICAMENTE SI COMPARTEN FECHA
     const { data: batallas, error } = await supabase
         .from('batallas')
         .select(`
@@ -56,46 +54,70 @@ async function cargarPerfil(idMC) {
 
     let batallasValidas = batallas.filter(b => b.torneos !== null);
     
-    // EL TRUCO DEL ORDEN PERFECTO (Por Fecha, y luego por ID de inserción)
+    // ORDEN CRONOLÓGICO PERFECTO (Fecha -> ID)
     batallasValidas.sort((a, b) => {
         let dateA = new Date(a.torneos.fecha_evento).getTime();
         let dateB = new Date(b.torneos.fecha_evento).getTime();
-        if (dateA === dateB) {
-            return a.id - b.id; // Si jugaron el mismo día, el ID nos dice qué fue primero (Octavos -> Cuartos)
-        }
+        if (dateA === dateB) return a.id - b.id; 
         return dateA - dateB;
     });
 
     let historialHtml = '';
     let etiquetasGrafico = ['Inicio'];
     let datosGrafico = [1500]; 
+    let esPremioSegmento = [false]; // Controla qué tramos son ROJOS
     let peakElo = 1500;
     let victorias = 0;
+    
+    // El detective de puntos perdidos
+    let rastreadorDeElo = 1500; 
 
-    batallasValidas.forEach(b => {
+    batallasValidas.forEach((b, index) => {
         let soyMC1 = b.mc1.id == idMC;
         let oponente = soyMC1 ? b.mc2.aka : b.mc1.aka;
         let miEloPrevio = soyMC1 ? b.elo_previo_mc1 : b.elo_previo_mc2;
         let miCambio = soyMC1 ? b.cambio_mc1 : b.cambio_mc2;
         let miEloDespues = miEloPrevio + miCambio;
 
-        let gane = false;
-        let textoResultado = "";
-        
-        if (soyMC1) gane = ['victoria', 'victoria_replica', 'victoria_total'].includes(b.resultado);
-        else gane = ['derrota', 'derrota_replica', 'derrota_total'].includes(b.resultado);
+        // 1. EL DETECTIVE ACTÚA: ¿Hubo un premio oculto ANTES de esta batalla?
+        if (index > 0 && miEloPrevio > rastreadorDeElo) {
+            let gapPremio = miEloPrevio - rastreadorDeElo;
+            let fechaAnterior = batallasValidas[index-1].torneos.fecha_evento;
 
+            // Inyectar el Premio en la Gráfica (Línea Roja)
+            etiquetasGrafico.push("🏆 Pozo");
+            datosGrafico.push(miEloPrevio);
+            esPremioSegmento.push(true); 
+            if(miEloPrevio > peakElo) peakElo = miEloPrevio;
+
+            // Inyectar el Premio en la Tabla
+            let filaPremio = `
+                <tr style="background-color: rgba(255, 71, 87, 0.1);">
+                    <td>${fechaAnterior}</td>
+                    <td><strong>👑 Bono de Pozo</strong></td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td><span class='win'>Distribución</span></td>
+                    <td>${rastreadorDeElo}</td>
+                    <td class="win" style="color: #ff4757;">+${gapPremio} pts</td>
+                </tr>
+            `;
+            historialHtml = filaPremio + historialHtml;
+        }
+
+        // 2. PROCESAR LA BATALLA NORMAL (Línea Azul)
+        let gane = soyMC1 ? ['victoria', 'victoria_replica', 'victoria_total'].includes(b.resultado) : ['derrota', 'derrota_replica', 'derrota_total'].includes(b.resultado);
         if (gane) victorias++;
-        textoResultado = gane ? "<span class='win'>Victoria</span>" : "<span class='loss'>Derrota</span>";
+        let textoResultado = gane ? "<span class='win'>Victoria</span>" : "<span class='loss'>Derrota</span>";
         let claseCambio = miCambio >= 0 ? "win" : "loss";
         let signoCambio = miCambio >= 0 ? "+" : "";
 
         if (miEloDespues > peakElo) peakElo = miEloDespues;
 
-        etiquetasGrafico.push(b.fase); // Cambié la etiqueta para que diga "O3", "S1", "F" en el gráfico, se ve mejor
+        etiquetasGrafico.push(b.fase);
         datosGrafico.push(miEloDespues);
+        esPremioSegmento.push(false); // Batalla normal
 
-        // Se inserta al revés para ver las más nuevas arriba en la tabla
         let fila = `
             <tr>
                 <td>${b.torneos.fecha_evento}</td>
@@ -108,7 +130,35 @@ async function cargarPerfil(idMC) {
             </tr>
         `;
         historialHtml = fila + historialHtml; 
+
+        // Actualizamos el rastreador al final de la batalla
+        rastreadorDeElo = miEloDespues;
     });
+
+    // 3. EL DETECTIVE FINAL: ¿Hay un premio final después del último torneo jugado?
+    if (batallasValidas.length > 0 && mcPrincipal.elo_actual > rastreadorDeElo) {
+        let gapPremioFinal = mcPrincipal.elo_actual - rastreadorDeElo;
+        let fechaUltima = batallasValidas[batallasValidas.length - 1].torneos.fecha_evento;
+
+        etiquetasGrafico.push("🏆 Pozo Final");
+        datosGrafico.push(mcPrincipal.elo_actual);
+        esPremioSegmento.push(true); // Segmento rojo
+        
+        if(mcPrincipal.elo_actual > peakElo) peakElo = mcPrincipal.elo_actual;
+
+        let filaPremioFinal = `
+            <tr style="background-color: rgba(255, 71, 87, 0.1);">
+                <td>${fechaUltima}</td>
+                <td><strong>👑 Bono de Pozo</strong></td>
+                <td>-</td>
+                <td>-</td>
+                <td><span class='win'>Distribución</span></td>
+                <td>${rastreadorDeElo}</td>
+                <td class="win" style="color: #ff4757;">+${gapPremioFinal} pts</td>
+            </tr>
+        `;
+        historialHtml = filaPremioFinal + historialHtml;
+    }
 
     document.getElementById('statPeakElo').innerText = peakElo;
     let winRate = batallasValidas.length > 0 ? Math.round((victorias / batallasValidas.length) * 100) : 0;
@@ -118,11 +168,11 @@ async function cargarPerfil(idMC) {
     document.getElementById('cuerpoHistorial').innerHTML = historialHtml;
 
     document.getElementById('zonaPerfil').style.display = 'block';
-    dibujarGrafico(etiquetasGrafico, datosGrafico, mcPrincipal.aka);
+    dibujarGrafico(etiquetasGrafico, datosGrafico, mcPrincipal.aka, esPremioSegmento);
 }
 
-// 4. DIBUJAR EL GRÁFICO (CHART.JS)
-function dibujarGrafico(etiquetas, datos, nombre) {
+// 4. DIBUJAR EL GRÁFICO (AHORA CON SEGMENTOS DE COLORES)
+function dibujarGrafico(etiquetas, datos, nombre, arraySegmentos) {
     let ctx = document.getElementById('eloChart').getContext('2d');
     
     if (miGrafico) {
@@ -136,13 +186,16 @@ function dibujarGrafico(etiquetas, datos, nombre) {
             datasets: [{
                 label: `Evolución de Elo - ${nombre}`,
                 data: datos,
-                borderColor: '#1e90ff',
                 backgroundColor: 'rgba(30, 144, 255, 0.2)',
                 borderWidth: 3,
                 pointBackgroundColor: '#eccc68',
                 pointRadius: 4,
                 fill: true,
-                tension: 0.3 
+                tension: 0.3,
+                segment: {
+                    // Magia de Chart.js: Si el tramo corresponde a un premio (true), lo pinta rojo. Si no, azul.
+                    borderColor: ctx => arraySegmentos[ctx.p1DataIndex] ? '#ff4757' : '#1e90ff'
+                }
             }]
         },
         options: {
@@ -159,7 +212,6 @@ function dibujarGrafico(etiquetas, datos, nombre) {
     });
 }
 
-// EXPORTAR AL HTML
 window.filtrarBuscador = filtrarBuscador;
 window.cargarPerfil = cargarPerfil;
 
