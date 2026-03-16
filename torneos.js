@@ -40,19 +40,36 @@ function cambiarFormato() {
 }
 
 function filtrarBuscador() {
-    let texto = document.getElementById('buscadorMCs').value.toLowerCase();
+    let textoOriginal = document.getElementById('buscadorMCs').value.trim();
+    let texto = textoOriginal.toLowerCase();
     let cajaSugerencias = document.getElementById('sugerenciasMCs');
+
     if (texto.length < 1) return cajaSugerencias.style.display = 'none';
 
     let resultados = mcsDisponibles.filter(mc => mc.aka.toLowerCase().includes(texto) && !mcsSeleccionados.find(sel => sel.id === mc.id));
 
+    let html = '';
+
     if (resultados.length === 0) {
-        cajaSugerencias.innerHTML = '<div class="sugerencia-item">No se encontraron MCs</div>';
+        html += `<div class="sugerencia-item" style="color: #888;">No se encontraron MCs</div>`;
     } else {
-        let html = '';
-        resultados.forEach(mc => { html += `<div class="sugerencia-item" onclick="agregarChip(${mc.id})"><span>${mc.aka}</span><span style="color: #888;">Elo: ${mc.elo_actual}</span></div>`; });
-        cajaSugerencias.innerHTML = html;
+        resultados.forEach(mc => { 
+            html += `<div class="sugerencia-item" onclick="agregarChip(${mc.id})"><span>${mc.aka}</span><span style="color: #888;">Elo: ${mc.elo_actual}</span></div>`; 
+        });
     }
+
+    // --- LA MAGIA DE LA V1.1.0: BOTÓN DE CREACIÓN RÁPIDA ---
+    // Buscamos si ya existe alguien con ese nombre exacto para no sugerir crearlo duplicado
+    let coincidenciaExacta = mcsDisponibles.find(mc => mc.aka.toLowerCase() === texto);
+    
+    if (!coincidenciaExacta && textoOriginal.length > 0) {
+        html += `
+        <div class="sugerencia-item" style="background: #eef9f0; color: #28a745; border-top: 1px solid #ccc; font-weight: bold;" onclick="crearYAgregarMC('${textoOriginal}')">
+            ➕ Crear "${textoOriginal}" y añadir al torneo
+        </div>`;
+    }
+
+    cajaSugerencias.innerHTML = html;
     cajaSugerencias.style.display = 'block';
 }
 
@@ -350,5 +367,6 @@ window.agregarChip = agregarChip; window.quitarChip = quitarChip;
 window.irACruces = irACruces; window.actualizarDesplegables = actualizarDesplegables;
 window.iniciarTorneo = iniciarTorneo; window.procesarBatallaAuto = procesarBatallaAuto; 
 window.cerrarTorneoAutomatico = cerrarTorneoAutomatico;
+window.crearYAgregarMC = crearYAgregarMC;
 
 cargarBD();
