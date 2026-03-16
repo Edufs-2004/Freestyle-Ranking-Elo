@@ -81,15 +81,12 @@ function dibujarChips() {
 }
 
 // ==========================================
-// 2. CONSTRUIR HTML DINÁMICO (LA MAGIA)
+// 2. CONSTRUIR HTML DINÁMICO Y FILTRADO (V0.7.0)
 // ==========================================
 function irACruces() {
     evento.nombre = document.getElementById('nombreTorneo').value.trim();
     if (!evento.nombre) return alert("Ponle un nombre al evento.");
     if (mcsSeleccionados.length !== 16) return alert(`Para un formato de Octavos necesitas 16 MCs. Llevas ${mcsSeleccionados.length}.`);
-
-    let opcionesHTML = '<option value="">Selecciona...</option>';
-    mcsSeleccionados.forEach(mc => opcionesHTML += `<option value="${mc.id}">${mc.aka}</option>`);
 
     // DIBUJAR LAS 8 CAJAS DE CONFIGURACIÓN AUTOMÁTICAMENTE
     let htmlSetup = '';
@@ -97,16 +94,47 @@ function irACruces() {
         htmlSetup += `
         <div class="setup-cruce">
             <h4 style="margin: 0 0 10px 0; color: #1e90ff;">Llave ${i} (Octavos ${i})</h4>
-            <select id="setup_O${i}_mc1">${opcionesHTML}</select> 
+            <select id="setup_O${i}_mc1" class="select-octavos" onchange="actualizarDesplegablesOctavos()"></select> 
             <div style="text-align: center; font-weight: bold; margin: 5px 0;">VS</div>
-            <select id="setup_O${i}_mc2">${opcionesHTML}</select>
+            <select id="setup_O${i}_mc2" class="select-octavos" onchange="actualizarDesplegablesOctavos()"></select>
         </div>`;
     }
     document.getElementById('contenedorSetupCruces').innerHTML = htmlSetup;
 
+    // Llenamos los desplegables por primera vez con los 16 disponibles
+    actualizarDesplegablesOctavos();
+
     document.getElementById('tituloPaso2').innerText = `Evento: ${evento.nombre}`;
     document.getElementById('panelSeleccion').style.display = 'none';
     document.getElementById('panelCreacion').style.display = 'block';
+}
+
+// --- ESCÁNER DE DISPONIBILIDAD ---
+function actualizarDesplegablesOctavos() {
+    let selects = document.querySelectorAll('.select-octavos'); // Atrapamos los 16 menús
+    
+    // 1. Mirar quiénes ya están seleccionados en toda la pantalla
+    let idsOcupados = [];
+    selects.forEach(s => {
+        if(s.value !== "") idsOcupados.push(parseInt(s.value));
+    });
+
+    // 2. Actualizar las opciones de cada menú uno por uno
+    selects.forEach(select => {
+        let valorActual = select.value; // Guardamos a quién tiene seleccionado ESTE menú
+        
+        let opcionesHTML = '<option value="">Selecciona...</option>';
+        
+        mcsSeleccionados.forEach(mc => {
+            // Mostrar al MC solo si NO está ocupado, o si está ocupado exactamente en ESTA caja.
+            if (!idsOcupados.includes(mc.id) || parseInt(valorActual) === mc.id) {
+                opcionesHTML += `<option value="${mc.id}">${mc.aka}</option>`;
+            }
+        });
+
+        select.innerHTML = opcionesHTML;
+        select.value = valorActual; 
+    });
 }
 
 function generarHTMLBatalla(faseId, tituloFase) {
@@ -228,7 +256,7 @@ async function procesarBatallaAuto(faseStr) {
     await supabase.from('competidores').update({ elo_actual: Math.round(R1 + p1), batallas_totales: db1.batallas_totales + 1 }).eq('id', llave.mc1.id);
     await supabase.from('competidores').update({ elo_actual: Math.round(R2 + p2), batallas_totales: db2.batallas_totales + 1 }).eq('id', llave.mc2.id);
 
-    // Registro Histórico en DB (Usamos la clave del objeto Ej: 'O1' o 'F')
+    // Registro Histórico en DB
     await supabase.from('batallas').insert([{ torneo_id: evento.id, fase: faseStr, mc1_id: llave.mc1.id, mc2_id: llave.mc2.id, resultado: resultado }]);
 
     // AUTO-AVANCE INTELIGENTE
@@ -239,7 +267,7 @@ async function procesarBatallaAuto(faseStr) {
     let destino = RUTA_TORNEO[faseStr]; // Miramos el mapa para saber a dónde va el ganador
 
     if(destino.sig !== 'FIN') {
-        // Empujamos al ganador a la siguiente fase (Ej: De O1 a C1 en el slot mc1)
+        // Empujamos al ganador a la siguiente fase
         evento[destino.sig][destino.slot] = llave.ganador;
         document.getElementById(`${destino.sig}_${destino.slot}_nombre`).innerText = llave.ganador.aka;
         document.getElementById(`${destino.sig}_${destino.slot}_nombre`).style.color = "#fff"; // Resaltarlo
@@ -263,7 +291,7 @@ async function procesarBatallaAuto(faseStr) {
 }
 
 // ==========================================
-// 5. CIERRE AUTOMÁTICO (AHORA CON CUARTOS)
+// 5. CIERRE AUTOMÁTICO
 // ==========================================
 async function cerrarTorneoAutomatico() {
     if(!confirm("¿Cerrar el evento y sumar la distribución de 16 participantes?")) return;
@@ -287,7 +315,6 @@ async function cerrarTorneoAutomatico() {
     await sumarPremio(evento.C2.perdedor.id, bonoCuartos);
     await sumarPremio(evento.C3.perdedor.id, bonoCuartos);
     await sumarPremio(evento.C4.perdedor.id, bonoCuartos);
-    // Los perdedores de Octavos no se llevan premio del pozo, solo los puntos de su batalla.
 
     await supabase.from('torneos').update({ estado: 'Finalizado' }).eq('id', evento.id);
 
@@ -296,8 +323,13 @@ async function cerrarTorneoAutomatico() {
 }
 
 // Exportar al HTML
-window.filtrarBuscador = filtrarBuscador; window.agregarChip = agregarChip; window.quitarChip = quitarChip;
-window.irACruces = irACruces; window.iniciarTorneo = iniciarTorneo; 
-window.procesarBatallaAuto = procesarBatallaAuto; window.cerrarTorneoAutomatico = cerrarTorneoAutomatico;
+window.filtrarBuscador = filtrarBuscador; 
+window.agregarChip = agregarChip; 
+window.quitarChip = quitarChip;
+window.irACruces = irACruces; 
+window.actualizarDesplegablesOctavos = actualizarDesplegablesOctavos;
+window.iniciarTorneo = iniciarTorneo; 
+window.procesarBatallaAuto = procesarBatallaAuto; 
+window.cerrarTorneoAutomatico = cerrarTorneoAutomatico;
 
 cargarBD();
