@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Perfil del Atleta - Liga Fénix</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #1e1e2f; color: white; padding: 20px; }
+        .panel { background: #2a2a40; padding: 20px; border-radius: 8px; max-width: 1000px; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.5); margin-bottom: 20px; }
+        
+        .navegacion { text-align: center; margin-bottom: 20px; display: flex; justify-content: center; gap: 15px;}
+        .navegacion a { color: #1e90ff; text-decoration: none; font-weight: bold; background: #2f3542; padding: 10px 20px; border-radius: 5px; }
+        .navegacion a:hover { background: #373752; }
+        
+        select { width: 100%; padding: 12px; border-radius: 5px; border: none; background: #fff; color: #333; font-size: 16px; margin-bottom: 20px;}
+        
+        /* Tarjetas de Estadísticas */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: #1e1e2f; padding: 15px; border-radius: 8px; text-align: center; border-bottom: 4px solid #1e90ff;}
+        .stat-card h3 { margin: 0; font-size: 14px; color: #aaa; text-transform: uppercase;}
+        .stat-card p { margin: 10px 0 0 0; font-size: 28px; font-weight: bold; color: white;}
+        
+        /* Contenedor del Gráfico */
+        .chart-container { background: #1e1e2f; padding: 15px; border-radius: 8px; height: 300px; margin-bottom: 30px; }
+        
+        /* Tabla de Historial */
+        table { width: 100%; border-collapse: collapse; background: #1e1e2f; }
+        th, td { border: 1px solid #373752; padding: 10px; text-align: left; font-size: 14px;}
+        th { background-color: #ff4757; color: white; }
+        .win { color: #2ed573; font-weight: bold;}
+        .loss { color: #ff4757; font-weight: bold;}
+    </style>
+</head>
+<body>
+
+    <div class="navegacion">
+        <a href="batallas.html">⚙️ Calculadora</a>
+        <a href="index.html">🏆 Torneos</a>
+        <a href="museo.html">🏛️ Museo</a>
+        <a href="perfil.html" style="background: #1e90ff; color: white;">👤 Perfil Atleta</a>
+    </div>
+
+    <div class="panel">
+        <h2 style="margin-top: 0; color: #1e90ff;">👤 Buscar Freestyler</h2>
+        <select id="selectorMC" onchange="cargarPerfil()">
+            <option value="">Selecciona un MC para ver su historia...</option>
+        </select>
+        
+        <div id="zonaPerfil" style="display: none;">
+            <h1 id="nombreMC" style="text-align: center; font-size: 36px; margin: 10px 0 30px 0; color: #eccc68;">NOMBRE</h1>
+            
+            <div class="stats-grid">
+                <div class="stat-card" style="border-color: #1e90ff;">
+                    <h3>Elo Actual</h3>
+                    <p id="statEloActual">-</p>
+                </div>
+                <div class="stat-card" style="border-color: #eccc68;">
+                    <h3>Elo Máximo (Peak)</h3>
+                    <p id="statPeakElo">-</p>
+                </div>
+                <div class="stat-card" style="border-color: #ff4757;">
+                    <h3>Batallas Totales</h3>
+                    <p id="statBatallas">-</p>
+                </div>
+                <div class="stat-card" style="border-color: #2ed573;">
+                    <h3>Tasa de Victoria</h3>
+                    <p id="statWinRate">-</p>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <canvas id="eloChart"></canvas>
+            </div>
+
+            <h3 style="color: #1e90ff; border-bottom: 1px solid #373752; padding-bottom: 10px;">📜 Historial de Enfrentamientos</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Torneo</th>
+                        <th>Fase</th>
+                        <th>Oponente</th>
+                        <th>Resultado</th>
+                        <th>Pts Previos</th>
+                        <th>Cambio</th>
+                    </tr>
+                </thead>
+                <tbody id="cuerpoHistorial"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script type="module" src="perfil.js"></script>
+</body>
+</html>
