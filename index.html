@@ -9,11 +9,22 @@
         input[type="text"], select { width: 100%; padding: 10px; margin: 10px 0; border-radius: 5px; border: none; box-sizing: border-box; background: #fff; color: #333;}
         button { background-color: #ff4757; color: white; border: none; padding: 12px; width: 100%; cursor: pointer; font-weight: bold; border-radius: 5px; font-size: 16px; margin-top: 15px; }
         button:hover { background-color: #ff6b81; }
-        .grid-mcs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: #1e1e2f; padding: 15px; border-radius: 5px; max-height: 300px; overflow-y: auto; }
-        .grid-mcs label { cursor: pointer; display: flex; align-items: center; gap: 10px; background: #373752; padding: 8px; border-radius: 4px; }
         .navegacion { text-align: center; margin-bottom: 20px; }
         .navegacion a { color: #1e90ff; text-decoration: none; font-weight: bold; }
         
+        /* --- NUEVOS ESTILOS DEL BUSCADOR Y CHIPS --- */
+        .buscador-wrapper { position: relative; width: 100%; margin-top: 10px; }
+        .sugerencias-box { position: absolute; top: 100%; left: 0; right: 0; background: #fff; color: #333; border-radius: 0 0 5px 5px; max-height: 200px; overflow-y: auto; z-index: 10; box-shadow: 0 4px 15px rgba(0,0,0,0.3); display: none; }
+        .sugerencia-item { padding: 12px; cursor: pointer; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; }
+        .sugerencia-item:hover { background: #f0f8ff; color: #1e90ff; font-weight: bold; }
+        
+        .chips-container { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; min-height: 45px; padding: 10px; background: #1e1e2f; border-radius: 5px; border: 1px dashed #373752;}
+        .chip { background: #1e90ff; color: white; padding: 8px 15px; border-radius: 20px; display: flex; align-items: center; gap: 8px; font-weight: bold; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); animation: fadeIn 0.3s ease;}
+        .chip-btn { background: rgba(0,0,0,0.2); border: none; color: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 12px; margin: 0; padding: 0;}
+        .chip-btn:hover { background: #ff4757; }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+        /* ------------------------------------------ */
+
         .batalla-caja { background: #1e1e2f; padding: 15px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #ff4757; text-align: center; }
         .batalla-caja h4 { margin-top: 0; color: #ff6b81; margin-bottom: 15px;}
         .versus { font-size: 18px; font-weight: bold; margin-bottom: 15px; background: #2f3542; padding: 10px; border-radius: 5px; display: flex; justify-content: space-around; align-items: center;}
@@ -37,9 +48,17 @@
         <h2>Paso 1: Datos del Evento</h2>
         <input type="text" id="nombreTorneo" placeholder="Ej: Red Bull Nacional 2008">
         
-        <h3>Selecciona el Roster (Elige 4)</h3>
-        <p style="font-size: 14px; color: #aaa;">Solo estos MCs aparecerán para armar las llaves.</p>
-        <div id="listaCheckboxes" class="grid-mcs">Cargando MCs...</div>
+        <h3 style="margin-bottom: 5px;">Roster del Torneo (Elige 4)</h3>
+        <p style="font-size: 14px; color: #aaa; margin-top: 0;">Busca y selecciona a los MCs que participaron.</p>
+        
+        <div class="buscador-wrapper">
+            <input type="text" id="buscadorMCs" placeholder="🔍 Escribe el nombre del MC..." onkeyup="filtrarBuscador()" autocomplete="off">
+            <div id="sugerenciasMCs" class="sugerencias-box"></div>
+        </div>
+
+        <div id="contenedorChips" class="chips-container">
+            <span style="color: #57606f; margin: auto; font-size: 14px;">El roster está vacío...</span>
+        </div>
         
         <button onclick="irACruces()">Continuar a las Llaves ➡️</button>
     </div>
@@ -50,16 +69,12 @@
         
         <div class="setup-cruce">
             <h4 style="margin: 0 0 10px 0; color: #ff6b81;">Llave 1 (Semifinal 1)</h4>
-            <select id="setup_s1_mc1"></select> 
-            <div style="text-align: center; font-weight: bold;">VS</div>
-            <select id="setup_s1_mc2"></select>
+            <select id="setup_s1_mc1"></select> <div style="text-align: center; font-weight: bold;">VS</div> <select id="setup_s1_mc2"></select>
         </div>
 
         <div class="setup-cruce">
             <h4 style="margin: 0 0 10px 0; color: #ff6b81;">Llave 2 (Semifinal 2)</h4>
-            <select id="setup_s2_mc1"></select> 
-            <div style="text-align: center; font-weight: bold;">VS</div>
-            <select id="setup_s2_mc2"></select>
+            <select id="setup_s2_mc1"></select> <div style="text-align: center; font-weight: bold;">VS</div> <select id="setup_s2_mc2"></select>
         </div>
 
         <button onclick="iniciarTorneo()">Confirmar Cuadro e Iniciar Evento</button>

@@ -10,32 +10,103 @@ let evento = {
 };
 
 let mcsDisponibles = [];
-let mcsSeleccionados = []; // Los 4 filtrados
+let mcsSeleccionados = []; // Aquí viven las "pastillas/chips" que el usuario elige
 
-// 1. CARGAR TODOS LOS MCs (Para el Paso 1)
-async function cargarMCsParaCheckboxes() {
+// ==========================================
+// 1. CARGA INICIAL
+// ==========================================
+async function cargarBD() {
     const { data } = await supabase.from('competidores').select('*').order('aka', { ascending: true });
     mcsDisponibles = data;
-    
-    let html = '';
-    mcsDisponibles.forEach(mc => {
-        html += `<label><input type="checkbox" class="mc-checkbox" value="${mc.id}"> ${mc.aka} (${mc.elo_actual})</label>`;
-    });
-    document.getElementById('listaCheckboxes').innerHTML = html;
 }
 
-// 2. PASAR DE SELECCIÓN A CRUCES
+// ==========================================
+// 2. LÓGICA DEL BUSCADOR (AUTOCOMPLETADO)
+// ==========================================
+function filtrarBuscador() {
+    let texto = document.getElementById('buscadorMCs').value.toLowerCase();
+    let cajaSugerencias = document.getElementById('sugerenciasMCs');
+
+    if (texto.length < 1) {
+        cajaSugerencias.style.display = 'none';
+        return;
+    }
+
+    // Filtrar coincidencias que NO estén ya seleccionadas en los chips
+    let resultados = mcsDisponibles.filter(mc => 
+        mc.aka.toLowerCase().includes(texto) && 
+        !mcsSeleccionados.find(sel => sel.id === mc.id)
+    );
+
+    if (resultados.length === 0) {
+        cajaSugerencias.innerHTML = '<div class="sugerencia-item" style="color: #888;">No se encontraron MCs</div>';
+    } else {
+        let html = '';
+        resultados.forEach(mc => {
+            html += `
+                <div class="sugerencia-item" onclick="agregarChip(${mc.id})">
+                    <span>${mc.aka}</span>
+                    <span style="color: #888; font-size: 12px;">Elo: ${mc.elo_actual}</span>
+                </div>`;
+        });
+        cajaSugerencias.innerHTML = html;
+    }
+    
+    cajaSugerencias.style.display = 'block';
+}
+
+function agregarChip(id) {
+    if (mcsSeleccionados.length >= 4) {
+        alert("Ya has alcanzado el límite de 4 participantes para esta fase.");
+        document.getElementById('buscadorMCs').value = '';
+        document.getElementById('sugerenciasMCs').style.display = 'none';
+        return;
+    }
+
+    let mc = mcsDisponibles.find(m => m.id === id);
+    mcsSeleccionados.push(mc);
+
+    // Limpiar buscador
+    document.getElementById('buscadorMCs').value = '';
+    document.getElementById('sugerenciasMCs').style.display = 'none';
+    
+    dibujarChips();
+}
+
+function quitarChip(id) {
+    mcsSeleccionados = mcsSeleccionados.filter(mc => mc.id !== id);
+    dibujarChips();
+}
+
+function dibujarChips() {
+    let contenedor = document.getElementById('contenedorChips');
+    if (mcsSeleccionados.length === 0) {
+        contenedor.innerHTML = '<span style="color: #57606f; margin: auto; font-size: 14px;">El roster está vacío...</span>';
+        return;
+    }
+
+    let html = '';
+    mcsSeleccionados.forEach(mc => {
+        html += `
+            <div class="chip">
+                ${mc.aka}
+                <button class="chip-btn" onclick="quitarChip(${mc.id})">✖</button>
+            </div>
+        `;
+    });
+    contenedor.innerHTML = html;
+}
+
+// ==========================================
+// 3. PASAR A LAS LLAVES (PASO 2)
+// ==========================================
 function irACruces() {
     evento.nombre = document.getElementById('nombreTorneo').value.trim();
     if (!evento.nombre) return alert("Ponle un nombre al evento.");
 
-    let checkboxes = Array.from(document.querySelectorAll('.mc-checkbox:checked'));
-    if (checkboxes.length !== 4) return alert("Debes seleccionar exactamente a 4 MCs para armar las llaves.");
+    if (mcsSeleccionados.length !== 4) return alert(`Debes seleccionar exactamente 4 MCs. Llevas ${mcsSeleccionados.length}.`);
 
-    // Guardar los 4 MCs completos
-    mcsSeleccionados = checkboxes.map(cb => mcsDisponibles.find(m => m.id === parseInt(cb.value)));
-
-    // Llenar los menús SOLO con estos 4
+    // Llenar los menús SOLO con los 4 seleccionados
     let opcionesHTML = '<option value="">Selecciona...</option>';
     mcsSeleccionados.forEach(mc => {
         opcionesHTML += `<option value="${mc.id}">${mc.aka}</option>`;
@@ -45,13 +116,14 @@ function irACruces() {
         document.getElementById(id).innerHTML = opcionesHTML;
     });
 
-    // Cambiar de pantalla
     document.getElementById('tituloPaso2').innerText = `Evento: ${evento.nombre}`;
     document.getElementById('panelSeleccion').style.display = 'none';
     document.getElementById('panelCreacion').style.display = 'block';
 }
 
-// 3. INICIAR (FIJAR CRUCES EN BASE DE DATOS)
+// ==========================================
+// 4. INICIAR TORNEO (PASO 3 - INTACTO)
+// ==========================================
 async function iniciarTorneo() {
     let id_s1_1 = parseInt(document.getElementById('setup_s1_mc1').value);
     let id_s1_2 = parseInt(document.getElementById('setup_s1_mc2').value);
@@ -86,7 +158,6 @@ async function iniciarTorneo() {
     ];
     await supabase.from('inscripciones').insert(registros);
 
-    // Cambiar a pantalla de Batallas
     document.getElementById('panelCreacion').style.display = 'none';
     document.getElementById('panelTorneoActivo').style.display = 'block';
     document.getElementById('tituloTorneoActivo').innerText = `🔥 ${evento.nombre} 🔥`;
@@ -98,7 +169,9 @@ async function iniciarTorneo() {
     document.getElementById('s2_mc2_nombre').innerText = evento.s2.mc2.aka;
 }
 
-// 4. PROCESAR BATALLAS
+// ==========================================
+// 5. PROCESAR BATALLAS (INTACTO)
+// ==========================================
 async function procesarBatallaAuto(faseStr) {
     let llave, idSelect, idBoton, nombreFase;
     
@@ -159,7 +232,9 @@ async function procesarBatallaAuto(faseStr) {
     }
 }
 
-// 5. CERRAR TORNEO AUTOMÁTICO
+// ==========================================
+// 6. CERRAR TORNEO AUTOMÁTICO (INTACTO)
+// ==========================================
 async function cerrarTorneoAutomatico() {
     if(!confirm("¿Cerrar el evento histórico y sumar el pozo?")) return;
 
@@ -183,9 +258,13 @@ async function cerrarTorneoAutomatico() {
     window.location.reload();
 }
 
+// EXPORTAR FUNCIONES AL HTML
+window.filtrarBuscador = filtrarBuscador;
+window.agregarChip = agregarChip;
+window.quitarChip = quitarChip;
 window.irACruces = irACruces;
 window.iniciarTorneo = iniciarTorneo;
 window.procesarBatallaAuto = procesarBatallaAuto;
 window.cerrarTorneoAutomatico = cerrarTorneoAutomatico;
 
-cargarMCsParaCheckboxes();
+cargarBD();
