@@ -5,132 +5,81 @@
     <title>Registro Histórico - Liga Fénix</title>
     <style>
         body { font-family: Arial, sans-serif; background-color: #1e1e2f; color: white; padding: 20px; }
-        .panel { background: #2a2a40; padding: 20px; border-radius: 8px; max-width: 600px; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        .panel { background: #2a2a40; padding: 20px; border-radius: 8px; max-width: 800px; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
         input[type="text"], select { width: 100%; padding: 10px; margin: 10px 0; border-radius: 5px; border: none; box-sizing: border-box; background: #fff; color: #333;}
         button { background-color: #ff4757; color: white; border: none; padding: 12px; width: 100%; cursor: pointer; font-weight: bold; border-radius: 5px; font-size: 16px; margin-top: 15px; }
         button:hover { background-color: #ff6b81; }
         .navegacion { text-align: center; margin-bottom: 20px; }
         .navegacion a { color: #1e90ff; text-decoration: none; font-weight: bold; }
         
-        /* --- NUEVOS ESTILOS DEL BUSCADOR Y CHIPS --- */
+        /* Buscador y Chips */
         .buscador-wrapper { position: relative; width: 100%; margin-top: 10px; }
-        .sugerencias-box { position: absolute; top: 100%; left: 0; right: 0; background: #fff; color: #333; border-radius: 0 0 5px 5px; max-height: 200px; overflow-y: auto; z-index: 10; box-shadow: 0 4px 15px rgba(0,0,0,0.3); display: none; }
+        .sugerencias-box { position: absolute; top: 100%; left: 0; right: 0; background: #fff; color: #333; border-radius: 0 0 5px 5px; max-height: 200px; overflow-y: auto; z-index: 10; display: none; }
         .sugerencia-item { padding: 12px; cursor: pointer; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; }
         .sugerencia-item:hover { background: #f0f8ff; color: #1e90ff; font-weight: bold; }
-        
         .chips-container { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; min-height: 45px; padding: 10px; background: #1e1e2f; border-radius: 5px; border: 1px dashed #373752;}
-        .chip { background: #1e90ff; color: white; padding: 8px 15px; border-radius: 20px; display: flex; align-items: center; gap: 8px; font-weight: bold; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); animation: fadeIn 0.3s ease;}
-        .chip-btn { background: rgba(0,0,0,0.2); border: none; color: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 12px; margin: 0; padding: 0;}
+        .chip { background: #1e90ff; color: white; padding: 8px 15px; border-radius: 20px; display: flex; align-items: center; gap: 8px; font-size: 14px;}
+        .chip-btn { background: rgba(0,0,0,0.2); border: none; color: white; border-radius: 50%; width: 22px; height: 22px; cursor: pointer; display: flex; justify-content: center; align-items: center; padding: 0; margin: 0;}
         .chip-btn:hover { background: #ff4757; }
-        @keyframes fadeIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
-        /* ------------------------------------------ */
 
-        .batalla-caja { background: #1e1e2f; padding: 15px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #ff4757; text-align: center; }
-        .batalla-caja h4 { margin-top: 0; color: #ff6b81; margin-bottom: 15px;}
-        .versus { font-size: 18px; font-weight: bold; margin-bottom: 15px; background: #2f3542; padding: 10px; border-radius: 5px; display: flex; justify-content: space-around; align-items: center;}
+        /* Grillas para las Batallas Generadas por JS */
+        .grid-fase { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin-bottom: 30px;}
+        .batalla-caja { background: #1e1e2f; padding: 15px; border-radius: 5px; border-left: 4px solid #ff4757; text-align: center; }
+        .batalla-caja h4 { margin-top: 0; color: #ff6b81; margin-bottom: 10px;}
+        .versus { font-size: 16px; font-weight: bold; margin-bottom: 10px; background: #2f3542; padding: 10px; border-radius: 5px; display: flex; justify-content: space-around; align-items: center;}
         .mc-name { color: #1e90ff; flex: 1; text-align: center;}
-        .vs-text { color: white; font-size: 14px; margin: 0 10px; }
-        .setup-cruce { background: #1e1e2f; padding: 10px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #373752; }
+        .vs-text { color: white; font-size: 12px; margin: 0 10px; }
+        .setup-cruce { background: #1e1e2f; padding: 10px; border-radius: 5px; border: 1px solid #373752; }
         .btn-batalla { background-color: #1e90ff; margin-top: 10px; }
         .btn-batalla:hover { background-color: #3742fa; }
-        .btn-batalla:disabled { background-color: #2ed573; cursor: not-allowed; }
-        .btn-cerrar { background-color: #eccc68; color: #2f3542; font-size: 18px; margin-top: 20px;}
-        .btn-cerrar:hover { background-color: #ffa502; }
+        .btn-batalla:disabled { background-color: #57606f; cursor: not-allowed; }
+        .btn-cerrar { background-color: #eccc68; color: #2f3542; font-size: 18px;}
     </style>
 </head>
 <body>
 
-    <div class="navegacion">
-        <a href="batallas.html">⚙️ Volver a la Calculadora Libre</a>
-    </div>
+    <div class="navegacion"><a href="batallas.html">⚙️ Volver a la Calculadora Libre</a></div>
 
     <div class="panel" id="panelSeleccion">
-        <h2>Paso 1: Datos del Evento</h2>
-        <input type="text" id="nombreTorneo" placeholder="Ej: Red Bull Nacional 2008">
+        <h2>Paso 1: Datos del Evento Histórico</h2>
+        <input type="text" id="nombreTorneo" placeholder="Ej: Red Bull Nacional España 2026">
         
-        <h3 style="margin-bottom: 5px;">Roster del Torneo (Elige 4)</h3>
-        <p style="font-size: 14px; color: #aaa; margin-top: 0;">Busca y selecciona a los MCs que participaron.</p>
-        
+        <h3 style="margin-bottom: 5px;">Roster del Torneo (Elige 16 MCs)</h3>
         <div class="buscador-wrapper">
             <input type="text" id="buscadorMCs" placeholder="🔍 Escribe el nombre del MC..." onkeyup="filtrarBuscador()" autocomplete="off">
             <div id="sugerenciasMCs" class="sugerencias-box"></div>
         </div>
-
-        <div id="contenedorChips" class="chips-container">
-            <span style="color: #57606f; margin: auto; font-size: 14px;">El roster está vacío...</span>
-        </div>
+        <div id="contenedorChips" class="chips-container"><span style="color: #57606f; margin: auto;">Esperando competidores...</span></div>
         
-        <button onclick="irACruces()">Continuar a las Llaves ➡️</button>
+        <button onclick="irACruces()">Continuar a las Llaves de Octavos ➡️</button>
     </div>
 
     <div class="panel" id="panelCreacion" style="display: none;">
-        <h2>Paso 2: Cruces Oficiales</h2>
+        <h2>Paso 2: Cruces Oficiales (Octavos)</h2>
         <p id="tituloPaso2" style="color: #2ed573; font-weight: bold;"></p>
         
-        <div class="setup-cruce">
-            <h4 style="margin: 0 0 10px 0; color: #ff6b81;">Llave 1 (Semifinal 1)</h4>
-            <select id="setup_s1_mc1"></select> <div style="text-align: center; font-weight: bold;">VS</div> <select id="setup_s1_mc2"></select>
-        </div>
-
-        <div class="setup-cruce">
-            <h4 style="margin: 0 0 10px 0; color: #ff6b81;">Llave 2 (Semifinal 2)</h4>
-            <select id="setup_s2_mc1"></select> <div style="text-align: center; font-weight: bold;">VS</div> <select id="setup_s2_mc2"></select>
-        </div>
-
-        <button onclick="iniciarTorneo()">Confirmar Cuadro e Iniciar Evento</button>
-        <button onclick="location.reload()" style="background-color: #57606f; margin-top: 10px;">⬅️ Volver</button>
+        <div id="contenedorSetupCruces" class="grid-fase"></div> <button onclick="iniciarTorneo()">Confirmar Cuadro e Iniciar Evento</button>
+        <button onclick="location.reload()" style="background-color: #57606f; margin-top: 10px;">⬅️ Volver y Reiniciar</button>
         <div id="mensajeConsola" style="margin-top: 20px; text-align: center; color: #2ed573;"></div>
     </div>
 
     <div class="panel" id="panelTorneoActivo" style="display: none;">
-        <h2 id="tituloTorneoActivo" style="text-align: center;">Torneo en Curso</h2>
-        <p id="infoPozoActivo" style="color: #eccc68; font-weight: bold; text-align: center;"></p>
+        <h2 id="tituloTorneoActivo" style="text-align: center; font-size: 28px;">Torneo en Curso</h2>
+        <p id="infoPozoActivo" style="color: #eccc68; font-weight: bold; text-align: center; margin-bottom: 30px;"></p>
 
-        <div class="batalla-caja">
-            <h4>Semifinal 1</h4>
-            <div class="versus"><span class="mc-name" id="s1_mc1_nombre">???</span> <span class="vs-text">VS</span> <span class="mc-name" id="s1_mc2_nombre">???</span></div>
-            <select id="s1_res">
-                <option value="victoria">Victoria Izquierda</option>
-                <option value="victoria_replica">Victoria Réplica Izquierda</option>
-                <option value="derrota_replica">Victoria Réplica Derecha</option>
-                <option value="derrota">Victoria Derecha</option>
-                <option value="victoria_total">Victoria Total Izquierda</option>
-                <option value="derrota_total">Victoria Total Derecha</option>
-            </select>
-            <button class="btn-batalla" id="btn_s1" onclick="procesarBatallaAuto('S1')">⚔️ Registrar Resultado</button>
-        </div>
+        <h3 style="color: #1e90ff; border-bottom: 1px solid #373752; padding-bottom: 10px;">🔥 Octavos de Final</h3>
+        <div id="bracketOctavos" class="grid-fase"></div>
 
-        <div class="batalla-caja">
-            <h4>Semifinal 2</h4>
-            <div class="versus"><span class="mc-name" id="s2_mc1_nombre">???</span> <span class="vs-text">VS</span> <span class="mc-name" id="s2_mc2_nombre">???</span></div>
-            <select id="s2_res">
-                <option value="victoria">Victoria Izquierda</option>
-                <option value="victoria_replica">Victoria Réplica Izquierda</option>
-                <option value="derrota_replica">Victoria Réplica Derecha</option>
-                <option value="derrota">Victoria Derecha</option>
-                <option value="victoria_total">Victoria Total Izquierda</option>
-                <option value="derrota_total">Victoria Total Derecha</option>
-            </select>
-            <button class="btn-batalla" id="btn_s2" onclick="procesarBatallaAuto('S2')">⚔️ Registrar Resultado</button>
-        </div>
+        <h3 style="color: #2ed573; border-bottom: 1px solid #373752; padding-bottom: 10px; margin-top: 40px;">⚡ Cuartos de Final</h3>
+        <div id="bracketCuartos" class="grid-fase"></div>
 
-        <div class="batalla-caja" style="border-left-color: #eccc68;">
-            <h4 style="color: #eccc68;">🏆 La Gran Final</h4>
-            <div class="versus" style="background: #3d3d2b;"><span class="mc-name" id="f_mc1_nombre" style="color: #eccc68;">Ganador S1</span> <span class="vs-text">VS</span> <span class="mc-name" id="f_mc2_nombre" style="color: #eccc68;">Ganador S2</span></div>
-            <select id="f_res">
-                <option value="victoria">Victoria Izquierda</option>
-                <option value="victoria_replica">Victoria Réplica Izquierda</option>
-                <option value="derrota_replica">Victoria Réplica Derecha</option>
-                <option value="derrota">Victoria Derecha</option>
-                <option value="victoria_total">Victoria Total Izquierda</option>
-                <option value="derrota_total">Victoria Total Derecha</option>
-            </select>
-            <button class="btn-batalla" id="btn_f" onclick="procesarBatallaAuto('F')" disabled style="background-color: #57606f;">⚔️ Registrar Gran Final</button>
-        </div>
+        <h3 style="color: #ff6b81; border-bottom: 1px solid #373752; padding-bottom: 10px; margin-top: 40px;">🌪️ Semifinales</h3>
+        <div id="bracketSemis" class="grid-fase"></div>
 
-        <div id="resumen_final" style="display: none; text-align: center; margin-top: 30px; background: #1e1e2f; padding: 20px; border-radius: 5px;">
-            <h3 style="color: #2ed573;">Resultados Finales</h3>
-            <p>👑 Campeón: <strong id="c_camp" style="color: #eccc68;"></strong></p>
+        <h3 style="color: #eccc68; border-bottom: 1px solid #373752; padding-bottom: 10px; margin-top: 40px;">🏆 Gran Final</h3>
+        <div id="bracketFinal" class="grid-fase" style="grid-template-columns: 1fr;"></div> <div id="resumen_final" style="display: none; text-align: center; margin-top: 40px; background: #1e1e2f; padding: 20px; border-radius: 5px; border: 2px solid #eccc68;">
+            <h3 style="color: #2ed573; margin-top: 0;">¡Torneo Concluido!</h3>
+            <p>👑 Campeón: <strong id="c_camp" style="color: #eccc68; font-size: 20px;"></strong></p>
             <p>🥈 Subcampeón: <strong id="c_sub"></strong></p>
             <button class="btn-cerrar" onclick="cerrarTorneoAutomatico()">Repartir Pozo y Finalizar Registro</button>
         </div>
