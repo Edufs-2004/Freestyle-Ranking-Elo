@@ -3,69 +3,81 @@ import { supabase } from './supabase.js';
 const K = 32;
 
 let evento = {
-    id: null, pozo: 0,
+    id: null, pozo: 0, nombre: "",
     s1: { mc1: null, mc2: null, ganador: null, perdedor: null },
     s2: { mc1: null, mc2: null, ganador: null, perdedor: null },
     f:  { mc1: null, mc2: null, ganador: null, perdedor: null }
 };
 
 let mcsDisponibles = [];
+let mcsSeleccionados = []; // Los 4 filtrados
 
-// ==========================================
-// 1. CARGAR MCs EN LOS DESPLEGABLES DE CONFIGURACIÓN
-// ==========================================
+// 1. CARGAR TODOS LOS MCs (Para el Paso 1)
 async function cargarMCsParaCheckboxes() {
     const { data } = await supabase.from('competidores').select('*').order('aka', { ascending: true });
     mcsDisponibles = data;
     
-    let opcionesHTML = '<option value="">Selecciona un MC...</option>';
+    let html = '';
     mcsDisponibles.forEach(mc => {
-        opcionesHTML += `<option value="${mc.id}">${mc.aka} (${mc.elo_actual})</option>`;
+        html += `<label><input type="checkbox" class="mc-checkbox" value="${mc.id}"> ${mc.aka} (${mc.elo_actual})</label>`;
+    });
+    document.getElementById('listaCheckboxes').innerHTML = html;
+}
+
+// 2. PASAR DE SELECCIÓN A CRUCES
+function irACruces() {
+    evento.nombre = document.getElementById('nombreTorneo').value.trim();
+    if (!evento.nombre) return alert("Ponle un nombre al evento.");
+
+    let checkboxes = Array.from(document.querySelectorAll('.mc-checkbox:checked'));
+    if (checkboxes.length !== 4) return alert("Debes seleccionar exactamente a 4 MCs para armar las llaves.");
+
+    // Guardar los 4 MCs completos
+    mcsSeleccionados = checkboxes.map(cb => mcsDisponibles.find(m => m.id === parseInt(cb.value)));
+
+    // Llenar los menús SOLO con estos 4
+    let opcionesHTML = '<option value="">Selecciona...</option>';
+    mcsSeleccionados.forEach(mc => {
+        opcionesHTML += `<option value="${mc.id}">${mc.aka}</option>`;
     });
 
-    // Llenamos los 4 menús del Panel 1
     ['setup_s1_mc1', 'setup_s1_mc2', 'setup_s2_mc1', 'setup_s2_mc2'].forEach(id => {
         document.getElementById(id).innerHTML = opcionesHTML;
     });
+
+    // Cambiar de pantalla
+    document.getElementById('tituloPaso2').innerText = `Evento: ${evento.nombre}`;
+    document.getElementById('panelSeleccion').style.display = 'none';
+    document.getElementById('panelCreacion').style.display = 'block';
 }
 
-// ==========================================
-// 2. INICIAR (FIJAR CRUCES MANUALES)
-// ==========================================
+// 3. INICIAR (FIJAR CRUCES EN BASE DE DATOS)
 async function iniciarTorneo() {
-    let nombre = document.getElementById('nombreTorneo').value.trim();
-    if (!nombre) return alert("Ponle un nombre al evento.");
-
     let id_s1_1 = parseInt(document.getElementById('setup_s1_mc1').value);
     let id_s1_2 = parseInt(document.getElementById('setup_s1_mc2').value);
     let id_s2_1 = parseInt(document.getElementById('setup_s2_mc1').value);
     let id_s2_2 = parseInt(document.getElementById('setup_s2_mc2').value);
 
-    // Validar que se seleccionaron todos y no hay repetidos
     let unicos = new Set([id_s1_1, id_s1_2, id_s2_1, id_s2_2]);
-    if (unicos.has(NaN)) return alert("Debes seleccionar a los 4 MCs.");
-    if (unicos.size !== 4) return alert("No puedes repetir al mismo MC en el torneo.");
+    if (unicos.has(NaN)) return alert("Debes rellenar todos los puestos de la llave.");
+    if (unicos.size !== 4) return alert("No puedes repetir al mismo MC. Asigna los 4 puestos correctamente.");
 
-    // Buscar los objetos completos en nuestra lista
-    evento.s1.mc1 = mcsDisponibles.find(m => m.id === id_s1_1);
-    evento.s1.mc2 = mcsDisponibles.find(m => m.id === id_s1_2);
-    evento.s2.mc1 = mcsDisponibles.find(m => m.id === id_s2_1);
-    evento.s2.mc2 = mcsDisponibles.find(m => m.id === id_s2_2);
+    evento.s1.mc1 = mcsSeleccionados.find(m => m.id === id_s1_1);
+    evento.s1.mc2 = mcsSeleccionados.find(m => m.id === id_s1_2);
+    evento.s2.mc1 = mcsSeleccionados.find(m => m.id === id_s2_1);
+    evento.s2.mc2 = mcsSeleccionados.find(m => m.id === id_s2_2);
 
-    // Calcular pozo inicial basado en los 4 exactos
     let sumaElo = evento.s1.mc1.elo_actual + evento.s1.mc2.elo_actual + evento.s2.mc1.elo_actual + evento.s2.mc2.elo_actual;
     evento.pozo = Math.round((sumaElo / 4) * 0.05);
 
-    document.getElementById('mensajeConsola').innerHTML = "Creando registro oficial en la nube...";
+    document.getElementById('mensajeConsola').innerHTML = "Registrando en la nube...";
 
-    // A. Crear Torneo en DB
     const { data: torneoDB } = await supabase.from('torneos').insert([{ 
-        nombre: nombre, estado: 'En Curso', elo_medio_calculado: Math.round(sumaElo/4), pozo_total: evento.pozo 
+        nombre: evento.nombre, estado: 'En Curso', elo_medio_calculado: Math.round(sumaElo/4), pozo_total: evento.pozo 
     }]).select();
     
     evento.id = torneoDB[0].id;
 
-    // B. Inscribir en DB
     let registros = [
         { torneo_id: evento.id, competidor_id: id_s1_1 },
         { torneo_id: evento.id, competidor_id: id_s1_2 },
@@ -74,10 +86,10 @@ async function iniciarTorneo() {
     ];
     await supabase.from('inscripciones').insert(registros);
 
-    // C. Mostrar la pantalla del Bracket y pintar los nombres FIJADOS
+    // Cambiar a pantalla de Batallas
     document.getElementById('panelCreacion').style.display = 'none';
     document.getElementById('panelTorneoActivo').style.display = 'block';
-    document.getElementById('tituloTorneoActivo').innerText = `🔥 ${nombre} 🔥`;
+    document.getElementById('tituloTorneoActivo').innerText = `🔥 ${evento.nombre} 🔥`;
     document.getElementById('infoPozoActivo').innerText = `Pozo en juego: 🏆 ${evento.pozo} pts`;
 
     document.getElementById('s1_mc1_nombre').innerText = evento.s1.mc1.aka;
@@ -86,9 +98,7 @@ async function iniciarTorneo() {
     document.getElementById('s2_mc2_nombre').innerText = evento.s2.mc2.aka;
 }
 
-// ==========================================
-// 3. PROCESAR BATALLAS (AUTO-AVANCE INTACTO)
-// ==========================================
+// 4. PROCESAR BATALLAS
 async function procesarBatallaAuto(faseStr) {
     let llave, idSelect, idBoton, nombreFase;
     
@@ -122,7 +132,6 @@ async function procesarBatallaAuto(faseStr) {
 
     await supabase.from('batallas').insert([{ torneo_id: evento.id, fase: nombreFase, mc1_id: llave.mc1.id, mc2_id: llave.mc2.id, resultado: resultado }]);
 
-    // AUTO-AVANCE: Mueve a los ganadores a la Final
     let ganoElUno = ['victoria', 'victoria_replica', 'victoria_total'].includes(resultado);
     llave.ganador = ganoElUno ? llave.mc1 : llave.mc2;
     llave.perdedor = ganoElUno ? llave.mc2 : llave.mc1;
@@ -150,9 +159,7 @@ async function procesarBatallaAuto(faseStr) {
     }
 }
 
-// ==========================================
-// 4. CIERRE AUTOMÁTICO (REPARTIR POZO)
-// ==========================================
+// 5. CERRAR TORNEO AUTOMÁTICO
 async function cerrarTorneoAutomatico() {
     if(!confirm("¿Cerrar el evento histórico y sumar el pozo?")) return;
 
@@ -176,6 +183,7 @@ async function cerrarTorneoAutomatico() {
     window.location.reload();
 }
 
+window.irACruces = irACruces;
 window.iniciarTorneo = iniciarTorneo;
 window.procesarBatallaAuto = procesarBatallaAuto;
 window.cerrarTorneoAutomatico = cerrarTorneoAutomatico;

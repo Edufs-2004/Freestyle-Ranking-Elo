@@ -9,18 +9,17 @@
         input[type="text"], select { width: 100%; padding: 10px; margin: 10px 0; border-radius: 5px; border: none; box-sizing: border-box; background: #fff; color: #333;}
         button { background-color: #ff4757; color: white; border: none; padding: 12px; width: 100%; cursor: pointer; font-weight: bold; border-radius: 5px; font-size: 16px; margin-top: 15px; }
         button:hover { background-color: #ff6b81; }
+        .grid-mcs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: #1e1e2f; padding: 15px; border-radius: 5px; max-height: 300px; overflow-y: auto; }
+        .grid-mcs label { cursor: pointer; display: flex; align-items: center; gap: 10px; background: #373752; padding: 8px; border-radius: 4px; }
         .navegacion { text-align: center; margin-bottom: 20px; }
         .navegacion a { color: #1e90ff; text-decoration: none; font-weight: bold; }
         
-        /* Estilos del Bracket */
         .batalla-caja { background: #1e1e2f; padding: 15px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #ff4757; text-align: center; }
         .batalla-caja h4 { margin-top: 0; color: #ff6b81; margin-bottom: 15px;}
         .versus { font-size: 18px; font-weight: bold; margin-bottom: 15px; background: #2f3542; padding: 10px; border-radius: 5px; display: flex; justify-content: space-around; align-items: center;}
         .mc-name { color: #1e90ff; flex: 1; text-align: center;}
         .vs-text { color: white; font-size: 14px; margin: 0 10px; }
-        
         .setup-cruce { background: #1e1e2f; padding: 10px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #373752; }
-        
         .btn-batalla { background-color: #1e90ff; margin-top: 10px; }
         .btn-batalla:hover { background-color: #3742fa; }
         .btn-batalla:disabled { background-color: #2ed573; cursor: not-allowed; }
@@ -31,30 +30,40 @@
 <body>
 
     <div class="navegacion">
-        <a href="batallas.html">⚙️ Ir a la Calculadora Libre</a>
+        <a href="batallas.html">⚙️ Volver a la Calculadora Libre</a>
     </div>
 
-    <div class="panel" id="panelCreacion">
-        <h2>🏆 Registrar Evento Histórico</h2>
-        <input type="text" id="nombreTorneo" placeholder="Ej: Red Bull Nacional 2026">
+    <div class="panel" id="panelSeleccion">
+        <h2>Paso 1: Datos del Evento</h2>
+        <input type="text" id="nombreTorneo" placeholder="Ej: Red Bull Nacional 2008">
         
-        <h3>Arma los Cruces Oficiales</h3>
+        <h3>Selecciona el Roster (Elige 4)</h3>
+        <p style="font-size: 14px; color: #aaa;">Solo estos MCs aparecerán para armar las llaves.</p>
+        <div id="listaCheckboxes" class="grid-mcs">Cargando MCs...</div>
+        
+        <button onclick="irACruces()">Continuar a las Llaves ➡️</button>
+    </div>
+
+    <div class="panel" id="panelCreacion" style="display: none;">
+        <h2>Paso 2: Cruces Oficiales</h2>
+        <p id="tituloPaso2" style="color: #2ed573; font-weight: bold;"></p>
         
         <div class="setup-cruce">
             <h4 style="margin: 0 0 10px 0; color: #ff6b81;">Llave 1 (Semifinal 1)</h4>
-            <select id="setup_s1_mc1"><option value="">Cargando MCs...</option></select> 
+            <select id="setup_s1_mc1"></select> 
             <div style="text-align: center; font-weight: bold;">VS</div>
-            <select id="setup_s1_mc2"><option value="">Cargando MCs...</option></select>
+            <select id="setup_s1_mc2"></select>
         </div>
 
         <div class="setup-cruce">
             <h4 style="margin: 0 0 10px 0; color: #ff6b81;">Llave 2 (Semifinal 2)</h4>
-            <select id="setup_s2_mc1"><option value="">Cargando MCs...</option></select> 
+            <select id="setup_s2_mc1"></select> 
             <div style="text-align: center; font-weight: bold;">VS</div>
-            <select id="setup_s2_mc2"><option value="">Cargando MCs...</option></select>
+            <select id="setup_s2_mc2"></select>
         </div>
 
-        <button onclick="iniciarTorneo()">Fijar Cruces y Calcular Pozo</button>
+        <button onclick="iniciarTorneo()">Confirmar Cuadro e Iniciar Evento</button>
+        <button onclick="location.reload()" style="background-color: #57606f; margin-top: 10px;">⬅️ Volver</button>
         <div id="mensajeConsola" style="margin-top: 20px; text-align: center; color: #2ed573;"></div>
     </div>
 
@@ -64,11 +73,7 @@
 
         <div class="batalla-caja">
             <h4>Semifinal 1</h4>
-            <div class="versus">
-                <span class="mc-name" id="s1_mc1_nombre">???</span> 
-                <span class="vs-text">VS</span> 
-                <span class="mc-name" id="s1_mc2_nombre">???</span>
-            </div>
+            <div class="versus"><span class="mc-name" id="s1_mc1_nombre">???</span> <span class="vs-text">VS</span> <span class="mc-name" id="s1_mc2_nombre">???</span></div>
             <select id="s1_res">
                 <option value="victoria">Victoria Izquierda</option>
                 <option value="victoria_replica">Victoria Réplica Izquierda</option>
@@ -82,11 +87,7 @@
 
         <div class="batalla-caja">
             <h4>Semifinal 2</h4>
-            <div class="versus">
-                <span class="mc-name" id="s2_mc1_nombre">???</span> 
-                <span class="vs-text">VS</span> 
-                <span class="mc-name" id="s2_mc2_nombre">???</span>
-            </div>
+            <div class="versus"><span class="mc-name" id="s2_mc1_nombre">???</span> <span class="vs-text">VS</span> <span class="mc-name" id="s2_mc2_nombre">???</span></div>
             <select id="s2_res">
                 <option value="victoria">Victoria Izquierda</option>
                 <option value="victoria_replica">Victoria Réplica Izquierda</option>
@@ -100,11 +101,7 @@
 
         <div class="batalla-caja" style="border-left-color: #eccc68;">
             <h4 style="color: #eccc68;">🏆 La Gran Final</h4>
-            <div class="versus" style="background: #3d3d2b;">
-                <span class="mc-name" id="f_mc1_nombre" style="color: #eccc68;">Ganador S1</span> 
-                <span class="vs-text">VS</span> 
-                <span class="mc-name" id="f_mc2_nombre" style="color: #eccc68;">Ganador S2</span>
-            </div>
+            <div class="versus" style="background: #3d3d2b;"><span class="mc-name" id="f_mc1_nombre" style="color: #eccc68;">Ganador S1</span> <span class="vs-text">VS</span> <span class="mc-name" id="f_mc2_nombre" style="color: #eccc68;">Ganador S2</span></div>
             <select id="f_res">
                 <option value="victoria">Victoria Izquierda</option>
                 <option value="victoria_replica">Victoria Réplica Izquierda</option>
