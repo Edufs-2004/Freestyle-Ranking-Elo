@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js';
+import { configurarSesion } from './auth.js';
 const K = 32;
 
 async function cargarTorneos() {
@@ -89,4 +90,6 @@ async function verTorneo(idTorneo, nombre) {
 
 function cerrarDetalle() { document.getElementById('panelDetalle').style.display = 'none'; document.getElementById('panelLista').style.display = 'block'; }
 window.verTorneo = verTorneo; window.eliminarTorneo = eliminarTorneo; window.repararEloGlobal = repararEloGlobal; window.cerrarDetalle = cerrarDetalle;
+
+configurarSesion();
 cargarTorneos();

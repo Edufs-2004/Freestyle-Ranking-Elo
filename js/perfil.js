@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js';
+import { configurarSesion } from './auth.js';
 
 let listaMCs = []; let miGrafico = null; let batallasGlobalesMC = []; let mcActualID = null;
 
@@ -196,4 +197,5 @@ async function guardarEdicion() {
 window.filtrarBuscador = filtrarBuscador; window.cargarPerfil = cargarPerfil; window.aplicarFiltroPerfil = aplicarFiltroPerfil; 
 window.abrirEdicion = abrirEdicion; window.cerrarEdicion = cerrarEdicion; window.guardarEdicion = guardarEdicion;
 
+configurarSesion();
 inicializar();

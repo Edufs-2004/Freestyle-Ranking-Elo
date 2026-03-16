@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js';
+import { configurarSesion } from './auth.js';
 const K = 32;
 
 const RUTA_TORNEO = {
@@ -461,4 +462,5 @@ window.procesarBatallaAuto = procesarBatallaAuto; window.cerrarTorneoAutomatico 
 window.crearYAgregarMC = crearYAgregarMC; window.agregarBatallaLiga = agregarBatallaLiga; 
 window.quitarBatallaLiga = quitarBatallaLiga; window.cerrarLiga = cerrarLiga;
 
+configurarSesion();
 cargarBD();

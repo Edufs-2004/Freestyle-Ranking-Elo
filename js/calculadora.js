@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js';
+import { configurarSesion } from './auth.js';
 const K = 32;
 
 async function cargarRankingNormal() {
@@ -96,3 +97,5 @@ async function aplicarFiltros() {
 }
 
 window.agregarMC = agregarMC; window.aplicarFiltros = aplicarFiltros; cargarRankingNormal();
+
+configurarSesion();

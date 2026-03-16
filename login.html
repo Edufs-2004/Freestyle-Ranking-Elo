@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Login - Liga Fénix</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #1e1e2f; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .login-box { background: #2a2a40; padding: 40px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); text-align: center; width: 300px; border-top: 5px solid #1e90ff;}
+        input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 5px; border: none; box-sizing: border-box; background: #fff; color: #333;}
+        button { background-color: #1e90ff; color: white; border: none; padding: 12px; width: 100%; cursor: pointer; font-weight: bold; border-radius: 5px; font-size: 16px; margin-top: 10px;}
+        button:hover { background-color: #3742fa; }
+        .volver { display: block; margin-top: 20px; color: #aaa; text-decoration: none; font-size: 14px;}
+        .volver:hover { color: white; }
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <h2 style="margin-top: 0; color: #1e90ff;">🔐 Acceso Oficial</h2>
+        <p style="color: #aaa; font-size: 14px;">Solo para administradores de la liga.</p>
+        
+        <input type="email" id="email" placeholder="Correo Electrónico">
+        <input type="password" id="password" placeholder="Contraseña">
+        
+        <button onclick="iniciarSesion()">Entrar a la Base de Datos</button>
+        <p id="msgError" style="color: #ff4757; font-size: 14px; display: none;">Credenciales incorrectas.</p>
+        
+        <a href="batallas.html" class="volver">⬅️ Volver como Espectador</a>
+    </div>
+    <script type="module" src="js/login.js"></script>
+</body>
+</html>
