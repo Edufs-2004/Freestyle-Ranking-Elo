@@ -14,21 +14,23 @@
         .tabla-ranking th, .tabla-ranking td { border: 1px solid #373752; padding: 10px; text-align: left; }
         .tabla-ranking th { background-color: #ff4757; color: white; }
         
-        /* LA NAVEGACIÓN UNIFICADA */
         .navegacion { text-align: center; margin-bottom: 20px; display: flex; justify-content: center; gap: 15px;}
         .navegacion a { color: #1e90ff; text-decoration: none; font-weight: bold; background: #2f3542; padding: 10px 20px; border-radius: 5px; }
         .navegacion a:hover { background: #373752; }
         
-        /* Estructura de columnas */
         .layout-container { display: flex; gap: 20px; flex-wrap: wrap; }
         .col-izq { flex: 1; min-width: 300px; }
         .col-der { flex: 2; min-width: 400px; }
+
+        /* Estilos para el formulario de nuevo MC */
+        .form-grupo { margin-bottom: 10px; }
+        .form-grupo label { font-size: 12px; color: #aaa; font-weight: bold; text-transform: uppercase;}
     </style>
 </head>
 <body>
 
-<div class="navegacion">
-        <a href="batallas.html">⚙️ Calculadora</a>
+    <div class="navegacion">
+        <a href="batallas.html" style="background: #1e90ff; color: white;">⚙️ Calculadora</a>
         <a href="index.html">🏆 Torneos</a>
         <a href="museo.html">🏛️ Museo</a>
         <a href="perfil.html">👤 Perfil Atleta</a>
@@ -38,8 +40,23 @@
         <div class="col-izq">
             <div class="panel">
                 <h2 style="color: #1e90ff; margin-top: 0;">1. Registrar MC Nuevo</h2>
-                <input type="text" id="nuevoAka" placeholder="A.K.A del competidor">
-                <button onclick="agregarMC()" style="background-color: #1e90ff;">Añadir al Roster Global</button>
+                
+                <div class="form-grupo">
+                    <label>A.K.A (Nombre)</label>
+                    <input type="text" id="nuevoAka" placeholder="Ej: Chuty">
+                </div>
+                
+                <div class="form-grupo">
+                    <label>Bandera (Emoji)</label>
+                    <input type="text" id="nuevaNacionalidad" placeholder="Ej: 🇪🇸">
+                </div>
+
+                <div class="form-grupo">
+                    <label>Link de la Foto (URL)</label>
+                    <input type="text" id="nuevaFoto" placeholder="https://link-de-la-foto.jpg">
+                </div>
+
+                <button onclick="agregarMC()" style="background-color: #1e90ff; margin-top: 15px;">Añadir al Roster Global</button>
             </div>
 
             <div class="panel" style="border-left: 5px solid #ff4757;">

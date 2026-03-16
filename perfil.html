@@ -12,23 +12,25 @@
         .navegacion a { color: #1e90ff; text-decoration: none; font-weight: bold; background: #2f3542; padding: 10px 20px; border-radius: 5px; }
         .navegacion a:hover { background: #373752; }
         
-        /* ESTILOS DEL BUSCADOR */
         .buscador-wrapper { position: relative; width: 100%; margin-bottom: 20px; }
         input[type="text"] { width: 100%; padding: 12px; border-radius: 5px; border: none; background: #fff; color: #333; font-size: 16px; box-sizing: border-box;}
         .sugerencias-box { position: absolute; top: 100%; left: 0; right: 0; background: #fff; color: #333; border-radius: 0 0 5px 5px; max-height: 200px; overflow-y: auto; z-index: 10; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.3);}
         .sugerencia-item { padding: 12px; cursor: pointer; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; }
         .sugerencia-item:hover { background: #f0f8ff; color: #1e90ff; font-weight: bold; }
         
-        /* Tarjetas de Estadísticas */
+        /* ESTILOS DEL NUEVO HEADER (FOTO + NOMBRE) */
+        .perfil-header { display: flex; align-items: center; justify-content: center; gap: 20px; margin-bottom: 30px; margin-top: 10px; }
+        .perfil-foto { width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 4px solid #eccc68; background-color: #373752; box-shadow: 0 0 15px rgba(236, 204, 104, 0.4);}
+        .perfil-info h1 { margin: 0; font-size: 42px; color: #fff; text-transform: uppercase; letter-spacing: 2px;}
+        .perfil-info span { font-size: 24px; }
+
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
         .stat-card { background: #1e1e2f; padding: 15px; border-radius: 8px; text-align: center; border-bottom: 4px solid #1e90ff;}
         .stat-card h3 { margin: 0; font-size: 14px; color: #aaa; text-transform: uppercase;}
         .stat-card p { margin: 10px 0 0 0; font-size: 28px; font-weight: bold; color: white;}
         
-        /* Contenedor del Gráfico */
         .chart-container { background: #1e1e2f; padding: 15px; border-radius: 8px; height: 300px; margin-bottom: 30px; }
         
-        /* Tabla de Historial */
         table { width: 100%; border-collapse: collapse; background: #1e1e2f; }
         th, td { border: 1px solid #373752; padding: 10px; text-align: left; font-size: 14px;}
         th { background-color: #ff4757; color: white; }
@@ -54,7 +56,14 @@
         </div>
         
         <div id="zonaPerfil" style="display: none;">
-            <h1 id="nombreMC" style="text-align: center; font-size: 36px; margin: 10px 0 30px 0; color: #eccc68;">NOMBRE</h1>
+            
+            <div class="perfil-header">
+                <img id="imgAtleta" class="perfil-foto" src="https://via.placeholder.com/150/373752/FFFFFF?text=MC" alt="Foto del MC">
+                <div class="perfil-info">
+                    <h1 id="nombreMC">NOMBRE</h1>
+                    <span id="banderaMC">🌍</span>
+                </div>
+            </div>
             
             <div class="stats-grid">
                 <div class="stat-card" style="border-color: #1e90ff;">
