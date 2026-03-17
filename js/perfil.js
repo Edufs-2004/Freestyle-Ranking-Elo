@@ -1,4 +1,4 @@
-import { supabase, cargarFranquiciasSelect } from './supabase.js';
+import { supabase, cargarFranquiciasSelect, obtenerFranquiciasValidas } from './supabase.js';
 import { configurarSesion } from './auth.js';
 
 let listaMCs = []; let miGrafico = null; let batallasGlobalesMC = []; let mcActualID = null;
@@ -64,9 +64,11 @@ async function aplicarFiltroPerfil() {
         torneos(nombre, franquicia, fecha_evento), mc1:competidores!batallas_mc1_id_fkey(aka), mc2:competidores!batallas_mc2_id_fkey(aka)
     `);
 
+    let franquiciasPermitidas = obtenerFranquiciasValidas(f);
+
     let filtradas = batallas.filter(b => {
         if(!b.torneos) return false;
-        let okF = (f === 'TODAS') ? true : b.torneos.franquicia === f;
+        let okF = (f === 'TODAS') ? true : franquiciasPermitidas.includes(b.torneos.franquicia);
         let okD = (!d) ? true : b.torneos.fecha_evento >= d; let okH = (!h) ? true : b.torneos.fecha_evento <= h;
         return okF && okD && okH;
     });

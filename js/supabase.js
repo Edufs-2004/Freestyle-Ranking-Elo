@@ -5,16 +5,42 @@ const supabaseKey = 'sb_publishable_gQXtYWbSVJN1xgYoexgEvQ_5gcJWNj_';
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
-// ESTA FUNCIÓN HARÁ LA MAGIA EN TODAS TUS PÁGINAS (V2.1.0)
+export let listaFranquiciasGlobal = [];
+
 export async function cargarFranquiciasSelect(idSelect, incluirTodas = false) {
     const { data } = await supabase.from('franquicias').select('*').order('nombre');
+    listaFranquiciasGlobal = data;
+
     let select = document.getElementById(idSelect);
     if(!select) return;
-    
+
     let valorPrevio = select.value;
     let html = incluirTodas ? '<option value="TODAS">Todas (Global)</option>' : '';
-    data.forEach(f => html += `<option value="${f.nombre}">${f.nombre}</option>`);
+
+    let principales = data.filter(f => !f.padre);
+    let subs = data.filter(f => f.padre);
+
+    principales.forEach(p => {
+        let hijos = subs.filter(s => s.padre === p.nombre);
+        if (hijos.length > 0) {
+            html += `<optgroup label="📂 ${p.nombre}">`;
+            html += `<option value="${p.nombre}">${p.nombre} (General)</option>`;
+            hijos.forEach(h => html += `<option value="${h.nombre}">↳ ${h.nombre}</option>`);
+            html += `</optgroup>`;
+        } else {
+            html += `<option value="${p.nombre}">📂 ${p.nombre}</option>`;
+        }
+    });
+
     select.innerHTML = html;
-    
     if (valorPrevio && valorPrevio !== '') select.value = valorPrevio;
+}
+
+// ESTA FUNCIÓN AYUDA A LOS FILTROS A BUSCAR DENTRO DE LAS CARPETAS
+export function obtenerFranquiciasValidas(nombrePadre) {
+    if (nombrePadre === 'TODAS') return ['TODAS'];
+    let validas = [nombrePadre];
+    let hijos = listaFranquiciasGlobal.filter(f => f.padre === nombrePadre);
+    hijos.forEach(h => validas.push(h.nombre));
+    return validas; // Retorna [FMS, FMS Chile, FMS España...]
 }

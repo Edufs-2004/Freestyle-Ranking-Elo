@@ -104,30 +104,50 @@ async function verTorneo(idTorneo, nombre) {
 function cerrarDetalle() { document.getElementById('panelDetalle').style.display = 'none'; document.getElementById('panelLista').style.display = 'block'; }
 
 // ===================================
-// SISTEMA DE FRANQUICIAS Y EDICIÓN (V2.1.0)
+// SISTEMA DE FRANQUICIAS (CARPETAS)
 // ===================================
 async function cargarFranquiciasPanel() {
     const { data } = await supabase.from('franquicias').select('*').order('nombre');
+    
+    let selectPadre = document.getElementById('nuevaFranqPadre');
+    let principales = data.filter(f => !f.padre);
+    let htmlPadres = '<option value="">Ninguna (Será Carpeta Principal)</option>';
+    principales.forEach(p => htmlPadres += `<option value="${p.nombre}">${p.nombre}</option>`);
+    selectPadre.innerHTML = htmlPadres;
+
     let html = '';
-    data.forEach(f => {
-        html += `<li style="display:flex; justify-content:space-between; margin-bottom:10px; background:#2f3542; padding:8px; border-radius:4px;">
-            ${f.nombre} <button class="btn-borrar" onclick="borrarFranquicia(${f.id})" style="background:transparent; color:#ff4757; width:auto; padding:0; margin:0; font-size:16px;">✖</button>
+    principales.forEach(p => {
+        html += `<li style="display:flex; justify-content:space-between; margin-bottom:5px; background:#2a2a40; padding:8px; border-radius:4px; border-left: 4px solid #1e90ff;">
+            <strong>📂 ${p.nombre}</strong> <button class="btn-borrar" onclick="borrarFranquicia(${p.id})" style="background:transparent; color:#ff4757; padding:0; font-size:16px;">✖</button>
         </li>`;
+        
+        let hijos = data.filter(f => f.padre === p.nombre);
+        hijos.forEach(h => {
+            html += `<li style="display:flex; justify-content:space-between; margin-bottom:5px; margin-left:20px; background:#2f3542; padding:8px; border-radius:4px; border-left: 2px solid #eccc68;">
+                ↳ ${h.nombre} <button class="btn-borrar" onclick="borrarFranquicia(${h.id})" style="background:transparent; color:#ff4757; padding:0; font-size:16px;">✖</button>
+            </li>`;
+        });
     });
+
     document.getElementById('listaFranq').innerHTML = html;
     cargarFranquiciasSelect('editFranqTorneo', false);
 }
 
 async function agregarFranquicia() {
     let nom = document.getElementById('nuevaFranq').value.trim();
+    let padre = document.getElementById('nuevaFranqPadre').value;
     if(!nom) return;
-    await supabase.from('franquicias').insert([{nombre: nom}]);
+    
+    let obj = { nombre: nom };
+    if (padre !== "") obj.padre = padre; // Si seleccionaste un padre, lo guardamos
+
+    await supabase.from('franquicias').insert([obj]);
     document.getElementById('nuevaFranq').value = '';
     cargarFranquiciasPanel();
 }
 
 async function borrarFranquicia(id) {
-    if(!confirm("¿Borrar esta franquicia del sistema?")) return;
+    if(!confirm("¿Borrar esta franquicia?")) return;
     await supabase.from('franquicias').delete().eq('id', id);
     cargarFranquiciasPanel();
 }

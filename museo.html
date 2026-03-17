@@ -83,17 +83,17 @@
                 
                 <hr style="border-color: #373752; margin: 20px 0;">
                 
-                <h3 style="color:#eccc68; font-size:14px;">🏷️ Gestor de Franquicias</h3>
-                <div style="display:flex; gap:10px; align-items:center;">
-                    <input type="text" id="nuevaFranq" placeholder="Añadir nueva..." style="margin:0;">
-                    <button class="btn-editar" onclick="agregarFranquicia()" style="background:#2ed573;">➕</button>
+                <h3 style="color:#eccc68; font-size:14px;">📂 Gestor de Franquicias</h3>
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                    <input type="text" id="nuevaFranq" placeholder="Ej: FMS Chile" style="margin:0;">
+                    <select id="nuevaFranqPadre" style="margin:0;">
+                        <option value="">Ninguna (Será Carpeta Principal)</option>
+                    </select>
+                    <button class="btn-editar" onclick="agregarFranquicia()" style="background:#2ed573; width:100%;">➕ Añadir Franquicia</button>
                 </div>
-                <ul id="listaFranq" style="list-style:none; padding:0; margin-top:15px;"></ul>
-            </div>
-        </div>
-    </div>
+                <ul id="listaFranq" style="list-style:none; padding:0; margin-top:15px; max-height:300px; overflow-y:auto;"></ul>
 
     <script type="module" src="js/museo.js"></script>
-    <div style="position: fixed; bottom: 10px; right: 15px; color: #57606f; font-size: 14px; font-weight: bold; pointer-events: none; z-index: 9999;">V2.1.2</div>
+    <div style="position: fixed; bottom: 10px; right: 15px; color: #57606f; font-size: 14px; font-weight: bold; pointer-events: none; z-index: 9999;">V2.2.0</div>
 </body>
 </html>

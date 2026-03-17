@@ -1,4 +1,4 @@
-import { supabase, cargarFranquiciasSelect } from './supabase.js';
+import { supabase, cargarFranquiciasSelect, obtenerFranquiciasValidas } from './supabase.js';
 import { configurarSesion } from './auth.js';
 const K = 32;
 
@@ -50,9 +50,11 @@ async function aplicarFiltros() {
     const { data: batallas, error } = await supabase.from('batallas').select(`*, torneos(franquicia, fecha_evento)`);
     if(error) return alert("Error al buscar el historial.");
 
+ let franquiciasPermitidas = obtenerFranquiciasValidas(franquicia);
+
     let batallasValidas = batallas.filter(b => {
         if(!b.torneos) return false; 
-        let okF = franquicia === "TODAS" ? true : b.torneos.franquicia === franquicia;
+        let okF = franquicia === "TODAS" ? true : franquiciasPermitidas.includes(b.torneos.franquicia);
         let okD = !desde ? true : b.torneos.fecha_evento >= desde;
         let okH = !hasta ? true : b.torneos.fecha_evento <= hasta;
         return okF && okD && okH;
