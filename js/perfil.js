@@ -1,4 +1,4 @@
-import { supabase } from './supabase.js';
+import { supabase, cargarFranquiciasSelect } from './supabase.js';
 import { configurarSesion } from './auth.js';
 
 let listaMCs = []; let miGrafico = null; let batallasGlobalesMC = []; let mcActualID = null;
@@ -199,3 +199,4 @@ window.abrirEdicion = abrirEdicion; window.cerrarEdicion = cerrarEdicion; window
 
 configurarSesion();
 inicializar();
+cargarFranquiciasSelect('filtroFranqPerfil', true);

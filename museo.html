@@ -5,64 +5,92 @@
     <title>Museo Histórico - Liga Fénix</title>
     <style>
         body { font-family: Arial, sans-serif; background-color: #1e1e2f; color: white; padding: 20px; }
-        .panel { background: #2a2a40; padding: 20px; border-radius: 8px; max-width: 900px; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.5); margin-bottom: 20px; }
+        .panel { background: #2a2a40; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); margin-bottom: 20px;}
+        input[type="text"], select, input[type="date"] { width: 100%; padding: 10px; margin: 10px 0; border-radius: 5px; border: none; box-sizing: border-box; background: #fff; color: #333;}
+        button { background-color: #1e90ff; color: white; border: none; padding: 10px 15px; cursor: pointer; font-weight: bold; border-radius: 5px; font-size: 14px; }
+        button:hover { opacity: 0.8; }
+        .btn-borrar { background-color: #ff4757; }
+        .btn-editar { background-color: #eccc68; color: #2f3542; }
+        .btn-ver { background-color: #2ed573; }
+        
         .navegacion { text-align: center; margin-bottom: 20px; display: flex; justify-content: center; gap: 15px;}
         .navegacion a { color: #1e90ff; text-decoration: none; font-weight: bold; background: #2f3542; padding: 10px 20px; border-radius: 5px; }
         .navegacion a:hover { background: #373752; }
         
         table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #1e1e2f; }
-        th, td { border: 1px solid #373752; padding: 12px; text-align: left; }
+        th, td { border: 1px solid #373752; padding: 10px; text-align: left; }
         th { background-color: #ff4757; color: white; }
         
-        button { cursor: pointer; font-weight: bold; border-radius: 5px; border: none; padding: 8px 12px; }
-        .btn-ver { background-color: #1e90ff; color: white; }
-        .btn-borrar { background-color: #ff4757; color: white; margin-left: 5px; }
-        .btn-recalcular { background-color: #eccc68; color: black; width: 100%; padding: 15px; font-size: 16px; margin-top: 10px;}
+        .layout-container { display: flex; gap: 20px; flex-wrap: wrap; }
+        .col-izq { flex: 2; min-width: 400px; }
+        .col-der { flex: 1; min-width: 300px; }
         
-        /* Estilos del visualizador de llaves */
-        .fase-titulo { color: #2ed573; margin-top: 20px; border-bottom: 1px solid #373752; padding-bottom: 5px;}
-        .batalla-item { background: #2f3542; padding: 10px; margin: 5px 0; border-radius: 5px; display: flex; justify-content: space-between; align-items: center;}
+        .batalla-item { display: flex; justify-content: space-between; align-items: center; background: #2f3542; padding: 15px; margin-bottom: 10px; border-radius: 8px;}
         .ganador-text { color: #eccc68; font-weight: bold; }
     </style>
 </head>
 <body>
-
     <div class="navegacion">
-        <a href="batallas.html">⚙️ Calculadora Global</a>
-        <a href="index.html">🏆 Organizar Torneo</a>
+        <a href="batallas.html">⚙️ Calculadora</a>
+        <a href="index.html">🏆 Torneos</a>
+        <a href="museo.html" style="background: #1e90ff; color: white;">🏛️ Museo</a>
+        <a href="perfil.html">👤 Perfil Atleta</a>
     </div>
 
-    <div class="panel" style="border: 2px solid #eccc68;">
-        <h2 style="color: #eccc68; margin-top: 0;">⚠️ Zona de Reparación (Hard Reset)</h2>
-        <p style="color: #aaa; font-size: 14px;">Si eliminas un torneo de prueba, los puntos de la tabla global quedarán desfasados. Usa este botón para formatear a todos los MCs a 1500 pts y resimular toda la historia en un segundo.</p>
-        <button class="btn-recalcular" onclick="repararEloGlobal()">🔄 Recalcular Elo Global Desde Cero</button>
-        <div id="msgReparacion" style="text-align: center; margin-top: 10px; font-weight: bold;"></div>
-    </div>
+    <div class="layout-container">
+        <div class="col-izq">
+            <div class="panel" id="panelLista">
+                <h2 style="margin-top: 0; color: #1e90ff;">🏛️ Libro Mayor de Torneos</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Franquicia</th>
+                            <th>Nombre</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cuerpoTorneos"></tbody>
+                </table>
+            </div>
 
-    <div class="panel" id="panelLista">
-        <h2>🏛️ Museo de Torneos Oficiales</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Fecha</th>
-                    <th>Franquicia</th>
-                    <th>Nombre</th>
-                    <th>Estado</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody id="cuerpoTorneos">
-                <tr><td colspan="5" style="text-align: center;">Cargando historial...</td></tr>
-            </tbody>
-        </table>
-    </div>
+            <div class="panel" id="panelEdicion" style="display:none; border: 2px dashed #eccc68;">
+                <h2 style="color:#eccc68; margin-top:0;">✏️ Editar Torneo</h2>
+                <label>Nombre del Evento:</label> <input type="text" id="editNomTorneo">
+                <label>Franquicia:</label> <select id="editFranqTorneo"></select>
+                <label>Fecha del Evento:</label> <input type="date" id="editFechaTorneo">
+                <div style="display:flex; gap:10px; margin-top:15px;">
+                    <button class="btn-editar" style="background:#2ed573; color:white; flex:1;" onclick="guardarEdicionTorneo()">💾 Guardar Cambios</button>
+                    <button class="btn-borrar" style="flex:1;" onclick="cerrarEdicionTorneo()">❌ Cancelar</button>
+                </div>
+            </div>
 
-    <div class="panel" id="panelDetalle" style="display: none;">
-        <button onclick="cerrarDetalle()" style="background-color: #57606f; color: white; margin-bottom: 20px;">⬅️ Volver al Museo</button>
-        <h2 id="detalleTitulo" style="color: #1e90ff; margin-top: 0;">Detalles del Torneo</h2>
-        <p id="detalleInfo" style="color: #aaa;"></p>
-        
-        <div id="contenedorBatallas"></div>
+            <div class="panel" id="panelDetalle" style="display: none;">
+                <h2 id="detalleTitulo" style="color: #2ed573; margin-top: 0;"></h2>
+                <button onclick="cerrarDetalle()" style="background: #57606f; margin-bottom: 20px;">⬅️ Volver</button>
+                <div id="contenedorBatallas"></div>
+            </div>
+        </div>
+
+        <div class="col-der">
+            <div class="panel" style="border-top: 5px solid #ff4757;">
+                <h2 style="margin-top: 0; color: #ff4757;">⚙️ Configuración</h2>
+                
+                <h3 style="color:#aaa; font-size:14px;">Reparación Histórica</h3>
+                <button class="btn-recalcular" onclick="repararEloGlobal()" style="width:100%; background:#ff4757;">🔄 Recalcular Elo Global</button>
+                <p id="msgReparacion" style="text-align:center; margin-top:10px; font-weight:bold;"></p>
+                
+                <hr style="border-color: #373752; margin: 20px 0;">
+                
+                <h3 style="color:#eccc68; font-size:14px;">🏷️ Gestor de Franquicias</h3>
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <input type="text" id="nuevaFranq" placeholder="Añadir nueva..." style="margin:0;">
+                    <button class="btn-editar" onclick="agregarFranquicia()" style="background:#2ed573;">➕</button>
+                </div>
+                <ul id="listaFranq" style="list-style:none; padding:0; margin-top:15px;"></ul>
+            </div>
+        </div>
     </div>
 
     <script type="module" src="js/museo.js"></script>

@@ -1,4 +1,4 @@
-import { supabase } from './supabase.js';
+import { supabase, cargarFranquiciasSelect } from './supabase.js';
 import { configurarSesion } from './auth.js';
 const K = 32;
 
@@ -99,3 +99,4 @@ async function aplicarFiltros() {
 window.agregarMC = agregarMC; window.aplicarFiltros = aplicarFiltros; cargarRankingNormal();
 
 configurarSesion();
+cargarFranquiciasSelect('filtroFranquicia', true);

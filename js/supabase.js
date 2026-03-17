@@ -1,9 +1,20 @@
-// Aquí importamos la librería de Supabase directamente en tu navegador
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
-// REEMPLAZA ESTO CON TUS DATOS DE SUPABASE (mantén las comillas simples)
 const supabaseUrl = 'https://sbdmpkqvsmxlufvbfbev.supabase.co';
 const supabaseKey = 'sb_publishable_gQXtYWbSVJN1xgYoexgEvQ_5gcJWNj_';
 
-// Creamos la conexión oficial y la exportamos para que los otros archivos la usen
 export const supabase = createClient(supabaseUrl, supabaseKey);
+
+// ESTA FUNCIÓN HARÁ LA MAGIA EN TODAS TUS PÁGINAS (V2.1.0)
+export async function cargarFranquiciasSelect(idSelect, incluirTodas = false) {
+    const { data } = await supabase.from('franquicias').select('*').order('nombre');
+    let select = document.getElementById(idSelect);
+    if(!select) return;
+    
+    let valorPrevio = select.value;
+    let html = incluirTodas ? '<option value="TODAS">Todas (Global)</option>' : '';
+    data.forEach(f => html += `<option value="${f.nombre}">${f.nombre}</option>`);
+    select.innerHTML = html;
+    
+    if (valorPrevio && valorPrevio !== '') select.value = valorPrevio;
+}
