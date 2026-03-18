@@ -199,6 +199,10 @@ async function guardarEdicion() {
 window.filtrarBuscador = filtrarBuscador; window.cargarPerfil = cargarPerfil; window.aplicarFiltroPerfil = aplicarFiltroPerfil; 
 window.abrirEdicion = abrirEdicion; window.cerrarEdicion = cerrarEdicion; window.guardarEdicion = guardarEdicion;
 
-configurarSesion();
-inicializar();
-cargarFranquiciasSelect('filtroFranqPerfil', true);
+async function cargarPagina() {
+    await configurarSesion();
+    await inicializar();
+    await cargarFranquiciasSelect('filtroFranqPerfil', true);
+}
+
+cargarPagina();
