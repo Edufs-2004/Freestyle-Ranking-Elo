@@ -124,12 +124,66 @@ function renderizarListaLiga() {
 
 function quitarBatallaLiga(index) { batallasLigaPreparadas.splice(index, 1); renderizarListaLiga(); }
 
+function abrirReorden(faseId) {
+    if (document.getElementById(`btn_${faseId}`).disabled && document.getElementById(`btn_${faseId}`).innerText !== '⚔️ Registrar') {
+        return alert("Esta batalla ya fue registrada. Si quieres editar su resultado, ve al Museo.");
+    }
+
+    let opts = '<option value="">(Nadie / Esperando)</option>';
+    mcsSeleccionados.forEach(mc => opts += `<option value="${mc.id}">${mc.aka}</option>`);
+
+    document.getElementById('reordenarMC1').innerHTML = opts;
+    document.getElementById('reordenarMC2').innerHTML = opts;
+
+    if (evento[faseId].mc1) document.getElementById('reordenarMC1').value = evento[faseId].mc1.id;
+    if (evento[faseId].mc2) document.getElementById('reordenarMC2').value = evento[faseId].mc2.id;
+    document.getElementById('reordenarFase').value = faseId;
+
+    document.getElementById('overlayReordenar').style.display = 'block';
+    document.getElementById('modalReordenar').style.display = 'block';
+}
+
+function cerrarReorden() {
+    document.getElementById('overlayReordenar').style.display = 'none';
+    document.getElementById('modalReordenar').style.display = 'none';
+}
+
+function guardarReorden() {
+    let faseId = document.getElementById('reordenarFase').value;
+    let id1 = parseInt(document.getElementById('reordenarMC1').value);
+    let id2 = parseInt(document.getElementById('reordenarMC2').value);
+
+    if (id1 && id2 && id1 === id2) return alert("Un MC no puede batallar consigo mismo.");
+
+    let mc1Obj = id1 ? mcsSeleccionados.find(m => m.id === id1) : null;
+    let mc2Obj = id2 ? mcsSeleccionados.find(m => m.id === id2) : null;
+
+    evento[faseId].mc1 = mc1Obj;
+    evento[faseId].mc2 = mc2Obj;
+
+    document.getElementById(`${faseId}_mc1_nombre`).innerText = mc1Obj ? mc1Obj.aka : "Esperando...";
+    document.getElementById(`${faseId}_mc2_nombre`).innerText = mc2Obj ? mc2Obj.aka : "Esperando...";
+
+    if (mc1Obj !== null && mc2Obj !== null) {
+        document.getElementById(`btn_${faseId}`).disabled = false; 
+        document.getElementById(`btn_${faseId}`).style.backgroundColor = "#ff4757"; 
+    } else {
+        document.getElementById(`btn_${faseId}`).disabled = true; 
+        document.getElementById(`btn_${faseId}`).style.backgroundColor = "#57606f"; 
+    }
+    cerrarReorden();
+}
+
 function generarHTMLBatalla(faseId, tituloFase, faseArranque, esLiga = false) {
     let btnBloqueado = (!esLiga && !faseId.startsWith(faseArranque)) ? 'disabled' : ''; 
+    let vsHtml = (!esLiga && faseId !== '3P') 
+        ? `<span class="vs-text" onclick="abrirReorden('${faseId}')" style="cursor:pointer; background:#1e90ff; padding:2px 5px; border-radius:4px;" title="Modificar cruce manualmente">VS ✏️</span>` 
+        : `<span class="vs-text">VS</span>`;
+
     return `
     <div class="batalla-caja" id="caja_${faseId}">
         <h4>${tituloFase}</h4>
-        <div class="versus"><span class="mc-name" id="${faseId}_mc1_nombre">Esperando...</span> <span class="vs-text">VS</span> <span class="mc-name" id="${faseId}_mc2_nombre">Esperando...</span></div>
+        <div class="versus"><span class="mc-name" id="${faseId}_mc1_nombre">Esperando...</span> ${vsHtml} <span class="mc-name" id="${faseId}_mc2_nombre">Esperando...</span></div>
         <select id="${faseId}_res">
             <option value="victoria">Victoria Izquierda</option>
             <option value="victoria_replica">Victoria Réplica Izquierda</option>
@@ -305,7 +359,10 @@ async function cerrarTorneoAutomatico() {
     }
 
     await supabase.from('torneos').update({ estado: 'Finalizado' }).eq('id', evento.id);
-    alert(`¡Finalizado!\nCampeón: +${bonoCamp} pts\n3er Lugar: +${bonoTercero} pts`);
+    let msgAlerta = `¡Torneo Finalizado con Éxito!\n\n👑 Campeón: +${bonoCamp} pts\n🥈 Subcampeón: +${bonoSub} pts\n🥉 3er Lugar: +${bonoTercero} pts\n🎖️ 4to Lugar: +${bonoCuarto} pts`;
+    if (limiteMcsActual >= 8) msgAlerta += `\n🏅 Cuartos de Final: +${bonoCuartos} pts`;
+    
+    alert(msgAlerta);
     window.location.reload();
 }
 
@@ -314,6 +371,7 @@ async function cerrarLiga() {
     await supabase.from('torneos').update({ estado: 'Finalizado' }).eq('id', evento.id); alert("¡Jornada finalizada con éxito!"); window.location.reload();
 }
 
+window.abrirReorden = abrirReorden; window.cerrarReorden = cerrarReorden; window.guardarReorden = guardarReorden;
 window.cambiarFormato = cambiarFormato; window.filtrarBuscador = filtrarBuscador; window.agregarChip = agregarChip; window.quitarChip = quitarChip; window.irACruces = irACruces; window.actualizarDesplegables = actualizarDesplegables; window.iniciarTorneo = iniciarTorneo; window.procesarBatallaAuto = procesarBatallaAuto; window.cerrarTorneoAutomatico = cerrarTorneoAutomatico; window.crearYAgregarMC = crearYAgregarMC; window.agregarBatallaLiga = agregarBatallaLiga; window.quitarBatallaLiga = quitarBatallaLiga; window.cerrarLiga = cerrarLiga;
 
 configurarSesion();

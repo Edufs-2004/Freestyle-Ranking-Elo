@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <title>Registro Histórico - Liga Fénix</title>
     <style>
+        /* Modal Flotante */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 999; }
+        .modal-box { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #2a2a40; padding: 30px; border-radius: 8px; border: 2px dashed #1e90ff; z-index: 1000; width: 90%; max-width: 450px; box-shadow: 0 0 20px rgba(0,0,0,0.8); }
         body { font-family: Arial, sans-serif; background-color: #1e1e2f; color: white; padding: 20px; }
         .panel { background: #2a2a40; padding: 20px; border-radius: 8px; max-width: 800px; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
         input[type="text"], select, input[type="date"] { width: 100%; padding: 10px; margin: 10px 0; border-radius: 5px; border: none; box-sizing: border-box; background: #fff; color: #333;}
@@ -40,6 +43,24 @@
     </style>
 </head>
 <body>
+    <div class="modal-overlay" id="overlayReordenar"></div>
+    <div class="modal-box" id="modalReordenar">
+        <h2 style="margin-top:0; color:#1e90ff;">🔄 Reordenar Llave</h2>
+        <p style="font-size: 13px; color:#aaa;">Cambia los MCs de esta batalla si hubo un error en los cruces anteriores.</p>
+        
+        <label style="color: #eccc68; font-size:12px; font-weight:bold;">Competidor Lado Izquierdo:</label>
+        <select id="reordenarMC1"></select>
+        
+        <label style="color: #eccc68; font-size:12px; font-weight:bold; margin-top:10px; display:block;">Competidor Lado Derecho:</label>
+        <select id="reordenarMC2"></select>
+        
+        <input type="hidden" id="reordenarFase">
+        
+        <div style="display:flex; gap:10px; margin-top:20px;">
+            <button style="background:#2ed573; flex:1;" onclick="guardarReorden()">💾 Confirmar</button>
+            <button style="background:#ff4757; flex:1;" onclick="cerrarReorden()">❌ Cancelar</button>
+        </div>
+    </div>
 
     <div class="navegacion">
         <a href="batallas.html">⚙️ Calculadora</a>
