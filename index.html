@@ -27,7 +27,7 @@
         .chip-btn:hover { background: #ff4757; }
 
         .grid-fase { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin-bottom: 30px;}
-        .batalla-caja { background: #1e1e2f; padding: 15px; border-radius: 5px; border-left: 4px solid #ff4757; text-align: center; }
+        .batalla-caja { background: #1e1e2f; padding: 15px; border-radius: 5px; border-left: 4px solid #ff4757; text-align: center; position: relative;}
         .batalla-caja h4 { margin-top: 0; color: #ff6b81; margin-bottom: 10px;}
         .versus { font-size: 16px; font-weight: bold; margin-bottom: 10px; background: #2f3542; padding: 10px; border-radius: 5px; display: flex; justify-content: space-around; align-items: center;}
         .mc-name { color: #1e90ff; flex: 1; text-align: center;}
@@ -55,8 +55,7 @@
         <div class="row-inputs">
             <div>
                 <label>Franquicia:</label>
-                <select id="franquiciaTorneo">
-                </select>
+                <select id="franquiciaTorneo"></select>
             </div>
             <div>
                 <label>Formato (Tamaño):</label>
@@ -91,8 +90,7 @@
 
         <div id="setupLigaDiv" style="display: none; background: #2a2a40; border: 2px dashed #1e90ff; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
             <h3 style="margin-top: 0; color: #1e90ff;">Crear Enfrentamientos de Jornada</h3>
-            <p style="font-size: 13px; color: #aaa;">Puedes añadir tantas batallas como quieras. Recuerda registrar los resultados en orden cronológico.</p>
-            
+            <p style="font-size: 13px; color: #aaa;">Puedes añadir tantas batallas como quieras. Recuerda registrar en orden cronológico.</p>
             <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                 <input type="text" id="ligaFase" placeholder="Fase (Ej: Jornada 1)" value="Jornada 1" style="flex: 1; min-width: 100px; margin: 0;">
                 <select id="ligaMC1" style="flex: 2; min-width: 150px; margin: 0;"></select>
@@ -100,7 +98,6 @@
                 <select id="ligaMC2" style="flex: 2; min-width: 150px; margin: 0;"></select>
                 <button onclick="agregarBatallaLiga()" style="margin: 0; background: #2ed573; flex: 1;">➕ Añadir Batalla</button>
             </div>
-            
             <div id="listaBatallasLiga" style="margin-top: 15px;"></div>
         </div>
 
@@ -125,9 +122,16 @@
             <h3 style="color: #ff6b81; border-bottom: 1px solid #373752; padding-bottom: 10px; margin-top: 40px;">🌪️ Semifinales</h3>
             <div id="bracketSemis" class="grid-fase"></div>
         </div>
-        <div id="zonaFinal">
-            <h3 style="color: #eccc68; border-bottom: 1px solid #373752; padding-bottom: 10px; margin-top: 40px;">🏆 Gran Final</h3>
-            <div id="bracketFinal" class="grid-fase" style="grid-template-columns: 1fr;"></div>
+        
+        <div id="zonaFinal" style="display: flex; gap: 20px; flex-wrap: wrap; margin-top: 40px;">
+            <div style="flex: 1; min-width: 300px;">
+                <h3 style="color: #eccc68; border-bottom: 1px solid #373752; padding-bottom: 10px; margin-top: 0;">🏆 Gran Final</h3>
+                <div id="bracketFinal" class="grid-fase" style="grid-template-columns: 1fr;"></div>
+            </div>
+            <div style="flex: 1; min-width: 300px;">
+                <h3 style="color: #cd84f1; border-bottom: 1px solid #373752; padding-bottom: 10px; margin-top: 0;">🥉 3er y 4to Puesto</h3>
+                <div id="bracketTercero" class="grid-fase" style="grid-template-columns: 1fr;"></div>
+            </div>
         </div>
 
         <div id="zonaLigaActiva" style="display: none;">
@@ -140,6 +144,7 @@
                 <h3 style="color: #2ed573; margin-top: 0;">¡Torneo Concluido!</h3>
                 <p>👑 Campeón: <strong id="c_camp" style="color: #eccc68; font-size: 20px;"></strong></p>
                 <p>🥈 Subcampeón: <strong id="c_sub"></strong></p>
+                <p>🥉 Tercer Lugar: <strong id="c_tercero" style="color: #cd84f1;"></strong></p>
                 <button class="btn-cerrar" onclick="cerrarTorneoAutomatico()">Repartir Pozo y Finalizar Registro</button>
             </div>
             <div id="cierre_liga" style="display: none;">
@@ -150,7 +155,7 @@
         </div>
     </div>
 
+    <div style="position: fixed; bottom: 10px; right: 15px; color: #57606f; font-size: 14px; font-weight: bold; pointer-events: none; z-index: 9999;">V2.1.0</div>
     <script type="module" src="js/torneos.js"></script>
-    <div style="position: fixed; bottom: 10px; right: 15px; color: #57606f; font-size: 14px; font-weight: bold; pointer-events: none; z-index: 9999;">V2.2.1</div>
 </body>
 </html>

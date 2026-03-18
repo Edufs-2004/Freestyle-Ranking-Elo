@@ -25,8 +25,12 @@
         .col-izq { flex: 2; min-width: 400px; }
         .col-der { flex: 1; min-width: 300px; }
         
-        .batalla-item { display: flex; justify-content: space-between; align-items: center; background: #2f3542; padding: 15px; margin-bottom: 10px; border-radius: 8px;}
+        .batalla-item { display: flex; justify-content: space-between; align-items: center; background: #2f3542; padding: 15px; margin-bottom: 10px; border-radius: 8px; border-left: 4px solid #373752;}
         .ganador-text { color: #eccc68; font-weight: bold; }
+        
+        /* Modal Flotante para Editar Batallas */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 999; }
+        .modal-box { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #2a2a40; padding: 30px; border-radius: 8px; border: 2px dashed #1e90ff; z-index: 1000; width: 90%; max-width: 450px; box-shadow: 0 0 20px rgba(0,0,0,0.8); }
     </style>
 </head>
 <body>
@@ -37,19 +41,43 @@
         <a href="perfil.html">👤 Perfil Atleta</a>
     </div>
 
+    <div class="modal-overlay" id="overlayEditBat"></div>
+    <div class="modal-box" id="modalEditBat">
+        <h2 style="margin-top:0; color:#1e90ff;">⚙️ Editor Quirúrgico</h2>
+        <p style="font-size: 13px; color:#aaa;">Cualquier cambio aquí ejecutará un Recálculo Global en la base de datos automáticamente.</p>
+        
+        <label style="font-size: 12px; color: #eccc68; font-weight: bold;">Fase (Puedes escribir para reordenar llaves):</label>
+        <input type="text" id="editBatFase">
+        
+        <label style="font-size: 12px; color: #eccc68; font-weight: bold;">Competidor Lado Izquierdo:</label>
+        <select id="editBatMC1"></select>
+        
+        <label style="font-size: 12px; color: #eccc68; font-weight: bold;">Competidor Lado Derecho:</label>
+        <select id="editBatMC2"></select>
+        
+        <label style="font-size: 12px; color: #eccc68; font-weight: bold;">Resultado (Desde la perspectiva del Izquierdo):</label>
+        <select id="editBatRes">
+            <option value="victoria">Victoria Normal</option>
+            <option value="victoria_replica">Victoria tras Réplica</option>
+            <option value="derrota_replica">Derrota tras Réplica</option>
+            <option value="derrota">Derrota Normal</option>
+            <option value="victoria_total">Victoria Total (Unánime)</option>
+            <option value="derrota_total">Derrota Total (Unánime)</option>
+        </select>
+        
+        <div style="display:flex; gap:10px; margin-top:20px;">
+            <button style="background:#2ed573; flex:1;" onclick="guardarEdicionBatalla()">💾 Aplicar y Recalcular</button>
+            <button style="background:#ff4757; flex:1;" onclick="cerrarEdicionBatalla()">❌ Cancelar</button>
+        </div>
+    </div>
+
     <div class="layout-container">
         <div class="col-izq">
             <div class="panel" id="panelLista">
                 <h2 style="margin-top: 0; color: #1e90ff;">🏛️ Libro Mayor de Torneos</h2>
                 <table>
                     <thead>
-                        <tr>
-                            <th>Fecha</th>
-                            <th>Franquicia</th>
-                            <th>Nombre</th>
-                            <th>Estado</th>
-                            <th>Acciones</th>
-                        </tr>
+                        <tr><th>Fecha</th><th>Franquicia</th><th>Nombre</th><th>Estado</th><th>Acciones</th></tr>
                     </thead>
                     <tbody id="cuerpoTorneos"></tbody>
                 </table>
@@ -67,8 +95,10 @@
             </div>
 
             <div class="panel" id="panelDetalle" style="display: none;">
-                <h2 id="detalleTitulo" style="color: #2ed573; margin-top: 0;"></h2>
-                <button onclick="cerrarDetalle()" style="background: #57606f; margin-bottom: 20px;">⬅️ Volver</button>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 id="detalleTitulo" style="color: #2ed573; margin: 0;"></h2>
+                    <button onclick="cerrarDetalle()" style="background: #57606f; width: auto; margin: 0;">⬅️ Volver al Libro</button>
+                </div>
                 <div id="contenedorBatallas"></div>
             </div>
         </div>
@@ -86,14 +116,15 @@
                 <h3 style="color:#eccc68; font-size:14px;">📂 Gestor de Franquicias</h3>
                 <div style="display:flex; flex-direction:column; gap:10px;">
                     <input type="text" id="nuevaFranq" placeholder="Ej: FMS Chile" style="margin:0;">
-                    <select id="nuevaFranqPadre" style="margin:0;">
-                        <option value="">Ninguna (Será Carpeta Principal)</option>
-                    </select>
+                    <select id="nuevaFranqPadre" style="margin:0;"><option value="">Ninguna (Carpeta Principal)</option></select>
                     <button class="btn-editar" onclick="agregarFranquicia()" style="background:#2ed573; width:100%;">➕ Añadir Franquicia</button>
                 </div>
                 <ul id="listaFranq" style="list-style:none; padding:0; margin-top:15px; max-height:300px; overflow-y:auto;"></ul>
+            </div>
+        </div>
+    </div>
 
+    <div style="position: fixed; bottom: 10px; right: 15px; color: #57606f; font-size: 14px; font-weight: bold; pointer-events: none; z-index: 9999;">V2.1.0</div>
     <script type="module" src="js/museo.js"></script>
-    <div style="position: fixed; bottom: 10px; right: 15px; color: #57606f; font-size: 14px; font-weight: bold; pointer-events: none; z-index: 9999;">V2.2.1</div>
 </body>
 </html>
