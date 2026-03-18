@@ -2,6 +2,7 @@ import { supabase, cargarFranquiciasSelect } from './supabase.js';
 import { configurarSesion } from './auth.js';
 const K = 32;
 
+// LA RUTA VUELVE A TENER EL '3P' INCLUIDO
 const RUTA_TORNEO = {
     'O1': { sig: 'C1', slot: 'mc1' }, 'O2': { sig: 'C1', slot: 'mc2' },
     'O3': { sig: 'C2', slot: 'mc1' }, 'O4': { sig: 'C2', slot: 'mc2' },
@@ -10,7 +11,7 @@ const RUTA_TORNEO = {
     'C1': { sig: 'S1', slot: 'mc1' }, 'C2': { sig: 'S1', slot: 'mc2' },
     'C3': { sig: 'S2', slot: 'mc1' }, 'C4': { sig: 'S2', slot: 'mc2' },
     'S1': { sig: 'F', slot: 'mc1' },  'S2': { sig: 'F', slot: 'mc2' },
-    'F':  { sig: 'FIN', slot: null }, '3P': { sig: 'FIN', slot: null } // Agregamos 3P a la ruta
+    'F':  { sig: 'FIN', slot: null }, '3P': { sig: 'FIN', slot: null } 
 };
 
 let evento = { id: null, pozo: 0, nombre: "", franquicia: "", formatoStr: "", fecha: "" };
@@ -125,72 +126,45 @@ function renderizarListaLiga() {
 function quitarBatallaLiga(index) { batallasLigaPreparadas.splice(index, 1); renderizarListaLiga(); }
 
 function abrirReorden(faseId) {
-    if (document.getElementById(`btn_${faseId}`).disabled && document.getElementById(`btn_${faseId}`).innerText !== '⚔️ Registrar') {
-        return alert("Esta batalla ya fue registrada. Si quieres editar su resultado, ve al Museo.");
-    }
-
+    if (document.getElementById(`btn_${faseId}`).disabled && document.getElementById(`btn_${faseId}`).innerText !== '⚔️ Registrar') return alert("Esta batalla ya fue registrada. Si quieres editar su resultado, ve al Museo.");
     let opts = '<option value="">(Nadie / Esperando)</option>';
     mcsSeleccionados.forEach(mc => opts += `<option value="${mc.id}">${mc.aka}</option>`);
-
-    document.getElementById('reordenarMC1').innerHTML = opts;
-    document.getElementById('reordenarMC2').innerHTML = opts;
-
+    document.getElementById('reordenarMC1').innerHTML = opts; document.getElementById('reordenarMC2').innerHTML = opts;
     if (evento[faseId].mc1) document.getElementById('reordenarMC1').value = evento[faseId].mc1.id;
     if (evento[faseId].mc2) document.getElementById('reordenarMC2').value = evento[faseId].mc2.id;
     document.getElementById('reordenarFase').value = faseId;
-
-    document.getElementById('overlayReordenar').style.display = 'block';
-    document.getElementById('modalReordenar').style.display = 'block';
+    document.getElementById('overlayReordenar').style.display = 'block'; document.getElementById('modalReordenar').style.display = 'block';
 }
 
-function cerrarReorden() {
-    document.getElementById('overlayReordenar').style.display = 'none';
-    document.getElementById('modalReordenar').style.display = 'none';
-}
+function cerrarReorden() { document.getElementById('overlayReordenar').style.display = 'none'; document.getElementById('modalReordenar').style.display = 'none'; }
 
 function guardarReorden() {
     let faseId = document.getElementById('reordenarFase').value;
-    let id1 = parseInt(document.getElementById('reordenarMC1').value);
-    let id2 = parseInt(document.getElementById('reordenarMC2').value);
-
+    let id1 = parseInt(document.getElementById('reordenarMC1').value); let id2 = parseInt(document.getElementById('reordenarMC2').value);
     if (id1 && id2 && id1 === id2) return alert("Un MC no puede batallar consigo mismo.");
+    let mc1Obj = id1 ? mcsSeleccionados.find(m => m.id === id1) : null; let mc2Obj = id2 ? mcsSeleccionados.find(m => m.id === id2) : null;
 
-    let mc1Obj = id1 ? mcsSeleccionados.find(m => m.id === id1) : null;
-    let mc2Obj = id2 ? mcsSeleccionados.find(m => m.id === id2) : null;
-
-    evento[faseId].mc1 = mc1Obj;
-    evento[faseId].mc2 = mc2Obj;
-
-    document.getElementById(`${faseId}_mc1_nombre`).innerText = mc1Obj ? mc1Obj.aka : "Esperando...";
-    document.getElementById(`${faseId}_mc2_nombre`).innerText = mc2Obj ? mc2Obj.aka : "Esperando...";
-
+    evento[faseId].mc1 = mc1Obj; evento[faseId].mc2 = mc2Obj;
+    document.getElementById(`${faseId}_mc1_nombre`).innerText = mc1Obj ? mc1Obj.aka : "Esperando..."; document.getElementById(`${faseId}_mc2_nombre`).innerText = mc2Obj ? mc2Obj.aka : "Esperando...";
+    
     if (mc1Obj !== null && mc2Obj !== null) {
-        document.getElementById(`btn_${faseId}`).disabled = false; 
-        document.getElementById(`btn_${faseId}`).style.backgroundColor = "#ff4757"; 
+        document.getElementById(`btn_${faseId}`).disabled = false; document.getElementById(`btn_${faseId}`).style.backgroundColor = "#ff4757"; 
     } else {
-        document.getElementById(`btn_${faseId}`).disabled = true; 
-        document.getElementById(`btn_${faseId}`).style.backgroundColor = "#57606f"; 
+        document.getElementById(`btn_${faseId}`).disabled = true; document.getElementById(`btn_${faseId}`).style.backgroundColor = "#57606f"; 
     }
     cerrarReorden();
 }
 
 function generarHTMLBatalla(faseId, tituloFase, faseArranque, esLiga = false) {
     let btnBloqueado = (!esLiga && !faseId.startsWith(faseArranque)) ? 'disabled' : ''; 
-    let vsHtml = (!esLiga && faseId !== '3P') 
-        ? `<span class="vs-text" onclick="abrirReorden('${faseId}')" style="cursor:pointer; background:#1e90ff; padding:2px 5px; border-radius:4px;" title="Modificar cruce manualmente">VS ✏️</span>` 
-        : `<span class="vs-text">VS</span>`;
-
+    let vsHtml = (!esLiga && faseId !== '3P') ? `<span class="vs-text" onclick="abrirReorden('${faseId}')" style="cursor:pointer; background:#1e90ff; padding:2px 5px; border-radius:4px;" title="Modificar cruce manualmente">VS ✏️</span>` : `<span class="vs-text">VS</span>`;
     return `
     <div class="batalla-caja" id="caja_${faseId}">
         <h4>${tituloFase}</h4>
         <div class="versus"><span class="mc-name" id="${faseId}_mc1_nombre">Esperando...</span> ${vsHtml} <span class="mc-name" id="${faseId}_mc2_nombre">Esperando...</span></div>
         <select id="${faseId}_res">
-            <option value="victoria">Victoria Izquierda</option>
-            <option value="victoria_replica">Victoria Réplica Izquierda</option>
-            <option value="derrota_replica">Victoria Réplica Derecha</option>
-            <option value="derrota">Victoria Derecha</option>
-            <option value="victoria_total">Victoria Total Izquierda</option>
-            <option value="derrota_total">Victoria Total Derecha</option>
+            <option value="victoria">Victoria Izquierda</option><option value="victoria_replica">Victoria Réplica Izquierda</option><option value="derrota_replica">Victoria Réplica Derecha</option>
+            <option value="derrota">Victoria Derecha</option><option value="victoria_total">Victoria Total Izquierda</option><option value="derrota_total">Victoria Total Derecha</option>
         </select>
         <button class="btn-batalla" id="btn_${faseId}" onclick="procesarBatallaAuto('${faseId}', ${esLiga})" ${btnBloqueado}>⚔️ Registrar</button>
     </div>`;
@@ -250,8 +224,7 @@ async function iniciarTorneo() {
             contenedor.innerHTML = htmlAcumulado;
         });
         
-        // V2.2: Generar y dibujar el 3er Puesto siempre que no sea Liga
-        document.getElementById('bracketTercero').innerHTML = generarHTMLBatalla('3P', 'Batalla por el Bronce', 'ZZZ', false); // ZZZ para que inicie bloqueado
+        document.getElementById('bracketTercero').innerHTML = generarHTMLBatalla('3P', 'Batalla por el Bronce', 'ZZZ', false);
 
         for(let i=1; i<=limiteMcsActual/2; i++) {
             document.getElementById(`${prefijo}${i}_mc1_nombre`).innerText = evento[`${prefijo}${i}`].mc1.aka; document.getElementById(`${prefijo}${i}_mc2_nombre`).innerText = evento[`${prefijo}${i}`].mc2.aka;
@@ -290,7 +263,6 @@ async function procesarBatallaAuto(faseStr, esLiga = false) {
         let ganoElUno = ['victoria', 'victoria_replica', 'victoria_total'].includes(resultado);
         llave.ganador = ganoElUno ? llave.mc1 : llave.mc2; llave.perdedor = ganoElUno ? llave.mc2 : llave.mc1;
 
-        // MAGIA DEL 3ER PUESTO (Envía a los perdedores de Semis a la batalla 3P)
         if (faseStr === 'S1') evento['3P'].mc1 = llave.perdedor;
         if (faseStr === 'S2') evento['3P'].mc2 = llave.perdedor;
 
@@ -312,7 +284,6 @@ async function procesarBatallaAuto(faseStr, esLiga = false) {
             }
         }
         
-        // Verifica si ya terminaron la Final Y el 3er Puesto para habilitar el cierre
         if ((faseStr === 'F' || faseStr === '3P') && evento.F.ganador && evento['3P'].ganador) {
             document.getElementById('resumen_final').style.display = 'block';
             document.getElementById('c_camp').innerText = evento.F.ganador.aka;
@@ -359,6 +330,7 @@ async function cerrarTorneoAutomatico() {
     }
 
     await supabase.from('torneos').update({ estado: 'Finalizado' }).eq('id', evento.id);
+    
     let msgAlerta = `¡Torneo Finalizado con Éxito!\n\n👑 Campeón: +${bonoCamp} pts\n🥈 Subcampeón: +${bonoSub} pts\n🥉 3er Lugar: +${bonoTercero} pts\n🎖️ 4to Lugar: +${bonoCuarto} pts`;
     if (limiteMcsActual >= 8) msgAlerta += `\n🏅 Cuartos de Final: +${bonoCuartos} pts`;
     
