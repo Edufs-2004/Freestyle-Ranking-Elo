@@ -1,9 +1,10 @@
-import { supabase, cargarFranquiciasSelect } from './supabase.js';
+import { supabase, cargarFranquiciasSelect, obtenerFranquiciasValidas } from './supabase.js';
 import { configurarSesion } from './auth.js';
 const K = 32;
 
 let torneoEditandoId = null; let fechaOriginalEdicion = null;
 let batallaEditandoId = null; let listaMcsGlobal = []; let torneoAbiertoId = null; let torneoAbiertoNombre = "";
+let torneosGlobal = []; // Array para almacenar torneos y no llamar a la base de datos en cada filtro
 
 async function cargarMcsParaEdicion() {
     const {data} = await supabase.from('competidores').select('id, aka').order('aka');
@@ -13,16 +14,41 @@ async function cargarMcsParaEdicion() {
     document.getElementById('editBatMC2').innerHTML = opts;
 }
 
+// Carga principal desde la Base de Datos
 async function cargarTorneos() {
     const { data: torneos, error } = await supabase.from('torneos').select('*').order('fecha_evento', { ascending: false });
     if (error) return console.error(error);
+    torneosGlobal = torneos; 
+    aplicarFiltroMuseo(); // Aplica el filtro por defecto y dibuja la tabla
+}
+
+// Nueva función de Filtrado
+function aplicarFiltroMuseo() {
+    let f = document.getElementById('filtroFranqMuseo').value;
+    let d = document.getElementById('filtroDesdeMuseo').value;
+    let h = document.getElementById('filtroHastaMuseo').value;
+
+    let franquiciasPermitidas = f ? obtenerFranquiciasValidas(f) : ['TODAS'];
+
+    let filtrados = torneosGlobal.filter(t => {
+        let okF = (!f || f === 'TODAS') ? true : franquiciasPermitidas.includes(t.franquicia);
+        let okD = (!d) ? true : t.fecha_evento >= d;
+        let okH = (!h) ? true : t.fecha_evento <= h;
+        return okF && okD && okH;
+    });
+
+    renderizarTablaTorneos(filtrados);
+}
+
+// Función encargada solo de dibujar el HTML
+function renderizarTablaTorneos(listaTorneos) {
     let html = '';
-    torneos.forEach(t => {
+    listaTorneos.forEach(t => {
         let colorEstado = t.estado === 'Finalizado' ? '#2ed573' : '#ffa502';
         html += `<tr><td>${t.fecha_evento || 'Sin fecha'}</td><td><strong>${t.franquicia || '-'}</strong></td><td>${t.nombre}</td><td style="color: ${colorEstado}; font-weight: bold;">${t.estado}</td>
             <td><button class="btn-ver" onclick="verTorneo(${t.id}, '${t.nombre}')">👁️</button> <button class="btn-editar" onclick="abrirEdicionTorneo(${t.id}, '${t.nombre}', '${t.franquicia}', '${t.fecha_evento}')">✏️</button> <button class="btn-borrar" onclick="eliminarTorneo(${t.id}, '${t.nombre}')">🗑️</button></td></tr>`;
     });
-    document.getElementById('cuerpoTorneos').innerHTML = html || '<tr><td colspan="5" style="text-align:center;">No hay torneos registrados.</td></tr>';
+    document.getElementById('cuerpoTorneos').innerHTML = html || '<tr><td colspan="5" style="text-align:center; color: #aaa;">No se encontraron torneos con estos filtros.</td></tr>';
 }
 
 async function eliminarTorneo(id, nombre) {
@@ -32,7 +58,6 @@ async function eliminarTorneo(id, nombre) {
     cargarTorneos();
 }
 
-// LA FUNCIÓN VITAL DE REPARACIÓN (AHORA PUEDE SER SILENCIOSA)
 async function repararEloGlobal(silent = false) {
     if (!silent && !confirm("🔄 ¿Iniciar Recálculo Global?")) return;
     let msg = document.getElementById('msgReparacion'); msg.style.color = "#eccc68"; msg.innerText = "⏳ 1. Reseteando MCs...";
@@ -72,7 +97,7 @@ async function repararEloGlobal(silent = false) {
         await supabase.from('competidores').update({ elo_actual: mc.elo, batallas_totales: mc.batallas }).eq('id', mc.id);
     }
     msg.style.color = "#2ed573"; msg.innerText = "✅ ¡Reparado Perfectamente!";
-    setTimeout(() => { msg.innerText = ""; }, 3000); // Limpiar mensaje después de 3s
+    setTimeout(() => { msg.innerText = ""; }, 3000);
 }
 
 async function verTorneo(idTorneo, nombre) {
@@ -84,9 +109,7 @@ async function verTorneo(idTorneo, nombre) {
     const { data: batallas, error } = await supabase.from('batallas').select(`id, fase, resultado, mc1_id, mc2_id`).eq('torneo_id', idTorneo);
     if(error || !batallas || batallas.length === 0) return document.getElementById('contenedorBatallas').innerHTML = '<p>No hay batallas.</p>';
 
-    // ORDENAR ALFABÉTICAMENTE POR FASE (Ayuda a que O1, O2, O3 se vean en orden aunque los hayas ingresado mal)
     batallas.sort((a, b) => a.fase.localeCompare(b.fase));
-
     let mapMcs = {}; listaMcsGlobal.forEach(c => mapMcs[c.id] = c.aka);
 
     let htmlVisual = '';
@@ -114,20 +137,11 @@ function cerrarDetalle() { document.getElementById('panelDetalle').style.display
 // EDICIÓN QUIRÚRGICA DE BATALLAS
 // ===================================
 function abrirEdicionBatalla(id, fase, mc1, mc2, res) {
-    batallaEditandoId = id;
-    document.getElementById('editBatFase').value = fase;
-    document.getElementById('editBatMC1').value = mc1;
-    document.getElementById('editBatMC2').value = mc2;
-    document.getElementById('editBatRes').value = res;
-    
-    document.getElementById('overlayEditBat').style.display = 'block';
-    document.getElementById('modalEditBat').style.display = 'block';
+    batallaEditandoId = id; document.getElementById('editBatFase').value = fase; document.getElementById('editBatMC1').value = mc1; document.getElementById('editBatMC2').value = mc2; document.getElementById('editBatRes').value = res;
+    document.getElementById('overlayEditBat').style.display = 'block'; document.getElementById('modalEditBat').style.display = 'block';
 }
 
-function cerrarEdicionBatalla() {
-    document.getElementById('overlayEditBat').style.display = 'none';
-    document.getElementById('modalEditBat').style.display = 'none';
-}
+function cerrarEdicionBatalla() { document.getElementById('overlayEditBat').style.display = 'none'; document.getElementById('modalEditBat').style.display = 'none'; }
 
 async function guardarEdicionBatalla(recalcular = true) {
     let f = document.getElementById('editBatFase').value.trim();
@@ -138,23 +152,19 @@ async function guardarEdicionBatalla(recalcular = true) {
     if(!f || !m1 || !m2) return alert("Completa todos los campos");
     if(m1 === m2) return alert("Un MC no puede batallar consigo mismo.");
 
-    // 1. Guardar el cambio crudo en la base de datos
     await supabase.from('batallas').update({ fase: f, mc1_id: m1, mc2_id: m2, resultado: r }).eq('id', batallaEditandoId);
 
-    // 2. Ejecutar la reparación automática silenciosa SOLO si se solicitó (Botón verde)
     if (recalcular) {
         document.getElementById('modalEditBat').innerHTML = '<h3 style="text-align:center; color:#1e90ff;">⏳ Guardando y Recalculando Línea Temporal...</h3>';
         await repararEloGlobal(true);
     }
 
-    // 3. Restaurar Modal y Recargar la Vista
     cerrarEdicionBatalla();
     
-    // Restaurar HTML del Modal para la próxima vez (Con los 3 botones nuevos)
     document.getElementById('modalEditBat').innerHTML = `
         <h2 style="margin-top:0; color:#1e90ff;">⚙️ Editor Quirúrgico</h2>
         <p style="font-size: 13px; color:#aaa;">Usa <b>"Aplicar"</b> para cambios rápidos (requiere recálculo manual después), o <b>"Aplicar y Recalcular"</b> para arreglar todo al instante.</p>
-        <label style="font-size: 12px; color: #eccc68; font-weight: bold;">Fase:</label> <input type="text" id="editBatFase">
+        <label style="font-size: 12px; color: #eccc68; font-weight: bold;">Fase (Puedes escribir para reordenar llaves o jornadas):</label> <input type="text" id="editBatFase">
         <label style="font-size: 12px; color: #eccc68; font-weight: bold;">MC Izquierdo:</label> <select id="editBatMC1"></select>
         <label style="font-size: 12px; color: #eccc68; font-weight: bold;">MC Derecho:</label> <select id="editBatMC2"></select>
         <label style="font-size: 12px; color: #eccc68; font-weight: bold;">Resultado:</label>
@@ -165,10 +175,7 @@ async function guardarEdicionBatalla(recalcular = true) {
             <button style="background:#ff4757; flex:1; font-size:12px;" onclick="cerrarEdicionBatalla()">❌ Cancelar</button>
         </div>`;
     
-    // Recargar Opciones en el HTML restaurado
     cargarMcsParaEdicion(); 
-    
-    // Recargar la vista del torneo que estábamos viendo para ver los cambios de inmediato
     verTorneo(torneoAbiertoId, torneoAbiertoNombre);
 }
 
@@ -187,7 +194,10 @@ async function cargarFranquiciasPanel() {
         let hijos = data.filter(f => f.padre === p.nombre);
         hijos.forEach(h => { html += `<li style="display:flex; justify-content:space-between; margin-bottom:5px; margin-left:20px; background:#2f3542; padding:8px; border-radius:4px; border-left: 2px solid #eccc68;">↳ ${h.nombre} <button class="btn-borrar" onclick="borrarFranquicia(${h.id})" style="background:transparent; color:#ff4757; padding:0; font-size:16px;">✖</button></li>`; });
     });
-    document.getElementById('listaFranq').innerHTML = html; cargarFranquiciasSelect('editFranqTorneo', false);
+    document.getElementById('listaFranq').innerHTML = html; 
+    
+    cargarFranquiciasSelect('editFranqTorneo', false);
+    cargarFranquiciasSelect('filtroFranqMuseo', true); // Actualizamos también el nuevo filtro
 }
 
 async function agregarFranquicia() {
@@ -219,9 +229,11 @@ async function guardarEdicionTorneo() {
 }
 function cerrarEdicionTorneo() { document.getElementById('panelEdicion').style.display = 'none'; document.getElementById('panelLista').style.display = 'block'; }
 
-window.verTorneo = verTorneo; window.eliminarTorneo = eliminarTorneo; window.repararEloGlobal = repararEloGlobal; window.cerrarDetalle = cerrarDetalle; window.agregarFranquicia = agregarFranquicia; window.borrarFranquicia = borrarFranquicia; window.abrirEdicionTorneo = abrirEdicionTorneo; window.guardarEdicionTorneo = guardarEdicionTorneo; window.cerrarEdicionTorneo = cerrarEdicionTorneo; window.abrirEdicionBatalla = abrirEdicionBatalla; window.cerrarEdicionBatalla = cerrarEdicionBatalla; window.guardarEdicionBatalla = guardarEdicionBatalla;
+window.verTorneo = verTorneo; window.eliminarTorneo = eliminarTorneo; window.repararEloGlobal = repararEloGlobal; window.cerrarDetalle = cerrarDetalle; window.agregarFranquicia = agregarFranquicia; window.borrarFranquicia = borrarFranquicia; window.abrirEdicionTorneo = abrirEdicionTorneo; window.guardarEdicionTorneo = guardarEdicionTorneo; window.cerrarEdicionTorneo = cerrarEdicionTorneo; window.abrirEdicionBatalla = abrirEdicionBatalla; window.cerrarEdicionBatalla = cerrarEdicionBatalla; window.guardarEdicionBatalla = guardarEdicionBatalla; 
+window.aplicarFiltroMuseo = aplicarFiltroMuseo; // Exportamos la nueva función
 
 configurarSesion();
-cargarMcsParaEdicion(); // Cargar MCs al inicio
+cargarMcsParaEdicion();
 cargarTorneos();
 cargarFranquiciasPanel();
+cargarFranquiciasSelect('filtroFranqMuseo', true); // Inicializamos el filtro con TODAS

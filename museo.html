@@ -76,6 +76,25 @@
         <div class="col-izq">
             <div class="panel" id="panelLista">
                 <h2 style="margin-top: 0; color: #1e90ff;">🏛️ Libro Mayor de Torneos</h2>
+                
+                <div style="display: flex; gap: 10px; margin-bottom: 15px; background: #1e1e2f; padding: 15px; border-radius: 5px; border: 1px solid #373752; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 150px;">
+                        <label style="font-size: 12px; color: #aaa;">Franquicia:</label>
+                        <select id="filtroFranqMuseo" style="margin: 0; padding: 8px;"></select>
+                    </div>
+                    <div style="flex: 1; min-width: 130px;">
+                        <label style="font-size: 12px; color: #aaa;">Desde:</label>
+                        <input type="date" id="filtroDesdeMuseo" style="margin: 0; padding: 8px;">
+                    </div>
+                    <div style="flex: 1; min-width: 130px;">
+                        <label style="font-size: 12px; color: #aaa;">Hasta:</label>
+                        <input type="date" id="filtroHastaMuseo" style="margin: 0; padding: 8px;">
+                    </div>
+                    <div style="display: flex; align-items: flex-end;">
+                        <button onclick="aplicarFiltroMuseo()" style="margin: 0; padding: 9px 15px; background: #2ed573;">🔍 Filtrar</button>
+                    </div>
+                </div>
+
                 <table>
                     <thead>
                         <tr><th>Fecha</th><th>Franquicia</th><th>Nombre</th><th>Estado</th><th>Acciones</th></tr>
@@ -125,7 +144,7 @@
         </div>
     </div>
 
-    <div style="position: fixed; bottom: 10px; right: 15px; color: #57606f; font-size: 14px; font-weight: bold; pointer-events: none; z-index: 9999;">V2.3.4</div>
+    <div style="position: fixed; bottom: 10px; right: 15px; color: #57606f; font-size: 14px; font-weight: bold; pointer-events: none; z-index: 9999;">V2.3.5</div>
     <script type="module" src="js/museo.js"></script>
 </body>
 </html>
