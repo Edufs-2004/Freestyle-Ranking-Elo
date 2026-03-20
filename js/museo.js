@@ -129,7 +129,7 @@ function cerrarEdicionBatalla() {
     document.getElementById('modalEditBat').style.display = 'none';
 }
 
-async function guardarEdicionBatalla() {
+async function guardarEdicionBatalla(recalcular = true) {
     let f = document.getElementById('editBatFase').value.trim();
     let m1 = parseInt(document.getElementById('editBatMC1').value);
     let m2 = parseInt(document.getElementById('editBatMC2').value);
@@ -138,32 +138,37 @@ async function guardarEdicionBatalla() {
     if(!f || !m1 || !m2) return alert("Completa todos los campos");
     if(m1 === m2) return alert("Un MC no puede batallar consigo mismo.");
 
-    document.getElementById('modalEditBat').innerHTML = '<h3 style="text-align:center; color:#1e90ff;">⏳ Guardando y Recalculando...</h3>';
-
     // 1. Guardar el cambio crudo en la base de datos
     await supabase.from('batallas').update({ fase: f, mc1_id: m1, mc2_id: m2, resultado: r }).eq('id', batallaEditandoId);
 
-    // 2. Ejecutar la reparación automática silenciosa para arreglar la línea temporal
-    await repararEloGlobal(true);
+    // 2. Ejecutar la reparación automática silenciosa SOLO si se solicitó (Botón verde)
+    if (recalcular) {
+        document.getElementById('modalEditBat').innerHTML = '<h3 style="text-align:center; color:#1e90ff;">⏳ Guardando y Recalculando Línea Temporal...</h3>';
+        await repararEloGlobal(true);
+    }
 
     // 3. Restaurar Modal y Recargar la Vista
     cerrarEdicionBatalla();
     
-    // Restaurar HTML del Modal para la próxima vez
+    // Restaurar HTML del Modal para la próxima vez (Con los 3 botones nuevos)
     document.getElementById('modalEditBat').innerHTML = `
         <h2 style="margin-top:0; color:#1e90ff;">⚙️ Editor Quirúrgico</h2>
-        <p style="font-size: 13px; color:#aaa;">Cualquier cambio aquí ejecutará un Recálculo Global en la base de datos automáticamente.</p>
+        <p style="font-size: 13px; color:#aaa;">Usa <b>"Aplicar"</b> para cambios rápidos (requiere recálculo manual después), o <b>"Aplicar y Recalcular"</b> para arreglar todo al instante.</p>
         <label style="font-size: 12px; color: #eccc68; font-weight: bold;">Fase:</label> <input type="text" id="editBatFase">
         <label style="font-size: 12px; color: #eccc68; font-weight: bold;">MC Izquierdo:</label> <select id="editBatMC1"></select>
         <label style="font-size: 12px; color: #eccc68; font-weight: bold;">MC Derecho:</label> <select id="editBatMC2"></select>
         <label style="font-size: 12px; color: #eccc68; font-weight: bold;">Resultado:</label>
         <select id="editBatRes"><option value="victoria">Victoria Normal</option><option value="victoria_replica">Victoria tras Réplica</option><option value="derrota_replica">Derrota tras Réplica</option><option value="derrota">Derrota Normal</option><option value="victoria_total">Victoria Total</option><option value="derrota_total">Derrota Total</option></select>
-        <div style="display:flex; gap:10px; margin-top:20px;"><button style="background:#2ed573; flex:1;" onclick="guardarEdicionBatalla()">💾 Aplicar y Recalcular</button><button style="background:#ff4757; flex:1;" onclick="cerrarEdicionBatalla()">❌ Cancelar</button></div>`;
+        <div style="display:flex; gap:10px; margin-top:20px;">
+            <button style="background:#eccc68; color:#2f3542; flex:1; font-size:12px;" onclick="guardarEdicionBatalla(false)">💾 Aplicar</button>
+            <button style="background:#2ed573; flex:1; font-size:12px;" onclick="guardarEdicionBatalla(true)">🔄 Aplicar y Recalcular</button>
+            <button style="background:#ff4757; flex:1; font-size:12px;" onclick="cerrarEdicionBatalla()">❌ Cancelar</button>
+        </div>`;
     
     // Recargar Opciones en el HTML restaurado
     cargarMcsParaEdicion(); 
     
-    // Recargar la vista del torneo que estábamos viendo
+    // Recargar la vista del torneo que estábamos viendo para ver los cambios de inmediato
     verTorneo(torneoAbiertoId, torneoAbiertoNombre);
 }
 

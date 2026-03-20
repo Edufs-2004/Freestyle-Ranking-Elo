@@ -44,9 +44,9 @@
     <div class="modal-overlay" id="overlayEditBat"></div>
     <div class="modal-box" id="modalEditBat">
         <h2 style="margin-top:0; color:#1e90ff;">⚙️ Editor Quirúrgico</h2>
-        <p style="font-size: 13px; color:#aaa;">Cualquier cambio aquí ejecutará un Recálculo Global en la base de datos automáticamente.</p>
+        <p style="font-size: 13px; color:#aaa;">Usa <b>"Aplicar"</b> para cambios rápidos (requiere recálculo manual después), o <b>"Aplicar y Recalcular"</b> para arreglar todo al instante.</p>
         
-        <label style="font-size: 12px; color: #eccc68; font-weight: bold;">Fase (Puedes escribir para reordenar llaves):</label>
+        <label style="font-size: 12px; color: #eccc68; font-weight: bold;">Fase (Puedes escribir para reordenar llaves o jornadas):</label>
         <input type="text" id="editBatFase">
         
         <label style="font-size: 12px; color: #eccc68; font-weight: bold;">Competidor Lado Izquierdo:</label>
@@ -66,8 +66,9 @@
         </select>
         
         <div style="display:flex; gap:10px; margin-top:20px;">
-            <button style="background:#2ed573; flex:1;" onclick="guardarEdicionBatalla()">💾 Aplicar y Recalcular</button>
-            <button style="background:#ff4757; flex:1;" onclick="cerrarEdicionBatalla()">❌ Cancelar</button>
+            <button style="background:#eccc68; color:#2f3542; flex:1; font-size:12px;" onclick="guardarEdicionBatalla(false)">💾 Aplicar</button>
+            <button style="background:#2ed573; flex:1; font-size:12px;" onclick="guardarEdicionBatalla(true)">🔄 Aplicar y Recalcular</button>
+            <button style="background:#ff4757; flex:1; font-size:12px;" onclick="cerrarEdicionBatalla()">❌ Cancelar</button>
         </div>
     </div>
 
@@ -124,7 +125,7 @@
         </div>
     </div>
 
-    <div style="position: fixed; bottom: 10px; right: 15px; color: #57606f; font-size: 14px; font-weight: bold; pointer-events: none; z-index: 9999;">V2.3.3</div>
+    <div style="position: fixed; bottom: 10px; right: 15px; color: #57606f; font-size: 14px; font-weight: bold; pointer-events: none; z-index: 9999;">V2.3.4</div>
     <script type="module" src="js/museo.js"></script>
 </body>
 </html>
