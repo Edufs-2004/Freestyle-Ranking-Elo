@@ -24,158 +24,147 @@ function filtrarBuscador() {
 async function cargarPerfil(idMC) {
     mcActualID = idMC;
     let mcPrincipal = listaMCs.find(m => m.id == idMC);
-    document.getElementById('buscadorMCs').value = mcPrincipal.aka;
-    document.getElementById('sugerenciasMCs').style.display = 'none';
-
-    document.getElementById('nombreMC').innerText = mcPrincipal.aka;
-    document.getElementById('imgAtleta').src = mcPrincipal.foto || 'https://via.placeholder.com/150/373752/FFFFFF?text=MC';
-    document.getElementById('banderaMC').innerText = mcPrincipal.nacionalidad || '🌍';
-
-    const { data: batallas, error } = await supabase.from('batallas').select(`
-            id, fase, resultado, mc1_id, mc2_id, elo_previo_mc1, elo_previo_mc2, cambio_mc1, cambio_mc2,
-            torneos(nombre, franquicia, fecha_evento), mc1:competidores!batallas_mc1_id_fkey(id, aka), mc2:competidores!batallas_mc2_id_fkey(id, aka)
-        `).or(`mc1_id.eq.${idMC},mc2_id.eq.${idMC}`);
-
-    if (error) return alert("Error cargando historial.");
-
-    let validas = batallas.filter(b => b.torneos !== null);
-    validas.sort((a, b) => {
-        let dateA = new Date(a.torneos.fecha_evento).getTime(); let dateB = new Date(b.torneos.fecha_evento).getTime();
-        if (dateA === dateB) return a.id - b.id; return dateA - dateB;
-    });
-
-    batallasGlobalesMC = validas;
-    renderizarPerfil(batallasGlobalesMC, mcPrincipal, false, null);
-    document.getElementById('zonaPerfil').style.display = 'block';
+    document.getElementById('buscadorMCs').value = ''; document.getElementById('sugerenciasMCs').style.display = 'none';
+    
+    document.getElementById('perfilNombre').innerText = (mcPrincipal.nacionalidad ? mcPrincipal.nacionalidad + ' ' : '') + mcPrincipal.aka;
+    document.getElementById('perfilFoto').src = mcPrincipal.foto || 'https://via.placeholder.com/150/373752/FFFFFF?text=MC';
+    document.getElementById('perfilElo').innerText = mcPrincipal.elo_actual;
+    
+    const { data: batallas, error } = await supabase.from('batallas').select(`*, torneos(nombre, franquicia, fecha_evento)`).or(`mc1_id.eq.${idMC},mc2_id.eq.${idMC}`).order('id', { ascending: true });
+    if(error) return console.error(error);
+    
+    batallasGlobalesMC = batallas.sort((a,b) => new Date(a.torneos.fecha_evento) - new Date(b.torneos.fecha_evento));
+    
+    document.getElementById('panelPerfil').style.display = 'block';
+    aplicarFiltroPerfil();
 }
 
-async function aplicarFiltroPerfil() {
-    let f = document.getElementById('filtroFranqPerfil').value; let d = document.getElementById('filtroDesdePerfil').value; let h = document.getElementById('filtroHastaPerfil').value;
-    let estaFiltrado = (f !== 'TODAS' || d !== "" || h !== "");
-    if (!estaFiltrado) return cargarPerfil(mcActualID); 
-
-    document.getElementById('cuerpoHistorial').innerHTML = '<tr><td colspan="7" style="text-align:center; color:#ff4757;"><strong>⏳ Simulando universo aislado...</strong></td></tr>';
-
-    const { data: mcs } = await supabase.from('competidores').select('id, aka');
-    let rankingTemp = {}; mcs.forEach(mc => { rankingTemp[mc.id] = 1500; });
-
-    const { data: batallas, error } = await supabase.from('batallas').select(`
-        id, fase, resultado, mc1_id, mc2_id, cambio_mc1,
-        torneos(nombre, franquicia, fecha_evento), mc1:competidores!batallas_mc1_id_fkey(aka), mc2:competidores!batallas_mc2_id_fkey(aka)
-    `);
+function aplicarFiltroPerfil() {
+    let f = document.getElementById('filtroFranqPerfil').value;
+    let d = document.getElementById('filtroDesdePerfil').value;
+    let h = document.getElementById('filtroHastaPerfil').value;
 
     let franquiciasPermitidas = obtenerFranquiciasValidas(f);
 
-    let filtradas = batallas.filter(b => {
+    let filtradas = batallasGlobalesMC.filter(b => {
         if(!b.torneos) return false;
         let okF = (f === 'TODAS') ? true : franquiciasPermitidas.includes(b.torneos.franquicia);
-        let okD = (!d) ? true : b.torneos.fecha_evento >= d; let okH = (!h) ? true : b.torneos.fecha_evento <= h;
+        let okD = (!d) ? true : b.torneos.fecha_evento >= d; 
+        let okH = (!h) ? true : b.torneos.fecha_evento <= h;
         return okF && okD && okH;
     });
 
-    filtradas.sort((a, b) => {
-        let dateA = new Date(a.torneos.fecha_evento).getTime(); let dateB = new Date(b.torneos.fecha_evento).getTime();
-        if (dateA === dateB) return a.id - b.id; return dateA - dateB;
-    });
+    // Generar Gráfica
+    let labels = []; let datosElo = []; let eloAcumulado = 1500;
+    let maxElo = 1500; let minElo = 1500; let victorias = 0; let derrotas = 0; let replicas = 0;
+    
+    labels.push('Inicio'); datosElo.push(1500);
 
-    const K = 32; let simulacionPerfil = [];
+    let htmlTabla = '';
+    
+    // Iterar en reversa para que la tabla muestre lo más reciente primero
+    let filtradasReversa = [...filtradas].reverse();
 
     filtradas.forEach(b => {
-        if (b.resultado === 'bono') {
-            let eloPrev = rankingTemp[b.mc1_id];
-            rankingTemp[b.mc1_id] += b.cambio_mc1;
-            if (b.mc1_id == mcActualID) {
-                simulacionPerfil.push({ ...b, elo_previo_mc1: eloPrev, cambio_mc1: b.cambio_mc1 });
+        let esMC1 = b.mc1_id == mcActualID;
+        let cambio = esMC1 ? b.cambio_mc1 : b.cambio_mc2;
+        eloAcumulado += cambio;
+        
+        if (eloAcumulado > maxElo) maxElo = eloAcumulado;
+        if (eloAcumulado < minElo) minElo = eloAcumulado;
+
+        if (b.resultado !== 'bono') {
+            labels.push(b.torneos.nombre);
+            datosElo.push(eloAcumulado);
+            
+            let gano = false; let huboReplica = false;
+            if (esMC1) {
+                if (['victoria', 'victoria_replica', 'victoria_total'].includes(b.resultado)) gano = true;
+                if (['victoria_replica', 'derrota_replica'].includes(b.resultado)) huboReplica = true;
+            } else {
+                if (['derrota', 'derrota_replica', 'derrota_total'].includes(b.resultado)) gano = true;
+                if (['victoria_replica', 'derrota_replica'].includes(b.resultado)) huboReplica = true;
             }
-            return;
-        }
-
-        let R1 = rankingTemp[b.mc1_id]; let R2 = rankingTemp[b.mc2_id];
-        let E1 = 1 / (1 + Math.pow(10, (R2 - R1) / 400)); let E2 = 1 / (1 + Math.pow(10, (R1 - R2) / 400));
-        let S1 = 0, S2 = 0; let bono1 = false, bono2 = false;
-
-        if (b.resultado === "victoria_total") { S1 = 1.0; S2 = 0.0; bono1 = true; } else if (b.resultado === "victoria") { S1 = 1.0; S2 = 0.0; } 
-        else if (b.resultado === "victoria_replica") { S1 = 0.75; S2 = 0.25; } else if (b.resultado === "derrota_replica") { S1 = 0.25; S2 = 0.75; } 
-        else if (b.resultado === "derrota") { S1 = 0.0; S2 = 1.0; } else if (b.resultado === "derrota_total") { S1 = 0.0; S2 = 1.0; bono2 = true; }
-
-        let p1 = Math.round(K * (S1 - E1) * (bono1 ? 1.2 : 1)); let p2 = Math.round(K * (S2 - E2) * (bono2 ? 1.2 : 1));
-
-        rankingTemp[b.mc1_id] = R1 + p1; rankingTemp[b.mc2_id] = R2 + p2;
-
-        if (b.mc1_id == mcActualID || b.mc2_id == mcActualID) {
-            simulacionPerfil.push({ ...b, elo_previo_mc1: R1, elo_previo_mc2: R2, cambio_mc1: p1, cambio_mc2: p2 });
+            
+            if (gano) victorias++; else derrotas++;
+            if (huboReplica) replicas++;
+        } else {
+            labels.push('Bono: ' + b.fase);
+            datosElo.push(eloAcumulado);
         }
     });
 
-    let mcPrincipal = listaMCs.find(m => m.id == mcActualID);
-    renderizarPerfil(simulacionPerfil, mcPrincipal, true, rankingTemp[mcActualID]);
-}
-
-function renderizarPerfil(arrayBatallas, mcPrincipal, estaFiltrado, eloFinalSimulado) {
-    let historialHtml = ''; let etiquetasGrafico = []; let datosGrafico = []; let esPremioSegmento = []; 
-    let peakElo = 1500; let victorias = 0; let batallasJugadas = 0;
-
-    if (arrayBatallas.length > 0) {
-        let primera = arrayBatallas[0];
-        let eloEntrada = (primera.resultado === 'bono') ? primera.elo_previo_mc1 : (primera.mc1_id == mcPrincipal.id ? primera.elo_previo_mc1 : primera.elo_previo_mc2);
-        etiquetasGrafico.push(estaFiltrado ? 'Puntos de Entrada' : 'Inicio');
-        datosGrafico.push(eloEntrada); esPremioSegmento.push(false); peakElo = eloEntrada;
-    }
-
-    arrayBatallas.forEach(b => {
+    document.getElementById('statPeak').innerText = maxElo;
+    document.getElementById('statWR').innerText = (victorias + derrotas > 0) ? Math.round((victorias / (victorias + derrotas)) * 100) + '%' : '0%';
+    document.getElementById('statReplicas').innerText = replicas;
+    
+    filtradasReversa.forEach(b => {
+        let esMC1 = b.mc1_id == mcActualID;
+        let cambio = esMC1 ? b.cambio_mc1 : b.cambio_mc2;
+        let cambioTxt = cambio > 0 ? `+${cambio}` : `${cambio}`;
+        let colorCambio = cambio > 0 ? '#2ed573' : (cambio < 0 ? '#ff4757' : '#aaa');
+        
         if (b.resultado === 'bono') {
-            let eloD = b.elo_previo_mc1 + b.cambio_mc1;
-            etiquetasGrafico.push(b.fase); datosGrafico.push(eloD); esPremioSegmento.push(true);
-            if(eloD > peakElo) peakElo = eloD;
-
-            let filaPremio = `
-                <tr style="background-color: rgba(255, 71, 87, 0.1);">
-                    <td>${b.torneos.fecha_evento}</td><td><strong>${b.torneos.nombre}</strong></td>
-                    <td>${b.fase}</td><td>-</td><td><span class='win'>Premio/Bono</span></td>
-                    <td>${b.elo_previo_mc1}</td><td class="win" style="color: #ff4757;">+${b.cambio_mc1} pts</td>
-                </tr>`;
-            historialHtml = filaPremio + historialHtml;
+            htmlTabla += `<tr style="background: rgba(46, 213, 115, 0.1);">
+                <td>${b.torneos.fecha_evento}</td>
+                <td>${b.torneos.franquicia} - ${b.torneos.nombre}</td>
+                <td colspan="2" style="text-align:center; color:#2ed573; font-weight:bold;">✨ BONO: ${b.fase}</td>
+                <td style="color:${colorCambio}; font-weight:bold;">${cambioTxt}</td>
+            </tr>`;
             return;
         }
 
-        batallasJugadas++;
-        let soyMC1 = b.mc1_id == mcPrincipal.id;
-        let oponente = soyMC1 ? b.mc2.aka : b.mc1.aka;
-        let miEloPrevio = soyMC1 ? b.elo_previo_mc1 : b.elo_previo_mc2;
-        let miCambio = soyMC1 ? b.cambio_mc1 : b.cambio_mc2;
-        let miEloDespues = miEloPrevio + miCambio;
+        let oponenteObj = esMC1 ? listaMCs.find(m => m.id == b.mc2_id) : listaMCs.find(m => m.id == b.mc1_id);
+        let nombreOpo = oponenteObj ? oponenteObj.aka : 'Desconocido';
+        
+        // 1. ELO DEL OPONENTE EN EL MOMENTO DE LA BATALLA
+        let eloOpo = esMC1 ? b.elo_previo_mc2 : b.elo_previo_mc1;
+        let textoOponente = `<strong>${nombreOpo}</strong> <span style="color:#aaa; font-size:12px;">(Elo: ${eloOpo})</span>`;
 
-        let gane = soyMC1 ? ['victoria', 'victoria_replica', 'victoria_total'].includes(b.resultado) : ['derrota', 'derrota_replica', 'derrota_total'].includes(b.resultado);
-        if (gane) victorias++;
-        if (miEloDespues > peakElo) peakElo = miEloDespues;
+        // 2. TEXTO DE RESULTADO ESPECÍFICO Y COLOR
+        let textoRes = ''; let colorRes = '';
+        
+        if (esMC1) {
+            if (b.resultado === 'victoria') { textoRes = 'Victoria'; colorRes = '#2ed573'; }
+            else if (b.resultado === 'victoria_replica') { textoRes = 'Victoria (Réplica)'; colorRes = '#2ed573'; }
+            else if (b.resultado === 'victoria_total') { textoRes = 'Victoria Total'; colorRes = '#1e90ff'; } // Color especial para total
+            else if (b.resultado === 'derrota') { textoRes = 'Derrota'; colorRes = '#ff4757'; }
+            else if (b.resultado === 'derrota_replica') { textoRes = 'Derrota (Réplica)'; colorRes = '#ff4757'; }
+            else if (b.resultado === 'derrota_total') { textoRes = 'Derrota'; colorRes = '#ff4757'; } // Derrota normal para el perdedor
+        } else {
+            if (b.resultado === 'victoria') { textoRes = 'Derrota'; colorRes = '#ff4757'; }
+            else if (b.resultado === 'victoria_replica') { textoRes = 'Derrota (Réplica)'; colorRes = '#ff4757'; }
+            else if (b.resultado === 'victoria_total') { textoRes = 'Derrota'; colorRes = '#ff4757'; } // Derrota normal para el perdedor
+            else if (b.resultado === 'derrota') { textoRes = 'Victoria'; colorRes = '#2ed573'; }
+            else if (b.resultado === 'derrota_replica') { textoRes = 'Victoria (Réplica)'; colorRes = '#2ed573'; }
+            else if (b.resultado === 'derrota_total') { textoRes = 'Victoria Total'; colorRes = '#1e90ff'; } // Color especial para total
+        }
 
-        etiquetasGrafico.push(b.fase); datosGrafico.push(miEloDespues); esPremioSegmento.push(false); 
-
-        let txtRes = gane ? "<span class='win'>Victoria</span>" : "<span class='loss'>Derrota</span>";
-        let cCam = miCambio >= 0 ? "win" : "loss"; let sCam = miCambio >= 0 ? "+" : "";
-
-        historialHtml = `
-            <tr>
-                <td>${b.torneos.fecha_evento}</td><td><strong>${b.torneos.nombre}</strong></td>
-                <td>${b.fase}</td><td>vs ${oponente}</td><td>${txtRes}</td>
-                <td>${miEloPrevio}</td><td class="${cCam}">${sCam}${miCambio} pts</td>
-            </tr>` + historialHtml; 
+        htmlTabla += `<tr>
+            <td>${b.torneos.fecha_evento}</td>
+            <td>${b.torneos.franquicia} - ${b.torneos.nombre}<br><small style="color:#aaa;">${b.fase}</small></td>
+            <td>${textoOponente}</td>
+            <td style="color: ${colorRes}; font-weight: bold;">${textoRes}</td>
+            <td style="color: ${colorCambio}; font-weight: bold;">${cambioTxt}</td>
+        </tr>`;
     });
 
-    document.getElementById('statEloActual').innerText = estaFiltrado ? (eloFinalSimulado || 1500) : mcPrincipal.elo_actual;
-    document.getElementById('statBatallas').innerText = batallasJugadas; document.getElementById('statPeakElo').innerText = peakElo;
-    document.getElementById('statWinRate').innerText = batallasJugadas > 0 ? Math.round((victorias / batallasJugadas) * 100) + '%' : '0%';
-    document.getElementById('cuerpoHistorial').innerHTML = historialHtml || '<tr><td colspan="7" style="text-align:center;">No hay registros.</td></tr>';
+    document.getElementById('cuerpoHistorial').innerHTML = htmlTabla || '<tr><td colspan="5" style="text-align:center;">No hay batallas registradas.</td></tr>';
 
-    dibujarGrafico(etiquetasGrafico, datosGrafico, mcPrincipal.aka, esPremioSegmento);
-}
-
-function dibujarGrafico(etiquetas, datos, nombre, arraySegmentos) {
-    let ctx = document.getElementById('eloChart').getContext('2d');
     if (miGrafico) miGrafico.destroy();
+    let ctx = document.getElementById('graficoElo').getContext('2d');
     miGrafico = new Chart(ctx, {
         type: 'line',
-        data: { labels: etiquetas, datasets: [{ label: `Evolución de Elo - ${nombre}`, data: datos, backgroundColor: 'rgba(30, 144, 255, 0.2)', borderWidth: 3, pointBackgroundColor: '#eccc68', pointRadius: 4, fill: true, tension: 0.3, segment: { borderColor: ctx => arraySegmentos[ctx.p1DataIndex] ? '#ff4757' : '#1e90ff' } }] },
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Puntuación Elo',
+                data: datosElo,
+                borderColor: '#1e90ff',
+                backgroundColor: 'rgba(30, 144, 255, 0.2)',
+                borderWidth: 2, pointRadius: 4, pointBackgroundColor: '#eccc68', fill: true, tension: 0.2
+            }]
+        },
         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: 'white' } } }, scales: { x: { ticks: { color: '#aaa' }, grid: { color: '#373752' } }, y: { ticks: { color: '#aaa' }, grid: { color: '#373752' } } } }
     });
 }
@@ -199,10 +188,6 @@ async function guardarEdicion() {
 window.filtrarBuscador = filtrarBuscador; window.cargarPerfil = cargarPerfil; window.aplicarFiltroPerfil = aplicarFiltroPerfil; 
 window.abrirEdicion = abrirEdicion; window.cerrarEdicion = cerrarEdicion; window.guardarEdicion = guardarEdicion;
 
-async function cargarPagina() {
-    await configurarSesion();
-    await inicializar();
-    await cargarFranquiciasSelect('filtroFranqPerfil', true);
-}
-
-cargarPagina();
+configurarSesion();
+inicializar();
+cargarFranquiciasSelect('filtroFranqPerfil', true);
