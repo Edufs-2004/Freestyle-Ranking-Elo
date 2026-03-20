@@ -33,16 +33,26 @@ async function cargarPerfil(idMC) {
     const { data: batallas, error } = await supabase.from('batallas').select(`*, torneos(nombre, franquicia, fecha_evento)`).or(`mc1_id.eq.${idMC},mc2_id.eq.${idMC}`).order('id', { ascending: true });
     if(error) return console.error(error);
     
-    batallasGlobalesMC = batallas.sort((a,b) => new Date(a.torneos.fecha_evento) - new Date(b.torneos.fecha_evento));
+    // Protección contra torneos huérfanos/borrados para que no rompa el código
+    batallasGlobalesMC = batallas.sort((a,b) => {
+        let fA = a.torneos ? new Date(a.torneos.fecha_evento) : new Date(0);
+        let fB = b.torneos ? new Date(b.torneos.fecha_evento) : new Date(0);
+        return fA - fB;
+    });
     
     document.getElementById('panelPerfil').style.display = 'block';
     aplicarFiltroPerfil();
 }
 
 function aplicarFiltroPerfil() {
-    let f = document.getElementById('filtroFranqPerfil').value;
-    let d = document.getElementById('filtroDesdePerfil').value;
-    let h = document.getElementById('filtroHastaPerfil').value;
+    // Búsqueda inteligente de filtros: se adapta a cualquier ID que tengas en tu HTML sin romperse
+    let selectF = document.getElementById('filtroFranqPerfil');
+    let inputD = document.getElementById('filtroDesdePerfil') || document.getElementById('fechaDesde') || document.getElementById('desde');
+    let inputH = document.getElementById('filtroHastaPerfil') || document.getElementById('fechaHasta') || document.getElementById('hasta');
+
+    let f = selectF ? selectF.value : 'TODAS';
+    let d = inputD ? inputD.value : '';
+    let h = inputH ? inputH.value : '';
 
     let franquiciasPermitidas = obtenerFranquiciasValidas(f);
 
@@ -74,7 +84,7 @@ function aplicarFiltroPerfil() {
         if (eloAcumulado < minElo) minElo = eloAcumulado;
 
         if (b.resultado !== 'bono') {
-            labels.push(b.torneos.nombre);
+            labels.push(b.torneos ? b.torneos.nombre : 'Torneo Desconocido');
             datosElo.push(eloAcumulado);
             
             let gano = false; let huboReplica = false;
@@ -104,10 +114,13 @@ function aplicarFiltroPerfil() {
         let cambioTxt = cambio > 0 ? `+${cambio}` : `${cambio}`;
         let colorCambio = cambio > 0 ? '#2ed573' : (cambio < 0 ? '#ff4757' : '#aaa');
         
+        let fechaTorneo = b.torneos ? b.torneos.fecha_evento : 'Sin Fecha';
+        let nombreTorneo = b.torneos ? `${b.torneos.franquicia} - ${b.torneos.nombre}` : 'Torneo Eliminado';
+
         if (b.resultado === 'bono') {
             htmlTabla += `<tr style="background: rgba(46, 213, 115, 0.1);">
-                <td>${b.torneos.fecha_evento}</td>
-                <td>${b.torneos.franquicia} - ${b.torneos.nombre}</td>
+                <td>${fechaTorneo}</td>
+                <td>${nombreTorneo}</td>
                 <td colspan="2" style="text-align:center; color:#2ed573; font-weight:bold;">✨ BONO: ${b.fase}</td>
                 <td style="color:${colorCambio}; font-weight:bold;">${cambioTxt}</td>
             </tr>`;
@@ -117,9 +130,9 @@ function aplicarFiltroPerfil() {
         let oponenteObj = esMC1 ? listaMCs.find(m => m.id == b.mc2_id) : listaMCs.find(m => m.id == b.mc1_id);
         let nombreOpo = oponenteObj ? oponenteObj.aka : 'Desconocido';
         
-        // 1. ELO DEL OPONENTE EN EL MOMENTO DE LA BATALLA
-        let eloOpo = esMC1 ? b.elo_previo_mc2 : b.elo_previo_mc1;
-        let textoOponente = `<strong>${nombreOpo}</strong> <span style="color:#aaa; font-size:12px;">(Elo: ${eloOpo})</span>`;
+        // 1. ELO EXACTO DEL OPONENTE EN ESE MOMENTO (Protección de nulos incluida)
+        let eloOpo = (esMC1 ? b.elo_previo_mc2 : b.elo_previo_mc1) || 1500;
+        let textoOponente = `<strong>${nombreOpo}</strong> <br><span style="color:#aaa; font-size:12px;">(Elo Rival: ${eloOpo})</span>`;
 
         // 2. TEXTO DE RESULTADO ESPECÍFICO Y COLOR
         let textoRes = ''; let colorRes = '';
@@ -127,22 +140,22 @@ function aplicarFiltroPerfil() {
         if (esMC1) {
             if (b.resultado === 'victoria') { textoRes = 'Victoria'; colorRes = '#2ed573'; }
             else if (b.resultado === 'victoria_replica') { textoRes = 'Victoria (Réplica)'; colorRes = '#2ed573'; }
-            else if (b.resultado === 'victoria_total') { textoRes = 'Victoria Total'; colorRes = '#1e90ff'; } // Color especial para total
+            else if (b.resultado === 'victoria_total') { textoRes = 'Victoria Total'; colorRes = '#1e90ff'; } 
             else if (b.resultado === 'derrota') { textoRes = 'Derrota'; colorRes = '#ff4757'; }
             else if (b.resultado === 'derrota_replica') { textoRes = 'Derrota (Réplica)'; colorRes = '#ff4757'; }
-            else if (b.resultado === 'derrota_total') { textoRes = 'Derrota'; colorRes = '#ff4757'; } // Derrota normal para el perdedor
+            else if (b.resultado === 'derrota_total') { textoRes = 'Derrota'; colorRes = '#ff4757'; } // Derrota normal para el que pierde
         } else {
             if (b.resultado === 'victoria') { textoRes = 'Derrota'; colorRes = '#ff4757'; }
             else if (b.resultado === 'victoria_replica') { textoRes = 'Derrota (Réplica)'; colorRes = '#ff4757'; }
-            else if (b.resultado === 'victoria_total') { textoRes = 'Derrota'; colorRes = '#ff4757'; } // Derrota normal para el perdedor
+            else if (b.resultado === 'victoria_total') { textoRes = 'Derrota'; colorRes = '#ff4757'; } // Derrota normal para el que pierde
             else if (b.resultado === 'derrota') { textoRes = 'Victoria'; colorRes = '#2ed573'; }
             else if (b.resultado === 'derrota_replica') { textoRes = 'Victoria (Réplica)'; colorRes = '#2ed573'; }
-            else if (b.resultado === 'derrota_total') { textoRes = 'Victoria Total'; colorRes = '#1e90ff'; } // Color especial para total
+            else if (b.resultado === 'derrota_total') { textoRes = 'Victoria Total'; colorRes = '#1e90ff'; } 
         }
 
         htmlTabla += `<tr>
-            <td>${b.torneos.fecha_evento}</td>
-            <td>${b.torneos.franquicia} - ${b.torneos.nombre}<br><small style="color:#aaa;">${b.fase}</small></td>
+            <td>${fechaTorneo}</td>
+            <td>${nombreTorneo}<br><small style="color:#aaa;">${b.fase}</small></td>
             <td>${textoOponente}</td>
             <td style="color: ${colorRes}; font-weight: bold;">${textoRes}</td>
             <td style="color: ${colorCambio}; font-weight: bold;">${cambioTxt}</td>
@@ -152,21 +165,24 @@ function aplicarFiltroPerfil() {
     document.getElementById('cuerpoHistorial').innerHTML = htmlTabla || '<tr><td colspan="5" style="text-align:center;">No hay batallas registradas.</td></tr>';
 
     if (miGrafico) miGrafico.destroy();
-    let ctx = document.getElementById('graficoElo').getContext('2d');
-    miGrafico = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Puntuación Elo',
-                data: datosElo,
-                borderColor: '#1e90ff',
-                backgroundColor: 'rgba(30, 144, 255, 0.2)',
-                borderWidth: 2, pointRadius: 4, pointBackgroundColor: '#eccc68', fill: true, tension: 0.2
-            }]
-        },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: 'white' } } }, scales: { x: { ticks: { color: '#aaa' }, grid: { color: '#373752' } }, y: { ticks: { color: '#aaa' }, grid: { color: '#373752' } } } }
-    });
+    let canvas = document.getElementById('graficoElo');
+    if (canvas) {
+        let ctx = canvas.getContext('2d');
+        miGrafico = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Puntuación Elo',
+                    data: datosElo,
+                    borderColor: '#1e90ff',
+                    backgroundColor: 'rgba(30, 144, 255, 0.2)',
+                    borderWidth: 2, pointRadius: 4, pointBackgroundColor: '#eccc68', fill: true, tension: 0.2
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: 'white' } } }, scales: { x: { ticks: { color: '#aaa' }, grid: { color: '#373752' } }, y: { ticks: { color: '#aaa' }, grid: { color: '#373752' } } } }
+        });
+    }
 }
 
 function abrirEdicion() {
