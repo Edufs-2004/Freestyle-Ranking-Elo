@@ -98,7 +98,14 @@ async function aplicarFiltros() {
     document.getElementById('cuerpoRanking').innerHTML = htmlTabla;
 }
 
-window.agregarMC = agregarMC; window.aplicarFiltros = aplicarFiltros; cargarRankingNormal();
+window.agregarMC = agregarMC; window.aplicarFiltros = aplicarFiltros;
 
-configurarSesion();
-cargarFranquiciasSelect('filtroFranquicia', true);
+(async () => {
+    try {
+        await configurarSesion();
+        await cargarRankingNormal();
+        await cargarFranquiciasSelect('filtroFranquicia', true);
+    } catch (error) {
+        console.error("Error al inicializar la página de calculadora:", error);
+    }
+})();

@@ -346,6 +346,12 @@ async function cerrarLiga() {
 window.abrirReorden = abrirReorden; window.cerrarReorden = cerrarReorden; window.guardarReorden = guardarReorden;
 window.cambiarFormato = cambiarFormato; window.filtrarBuscador = filtrarBuscador; window.agregarChip = agregarChip; window.quitarChip = quitarChip; window.irACruces = irACruces; window.actualizarDesplegables = actualizarDesplegables; window.iniciarTorneo = iniciarTorneo; window.procesarBatallaAuto = procesarBatallaAuto; window.cerrarTorneoAutomatico = cerrarTorneoAutomatico; window.crearYAgregarMC = crearYAgregarMC; window.agregarBatallaLiga = agregarBatallaLiga; window.quitarBatallaLiga = quitarBatallaLiga; window.cerrarLiga = cerrarLiga;
 
-configurarSesion();
-cargarBD();
-cargarFranquiciasSelect('franquiciaTorneo', false);
+(async () => {
+    try {
+        await configurarSesion();
+        await cargarBD();
+        await cargarFranquiciasSelect('franquiciaTorneo', false);
+    } catch (error) {
+        console.error("Error al inicializar la página de torneos:", error);
+    }
+})();

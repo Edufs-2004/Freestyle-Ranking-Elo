@@ -134,6 +134,7 @@ function aplicarFiltroPerfil() {
             let oponenteObj = esMC1 ? listaMCs.find(m => m.id == b.mc2_id) : listaMCs.find(m => m.id == b.mc1_id);
             let nombreOpo = oponenteObj ? oponenteObj.aka : 'Desconocido';
             let eloOpo = (esMC1 ? b.elo_previo_mc2 : b.elo_previo_mc1) || 1500;
+            let eloPropio = (esMC1 ? b.elo_previo_mc1 : b.elo_previo_mc2) || 1500;
             
             let textoRes = ''; let colorRes = '';
             if (esMC1) {
@@ -157,9 +158,9 @@ function aplicarFiltroPerfil() {
                 <td>${fechaTorneo}</td>
                 <td>${nombreTorneo}</td>
                 <td>${b.fase}</td>
-                <td><strong>${nombreOpo}</strong></td>
+                <td><strong>${nombreOpo} (${eloOpo})</strong></td>
                 <td style="color: ${colorRes}; font-weight: bold;">${textoRes}</td>
-                <td>${eloOpo}</td>
+                <td>${eloPropio}</td>
                 <td style="color: ${colorCambio}; font-weight: bold;">${cambioTxt}</td>
             </tr>`;
         });
@@ -213,6 +214,12 @@ async function guardarEdicion() {
 window.filtrarBuscador = filtrarBuscador; window.cargarPerfil = cargarPerfil; window.aplicarFiltroPerfil = aplicarFiltroPerfil; 
 window.abrirEdicion = abrirEdicion; window.cerrarEdicion = cerrarEdicion; window.guardarEdicion = guardarEdicion;
 
-configurarSesion();
-inicializar();
-cargarFranquiciasSelect('filtroFranqPerfil', true);
+(async () => {
+    try {
+        await configurarSesion();
+        await inicializar();
+        await cargarFranquiciasSelect('filtroFranqPerfil', true);
+    } catch (error) {
+        console.error("Error al inicializar la página de perfil:", error);
+    }
+})();

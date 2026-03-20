@@ -232,8 +232,14 @@ function cerrarEdicionTorneo() { document.getElementById('panelEdicion').style.d
 window.verTorneo = verTorneo; window.eliminarTorneo = eliminarTorneo; window.repararEloGlobal = repararEloGlobal; window.cerrarDetalle = cerrarDetalle; window.agregarFranquicia = agregarFranquicia; window.borrarFranquicia = borrarFranquicia; window.abrirEdicionTorneo = abrirEdicionTorneo; window.guardarEdicionTorneo = guardarEdicionTorneo; window.cerrarEdicionTorneo = cerrarEdicionTorneo; window.abrirEdicionBatalla = abrirEdicionBatalla; window.cerrarEdicionBatalla = cerrarEdicionBatalla; window.guardarEdicionBatalla = guardarEdicionBatalla; 
 window.aplicarFiltroMuseo = aplicarFiltroMuseo; // Exportamos la nueva función
 
-configurarSesion();
-cargarMcsParaEdicion();
-cargarTorneos();
-cargarFranquiciasPanel();
-cargarFranquiciasSelect('filtroFranqMuseo', true); // Inicializamos el filtro con TODAS
+(async () => {
+    try {
+        await configurarSesion();
+        await cargarMcsParaEdicion();
+        await cargarTorneos();
+        await cargarFranquiciasPanel();
+        await cargarFranquiciasSelect('filtroFranqMuseo', true); // Inicializamos el filtro con TODAS
+    } catch (error) {
+        console.error("Error al inicializar la página del museo:", error);
+    }
+})();
