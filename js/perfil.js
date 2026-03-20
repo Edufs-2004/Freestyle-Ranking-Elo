@@ -37,7 +37,7 @@ async function cargarPerfil(idMC) {
         const { data: batallas, error } = await supabase.from('batallas').select(`*, torneos(nombre, franquicia, fecha_evento)`).or(`mc1_id.eq.${idMC},mc2_id.eq.${idMC}`).order('id', { ascending: true });
         if(error) throw error;
         
-        // SEGURO ANTI-CRASH: Si 'batallas' es null (Cero batallas), lo convierte en un array vacío [] para que no explote.
+        // Protección: Si no tiene batallas, crea un array vacío para que no explote.
         batallasGlobalesMC = (batallas || []).sort((a,b) => {
             let fA = a.torneos ? new Date(a.torneos.fecha_evento) : new Date(0);
             let fB = b.torneos ? new Date(b.torneos.fecha_evento) : new Date(0);
@@ -48,8 +48,8 @@ async function cargarPerfil(idMC) {
         aplicarFiltroPerfil();
 
     } catch (e) {
-        console.error("Error crítico al cargar el perfil:", e);
-        alert("Hubo un pequeño error al cargar los datos. Presiona F12 y revisa la Consola para ver el detalle.");
+        console.error("Error al cargar el perfil:", e);
+        alert("Hubo un error al cargar los datos. Revisa la consola (F12).");
     }
 }
 
@@ -73,14 +73,14 @@ function aplicarFiltroPerfil() {
             return okF && okD && okH;
         });
 
-        // Generar Gráfica y Estadísticas
+        // Generar Gráfica
         let labels = []; let datosElo = []; let eloAcumulado = 1500;
         let maxElo = 1500; let minElo = 1500; let victorias = 0; let derrotas = 0; let replicas = 0;
         
         labels.push('Inicio'); datosElo.push(1500);
 
         let htmlTabla = '';
-        let filtradasReversa = [...filtradas].reverse(); // Lo más reciente arriba
+        let filtradasReversa = [...filtradas].reverse();
 
         filtradas.forEach(b => {
             let esMC1 = b.mc1_id == mcActualID;
@@ -170,7 +170,6 @@ function aplicarFiltroPerfil() {
 
         document.getElementById('cuerpoHistorial').innerHTML = htmlTabla || '<tr><td colspan="5" style="text-align:center;">No hay batallas registradas.</td></tr>';
 
-        // SEGURO ANTI-CRASH GRÁFICO
         if (typeof Chart !== 'undefined') {
             if (miGrafico) miGrafico.destroy();
             let canvas = document.getElementById('graficoElo');

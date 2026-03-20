@@ -9,7 +9,7 @@ export let listaFranquiciasGlobal = [];
 
 export async function cargarFranquiciasSelect(idSelect, incluirTodas = false) {
     const { data } = await supabase.from('franquicias').select('*').order('nombre');
-    listaFranquiciasGlobal = data;
+    listaFranquiciasGlobal = data || [];
 
     let select = document.getElementById(idSelect);
     if(!select) return;
@@ -17,8 +17,8 @@ export async function cargarFranquiciasSelect(idSelect, incluirTodas = false) {
     let valorPrevio = select.value;
     let html = incluirTodas ? '<option value="TODAS">Todas (Global)</option>' : '';
 
-    let principales = data.filter(f => !f.padre);
-    let subs = data.filter(f => f.padre);
+    let principales = listaFranquiciasGlobal.filter(f => !f.padre);
+    let subs = listaFranquiciasGlobal.filter(f => f.padre);
 
     principales.forEach(p => {
         let hijos = subs.filter(s => s.padre === p.nombre);
@@ -36,11 +36,10 @@ export async function cargarFranquiciasSelect(idSelect, incluirTodas = false) {
     if (valorPrevio && valorPrevio !== '') select.value = valorPrevio;
 }
 
-// ESTA FUNCIÓN AYUDA A LOS FILTROS A BUSCAR DENTRO DE LAS CARPETAS
 export function obtenerFranquiciasValidas(nombrePadre) {
     if (nombrePadre === 'TODAS') return ['TODAS'];
     let validas = [nombrePadre];
     let hijos = listaFranquiciasGlobal.filter(f => f.padre === nombrePadre);
     hijos.forEach(h => validas.push(h.nombre));
-    return validas; // Retorna [FMS, FMS Chile, FMS España...]
+    return validas; 
 }
