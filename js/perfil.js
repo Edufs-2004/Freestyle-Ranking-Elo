@@ -30,34 +30,35 @@ async function cargarPerfil(idMC) {
         document.getElementById('buscadorMCs').value = ''; 
         document.getElementById('sugerenciasMCs').style.display = 'none';
         
-        document.getElementById('perfilNombre').innerText = (mcPrincipal.nacionalidad ? mcPrincipal.nacionalidad + ' ' : '') + mcPrincipal.aka;
-        document.getElementById('perfilFoto').src = mcPrincipal.foto || 'https://via.placeholder.com/150/373752/FFFFFF?text=MC';
-        document.getElementById('perfilElo').innerText = mcPrincipal.elo_actual;
+        // CORREGIDO: Conectado a TUS nombres exactos de HTML
+        document.getElementById('nombreMC').innerText = mcPrincipal.aka;
+        document.getElementById('banderaMC').innerText = mcPrincipal.nacionalidad || '🌍';
+        document.getElementById('imgAtleta').src = mcPrincipal.foto || 'https://via.placeholder.com/150/373752/FFFFFF?text=MC';
+        document.getElementById('statEloActual').innerText = mcPrincipal.elo_actual;
         
         const { data: batallas, error } = await supabase.from('batallas').select(`*, torneos(nombre, franquicia, fecha_evento)`).or(`mc1_id.eq.${idMC},mc2_id.eq.${idMC}`).order('id', { ascending: true });
         if(error) throw error;
         
-        // Protección: Si no tiene batallas, crea un array vacío para que no explote.
         batallasGlobalesMC = (batallas || []).sort((a,b) => {
             let fA = a.torneos ? new Date(a.torneos.fecha_evento) : new Date(0);
             let fB = b.torneos ? new Date(b.torneos.fecha_evento) : new Date(0);
             return fA - fB;
         });
         
-        document.getElementById('panelPerfil').style.display = 'block';
+        // CORREGIDO: Tu contenedor principal
+        document.getElementById('zonaPerfil').style.display = 'block';
         aplicarFiltroPerfil();
 
     } catch (e) {
         console.error("Error al cargar el perfil:", e);
-        alert("Hubo un error al cargar los datos. Revisa la consola (F12).");
     }
 }
 
 function aplicarFiltroPerfil() {
     try {
         let selectF = document.getElementById('filtroFranqPerfil');
-        let inputD = document.getElementById('filtroDesdePerfil') || document.getElementById('fechaDesde') || document.getElementById('desde');
-        let inputH = document.getElementById('filtroHastaPerfil') || document.getElementById('fechaHasta') || document.getElementById('hasta');
+        let inputD = document.getElementById('filtroDesdePerfil');
+        let inputH = document.getElementById('filtroHastaPerfil');
 
         let f = selectF ? selectF.value : 'TODAS';
         let d = inputD ? inputD.value : '';
@@ -73,12 +74,10 @@ function aplicarFiltroPerfil() {
             return okF && okD && okH;
         });
 
-        // Generar Gráfica
         let labels = []; let datosElo = []; let eloAcumulado = 1500;
-        let maxElo = 1500; let minElo = 1500; let victorias = 0; let derrotas = 0; let replicas = 0;
+        let maxElo = 1500; let minElo = 1500; let victorias = 0; let derrotas = 0; 
         
         labels.push('Inicio'); datosElo.push(1500);
-
         let htmlTabla = '';
         let filtradasReversa = [...filtradas].reverse();
 
@@ -94,26 +93,23 @@ function aplicarFiltroPerfil() {
                 labels.push(b.torneos ? b.torneos.nombre : 'Torneo Desconocido');
                 datosElo.push(eloAcumulado);
                 
-                let gano = false; let huboReplica = false;
+                let gano = false;
                 if (esMC1) {
                     if (['victoria', 'victoria_replica', 'victoria_total'].includes(b.resultado)) gano = true;
-                    if (['victoria_replica', 'derrota_replica'].includes(b.resultado)) huboReplica = true;
                 } else {
                     if (['derrota', 'derrota_replica', 'derrota_total'].includes(b.resultado)) gano = true;
-                    if (['victoria_replica', 'derrota_replica'].includes(b.resultado)) huboReplica = true;
                 }
-                
                 if (gano) victorias++; else derrotas++;
-                if (huboReplica) replicas++;
             } else {
                 labels.push('Bono: ' + b.fase);
                 datosElo.push(eloAcumulado);
             }
         });
 
-        document.getElementById('statPeak').innerText = maxElo;
-        document.getElementById('statWR').innerText = (victorias + derrotas > 0) ? Math.round((victorias / (victorias + derrotas)) * 100) + '%' : '0%';
-        document.getElementById('statReplicas').innerText = replicas;
+        // CORREGIDO: Conectado a TUS identificadores de estadísticas
+        document.getElementById('statPeakElo').innerText = maxElo;
+        document.getElementById('statBatallas').innerText = filtradas.filter(b => b.resultado !== 'bono').length;
+        document.getElementById('statWinRate').innerText = (victorias + derrotas > 0) ? Math.round((victorias / (victorias + derrotas)) * 100) + '%' : '0%';
         
         filtradasReversa.forEach(b => {
             let esMC1 = b.mc1_id == mcActualID;
@@ -125,10 +121,11 @@ function aplicarFiltroPerfil() {
             let nombreTorneo = b.torneos ? `${b.torneos.franquicia} - ${b.torneos.nombre}` : 'Torneo Eliminado';
 
             if (b.resultado === 'bono') {
+                // CORREGIDO: Adaptado a las 7 columnas de tu HTML
                 htmlTabla += `<tr style="background: rgba(46, 213, 115, 0.1);">
                     <td>${fechaTorneo}</td>
                     <td>${nombreTorneo}</td>
-                    <td colspan="2" style="text-align:center; color:#2ed573; font-weight:bold;">✨ BONO: ${b.fase}</td>
+                    <td colspan="4" style="text-align:center; color:#2ed573; font-weight:bold;">✨ BONO: ${b.fase}</td>
                     <td style="color:${colorCambio}; font-weight:bold;">${cambioTxt}</td>
                 </tr>`;
                 return;
@@ -136,12 +133,8 @@ function aplicarFiltroPerfil() {
 
             let oponenteObj = esMC1 ? listaMCs.find(m => m.id == b.mc2_id) : listaMCs.find(m => m.id == b.mc1_id);
             let nombreOpo = oponenteObj ? oponenteObj.aka : 'Desconocido';
-            
-            // ELO EXACTO DEL OPONENTE EN ESE MOMENTO
             let eloOpo = (esMC1 ? b.elo_previo_mc2 : b.elo_previo_mc1) || 1500;
-            let textoOponente = `<strong>${nombreOpo}</strong> <br><span style="color:#aaa; font-size:12px;">(Elo Rival: ${eloOpo})</span>`;
-
-            // TEXTO DE RESULTADO ESPECÍFICO Y COLOR
+            
             let textoRes = ''; let colorRes = '';
             if (esMC1) {
                 if (b.resultado === 'victoria') { textoRes = 'Victoria'; colorRes = '#2ed573'; }
@@ -159,20 +152,24 @@ function aplicarFiltroPerfil() {
                 else if (b.resultado === 'derrota_total') { textoRes = 'Victoria Total'; colorRes = '#1e90ff'; } 
             }
 
+            // CORREGIDO: Rellenando las 7 columnas exactas que pediste en tu diseño
             htmlTabla += `<tr>
                 <td>${fechaTorneo}</td>
-                <td>${nombreTorneo}<br><small style="color:#aaa;">${b.fase}</small></td>
-                <td>${textoOponente}</td>
+                <td>${nombreTorneo}</td>
+                <td>${b.fase}</td>
+                <td><strong>${nombreOpo}</strong></td>
                 <td style="color: ${colorRes}; font-weight: bold;">${textoRes}</td>
+                <td>${eloOpo}</td>
                 <td style="color: ${colorCambio}; font-weight: bold;">${cambioTxt}</td>
             </tr>`;
         });
 
-        document.getElementById('cuerpoHistorial').innerHTML = htmlTabla || '<tr><td colspan="5" style="text-align:center;">No hay batallas registradas.</td></tr>';
+        document.getElementById('cuerpoHistorial').innerHTML = htmlTabla || '<tr><td colspan="7" style="text-align:center;">No hay batallas registradas.</td></tr>';
 
+        // CORREGIDO: Conectado a eloChart
         if (typeof Chart !== 'undefined') {
             if (miGrafico) miGrafico.destroy();
-            let canvas = document.getElementById('graficoElo');
+            let canvas = document.getElementById('eloChart');
             if (canvas) {
                 let ctx = canvas.getContext('2d');
                 miGrafico = new Chart(ctx, {
