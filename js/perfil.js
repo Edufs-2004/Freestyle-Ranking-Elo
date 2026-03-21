@@ -88,12 +88,24 @@ function aplicarFiltroPerfil() {
             if (eloAcumulado < minElo) minElo = eloAcumulado;
 
             if (b.resultado !== 'bono') {
-                // --- AQUÍ ESTÁ EL CAMBIO ---
-                // Antes: labels.push(b.torneos ? b.torneos.nombre : 'Torneo Desconocido');
-                // Ahora: Simplemente empujamos la fase (Octavos 1, Final, etc.) para que aparezca en el eje X
-                labels.push(b.fase); 
-                // ---------------------------
                 
+                // --- TRADUCTOR DE FASE Y PROTECCIÓN ---
+                let etiquetaFase = b.fase;
+                if (!etiquetaFase) {
+                    // Si es una batalla antigua de la V1 sin fase guardada
+                    etiquetaFase = b.torneos ? b.torneos.nombre : 'Histórico';
+                } else {
+                    // Si es un torneo de la V2, lo traducimos para que se vea bonito
+                    if (etiquetaFase.startsWith('O') && etiquetaFase.length === 2) etiquetaFase = 'Octavos';
+                    else if (etiquetaFase.startsWith('C') && etiquetaFase.length === 2) etiquetaFase = 'Cuartos';
+                    else if (etiquetaFase.startsWith('S') && etiquetaFase.length === 2) etiquetaFase = 'Semis';
+                    else if (etiquetaFase === 'F') etiquetaFase = 'Final';
+                    else if (etiquetaFase === '3P') etiquetaFase = '3er Puesto';
+                }
+                
+                labels.push(etiquetaFase);
+                // --------------------------------------
+
                 datosElo.push(eloAcumulado);
                 
                 let gano = false;
@@ -104,7 +116,7 @@ function aplicarFiltroPerfil() {
                 }
                 if (gano) victorias++; else derrotas++;
             } else {
-                labels.push('Bono: ' + b.fase);
+                labels.push('Bono: ' + (b.fase || ''));
                 datosElo.push(eloAcumulado);
             }
         });
@@ -126,7 +138,7 @@ function aplicarFiltroPerfil() {
                 htmlTabla += `<tr style="background: rgba(46, 213, 115, 0.1);">
                     <td>${fechaTorneo}</td>
                     <td>${nombreTorneo}</td>
-                    <td colspan="4" style="text-align:center; color:#2ed573; font-weight:bold;">✨ BONO: ${b.fase}</td>
+                    <td colspan="4" style="text-align:center; color:#2ed573; font-weight:bold;">✨ BONO: ${b.fase || ''}</td>
                     <td style="color:${colorCambio}; font-weight:bold;">${cambioTxt}</td>
                 </tr>`;
                 return;
@@ -153,10 +165,12 @@ function aplicarFiltroPerfil() {
                 else if (b.resultado === 'derrota_total') { textoRes = 'Victoria Total'; colorRes = '#1e90ff'; } 
             }
 
+            let faseTabla = b.fase || '-';
+
             htmlTabla += `<tr>
                 <td>${fechaTorneo}</td>
                 <td>${nombreTorneo}</td>
-                <td>${b.fase}</td>
+                <td>${faseTabla}</td>
                 <td><strong>${nombreOpo}</strong></td>
                 <td style="color: ${colorRes}; font-weight: bold;">${textoRes}</td>
                 <td>${eloOpo}</td>
@@ -174,7 +188,7 @@ function aplicarFiltroPerfil() {
                 miGrafico = new Chart(ctx, {
                     type: 'line',
                     data: {
-                        labels: labels, // Aquí usamos los labels actualizados con 'b.fase'
+                        labels: labels,
                         datasets: [{
                             label: 'Puntuación Elo',
                             data: datosElo,
