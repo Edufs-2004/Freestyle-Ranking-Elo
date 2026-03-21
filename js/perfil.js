@@ -30,7 +30,6 @@ async function cargarPerfil(idMC) {
         document.getElementById('buscadorMCs').value = ''; 
         document.getElementById('sugerenciasMCs').style.display = 'none';
         
-        // CORREGIDO: Conectado a TUS nombres exactos de HTML
         document.getElementById('nombreMC').innerText = mcPrincipal.aka;
         document.getElementById('banderaMC').innerText = mcPrincipal.nacionalidad || '🌍';
         document.getElementById('imgAtleta').src = mcPrincipal.foto || 'https://via.placeholder.com/150/373752/FFFFFF?text=MC';
@@ -45,7 +44,6 @@ async function cargarPerfil(idMC) {
             return fA - fB;
         });
         
-        // CORREGIDO: Tu contenedor principal
         document.getElementById('zonaPerfil').style.display = 'block';
         aplicarFiltroPerfil();
 
@@ -90,7 +88,12 @@ function aplicarFiltroPerfil() {
             if (eloAcumulado < minElo) minElo = eloAcumulado;
 
             if (b.resultado !== 'bono') {
-                labels.push(b.torneos ? b.torneos.nombre : 'Torneo Desconocido');
+                // --- AQUÍ ESTÁ EL CAMBIO ---
+                // Antes: labels.push(b.torneos ? b.torneos.nombre : 'Torneo Desconocido');
+                // Ahora: Simplemente empujamos la fase (Octavos 1, Final, etc.) para que aparezca en el eje X
+                labels.push(b.fase); 
+                // ---------------------------
+                
                 datosElo.push(eloAcumulado);
                 
                 let gano = false;
@@ -106,7 +109,6 @@ function aplicarFiltroPerfil() {
             }
         });
 
-        // CORREGIDO: Conectado a TUS identificadores de estadísticas
         document.getElementById('statPeakElo').innerText = maxElo;
         document.getElementById('statBatallas').innerText = filtradas.filter(b => b.resultado !== 'bono').length;
         document.getElementById('statWinRate').innerText = (victorias + derrotas > 0) ? Math.round((victorias / (victorias + derrotas)) * 100) + '%' : '0%';
@@ -121,7 +123,6 @@ function aplicarFiltroPerfil() {
             let nombreTorneo = b.torneos ? `${b.torneos.franquicia} - ${b.torneos.nombre}` : 'Torneo Eliminado';
 
             if (b.resultado === 'bono') {
-                // CORREGIDO: Adaptado a las 7 columnas de tu HTML
                 htmlTabla += `<tr style="background: rgba(46, 213, 115, 0.1);">
                     <td>${fechaTorneo}</td>
                     <td>${nombreTorneo}</td>
@@ -134,7 +135,6 @@ function aplicarFiltroPerfil() {
             let oponenteObj = esMC1 ? listaMCs.find(m => m.id == b.mc2_id) : listaMCs.find(m => m.id == b.mc1_id);
             let nombreOpo = oponenteObj ? oponenteObj.aka : 'Desconocido';
             let eloOpo = (esMC1 ? b.elo_previo_mc2 : b.elo_previo_mc1) || 1500;
-            let eloPropio = (esMC1 ? b.elo_previo_mc1 : b.elo_previo_mc2) || 1500;
             
             let textoRes = ''; let colorRes = '';
             if (esMC1) {
@@ -153,21 +153,19 @@ function aplicarFiltroPerfil() {
                 else if (b.resultado === 'derrota_total') { textoRes = 'Victoria Total'; colorRes = '#1e90ff'; } 
             }
 
-            // CORREGIDO: Rellenando las 7 columnas exactas que pediste en tu diseño
             htmlTabla += `<tr>
                 <td>${fechaTorneo}</td>
                 <td>${nombreTorneo}</td>
                 <td>${b.fase}</td>
-                <td><strong>${nombreOpo} (${eloOpo})</strong></td>
+                <td><strong>${nombreOpo}</strong></td>
                 <td style="color: ${colorRes}; font-weight: bold;">${textoRes}</td>
-                <td>${eloPropio}</td>
+                <td>${eloOpo}</td>
                 <td style="color: ${colorCambio}; font-weight: bold;">${cambioTxt}</td>
             </tr>`;
         });
 
         document.getElementById('cuerpoHistorial').innerHTML = htmlTabla || '<tr><td colspan="7" style="text-align:center;">No hay batallas registradas.</td></tr>';
 
-        // CORREGIDO: Conectado a eloChart
         if (typeof Chart !== 'undefined') {
             if (miGrafico) miGrafico.destroy();
             let canvas = document.getElementById('eloChart');
@@ -176,7 +174,7 @@ function aplicarFiltroPerfil() {
                 miGrafico = new Chart(ctx, {
                     type: 'line',
                     data: {
-                        labels: labels,
+                        labels: labels, // Aquí usamos los labels actualizados con 'b.fase'
                         datasets: [{
                             label: 'Puntuación Elo',
                             data: datosElo,
@@ -214,12 +212,6 @@ async function guardarEdicion() {
 window.filtrarBuscador = filtrarBuscador; window.cargarPerfil = cargarPerfil; window.aplicarFiltroPerfil = aplicarFiltroPerfil; 
 window.abrirEdicion = abrirEdicion; window.cerrarEdicion = cerrarEdicion; window.guardarEdicion = guardarEdicion;
 
-(async () => {
-    try {
-        await configurarSesion();
-        await inicializar();
-        await cargarFranquiciasSelect('filtroFranqPerfil', true);
-    } catch (error) {
-        console.error("Error al inicializar la página de perfil:", error);
-    }
-})();
+configurarSesion();
+inicializar();
+cargarFranquiciasSelect('filtroFranqPerfil', true);
