@@ -88,14 +88,10 @@ function aplicarFiltroPerfil() {
             if (eloAcumulado < minElo) minElo = eloAcumulado;
 
             if (b.resultado !== 'bono') {
-                
-                // --- TRADUCTOR DE FASE Y PROTECCIÓN ---
                 let etiquetaFase = b.fase;
                 if (!etiquetaFase) {
-                    // Si es una batalla antigua de la V1 sin fase guardada
                     etiquetaFase = b.torneos ? b.torneos.nombre : 'Histórico';
                 } else {
-                    // Si es un torneo de la V2, lo traducimos para que se vea bonito
                     if (etiquetaFase.startsWith('O') && etiquetaFase.length === 2) etiquetaFase = 'Octavos';
                     else if (etiquetaFase.startsWith('C') && etiquetaFase.length === 2) etiquetaFase = 'Cuartos';
                     else if (etiquetaFase.startsWith('S') && etiquetaFase.length === 2) etiquetaFase = 'Semis';
@@ -104,8 +100,6 @@ function aplicarFiltroPerfil() {
                 }
                 
                 labels.push(etiquetaFase);
-                // --------------------------------------
-
                 datosElo.push(eloAcumulado);
                 
                 let gano = false;
@@ -144,10 +138,15 @@ function aplicarFiltroPerfil() {
                 return;
             }
 
+            // DATOS DEL OPONENTE (Para la columna 4)
             let oponenteObj = esMC1 ? listaMCs.find(m => m.id == b.mc2_id) : listaMCs.find(m => m.id == b.mc1_id);
             let nombreOpo = oponenteObj ? oponenteObj.aka : 'Desconocido';
             let eloOpo = (esMC1 ? b.elo_previo_mc2 : b.elo_previo_mc1) || 1500;
+            let celdaOponente = `<strong>${nombreOpo}</strong> <span style="color:#aaa; font-size:12px;">(${eloOpo})</span>`;
             
+            // DATOS DE NUESTRO MC (Para la columna 6: Pts Previos)
+            let eloPrevioNuestroMC = (esMC1 ? b.elo_previo_mc1 : b.elo_previo_mc2) || 1500;
+
             let textoRes = ''; let colorRes = '';
             if (esMC1) {
                 if (b.resultado === 'victoria') { textoRes = 'Victoria'; colorRes = '#2ed573'; }
@@ -167,13 +166,14 @@ function aplicarFiltroPerfil() {
 
             let faseTabla = b.fase || '-';
 
+            // AQUÍ ESTÁN TUS 7 COLUMNAS EXACTAS CON LOS DATOS EN SU LUGAR
             htmlTabla += `<tr>
                 <td>${fechaTorneo}</td>
                 <td>${nombreTorneo}</td>
                 <td>${faseTabla}</td>
-                <td><strong>${nombreOpo}</strong></td>
+                <td>${celdaOponente}</td>
                 <td style="color: ${colorRes}; font-weight: bold;">${textoRes}</td>
-                <td>${eloOpo}</td>
+                <td>${eloPrevioNuestroMC}</td>
                 <td style="color: ${colorCambio}; font-weight: bold;">${cambioTxt}</td>
             </tr>`;
         });
