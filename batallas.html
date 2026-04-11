@@ -6,7 +6,7 @@
     <style>
         body { font-family: Arial, sans-serif; background-color: #1e1e2f; color: white; padding: 20px; }
         .panel { background: #2a2a40; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); margin-bottom: 20px; }
-        input, select, button { width: 100%; margin-top: 10px; padding: 10px; box-sizing: border-box; border-radius: 5px; border: none; }
+        input, select, button { width: 100%; margin-top: 5px; margin-bottom: 10px; padding: 10px; box-sizing: border-box; border-radius: 5px; border: none; }
         button { background-color: #ff4757; color: white; cursor: pointer; font-weight: bold; font-size: 16px;}
         button:hover { background-color: #ff6b81; }
         
@@ -60,20 +60,33 @@
             </div>
 
             <div class="panel" style="border-left: 5px solid #ff4757;">
-                <h2 style="margin-top: 0; color: #ff4757;">🔍 Motor de Recálculo</h2>
-                <p style="font-size: 0.9em; color: #aaa;">Aísla estadísticas. Simula la historia aplicando solo los eventos que coincidan.</p>
+                <h2 style="margin-top: 0; color: #ff4757;">🔍 Motor de Filtros</h2>
+                <p style="font-size: 0.9em; color: #aaa;">Filtra la historia real o aísla torneos creando un universo matemático desde cero.</p>
                 
-                <label>Franquicia:</label>
-                <select id="filtroFranquicia">
-             </select>
+                <div class="form-grupo">
+                    <label>Franquicia:</label>
+                    <select id="filtroFranquicia"></select>
+                </div>
                 
-                <label>Desde Fecha:</label>
-                <input type="date" id="filtroDesde">
+                <div class="form-grupo">
+                    <label>Modo de Análisis:</label>
+                    <select id="modoAnalisisCalc" style="background: #eccc68; color: #2f3542; font-weight: bold;">
+                        <option value="historico" selected>🌍 Histórico (Puntos Reales)</option>
+                        <option value="aislado">🔬 Aislado (Desde 1500 pts)</option>
+                    </select>
+                </div>
                 
-                <label>Hasta Fecha:</label>
-                <input type="date" id="filtroHasta">
+                <div class="form-grupo">
+                    <label>Desde Fecha:</label>
+                    <input type="date" id="filtroDesde">
+                </div>
                 
-                <button onclick="aplicarFiltros()" style="margin-top: 15px;">⚙️ Recalcular Tabla</button>
+                <div class="form-grupo">
+                    <label>Hasta Fecha:</label>
+                    <input type="date" id="filtroHasta">
+                </div>
+                
+                <button onclick="aplicarFiltros()" style="margin-top: 10px;">⚙️ Aplicar Filtro Avanzado</button>
             </div>
         </div>
 
@@ -96,6 +109,6 @@
     </div>
 
     <script type="module" src="js/calculadora.js"></script>
-    <div style="position: fixed; bottom: 10px; right: 15px; color: #57606f; font-size: 14px; font-weight: bold; pointer-events: none; z-index: 9999;">V2.3.12</div>
+    <div style="position: fixed; bottom: 10px; right: 15px; color: #57606f; font-size: 14px; font-weight: bold; pointer-events: none; z-index: 9999;">V2.4.1</div>
 </body>
 </html>

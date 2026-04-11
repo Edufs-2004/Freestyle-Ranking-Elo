@@ -87,12 +87,27 @@
 
             <div class="filtros-perfil">
                 <div style="flex: 1; min-width: 150px;">
-                    <select id="filtroFranqPerfil" style="margin: 0;">
+                    <label style="font-size: 11px; color: #aaa;">Franquicia / Competencia:</label>
+                    <select id="filtroFranqPerfil" style="margin: 0; padding: 10px; border-radius: 5px; width: 100%; border: none;"></select>
+                </div>
+                <div style="flex: 1; min-width: 170px;">
+                    <label style="font-size: 11px; color: #aaa;">Modo de Análisis:</label>
+                    <select id="modoAnalisisPerfil" style="margin: 0; padding: 10px; border-radius: 5px; width: 100%; border: none; background: #eccc68; color: #2f3542; font-weight: bold;">
+                        <option value="historico" selected>🌍 Histórico Real (Global)</option>
+                        <option value="aislado">🔬 Aislado (Desde 1500 pts)</option>
                     </select>
                 </div>
-                <div style="flex: 1; min-width: 130px;"><input type="date" id="filtroDesdePerfil" style="margin: 0;"></div>
-                <div style="flex: 1; min-width: 130px;"><input type="date" id="filtroHastaPerfil" style="margin: 0;"></div>
-                <button onclick="aplicarFiltroPerfil()" style="background: #ff4757; color: white;">⚙️ Filtrar</button>
+                <div style="flex: 1; min-width: 130px;">
+                    <label style="font-size: 11px; color: #aaa;">Desde Fecha:</label>
+                    <input type="date" id="filtroDesdePerfil" style="margin: 0; padding: 8px;">
+                </div>
+                <div style="flex: 1; min-width: 130px;">
+                    <label style="font-size: 11px; color: #aaa;">Hasta Fecha:</label>
+                    <input type="date" id="filtroHastaPerfil" style="margin: 0; padding: 8px;">
+                </div>
+                <div style="display: flex; align-items: flex-end;">
+                    <button onclick="aplicarFiltroPerfil()" style="background: #1e90ff; color: white; padding: 10px 20px; border-radius: 5px; height: 42px;">⚙️ Aplicar Filtro</button>
+                </div>
             </div>
             
             <div class="stats-grid">
