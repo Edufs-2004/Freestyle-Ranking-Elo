@@ -98,16 +98,18 @@ function aplicarFiltroPerfil() {
         }
 
         // ==========================================
-        // SOLUCIÓN AL GRÁFICO (INICIO DINÁMICO)
+        // LA SOLUCIÓN DEL GRÁFICO HISTÓRICO
         // ==========================================
         let eloInicial = 1500;
         if (dataDelMC.length > 0) {
             let primeraBatalla = dataDelMC[0];
             let esMC1Primera = primeraBatalla.mc1_id == mcActualID;
-            eloInicial = esMC1Primera ? primeraBatalla.calc_previo_mc1 : primeraBatalla.calc_previo_mc2;
+            // Busca el Elo previo a su primera batalla del filtro
+            eloInicial = (esMC1Primera ? primeraBatalla.calc_previo_mc1 : primeraBatalla.calc_previo_mc2) || 1500;
         }
 
-        let labels = ['Inicio Filtro']; let datosElo = [eloInicial]; let eloAcumulado = eloInicial;
+        let labels = ['Inicio Filtro']; let datosElo = [eloInicial]; 
+        let eloAcumulado = eloInicial; 
         let maxElo = eloInicial; let minElo = eloInicial; let victorias = 0; let derrotas = 0; 
         let htmlTabla = '';
 
@@ -115,10 +117,22 @@ function aplicarFiltroPerfil() {
 
         dataDelMC.forEach(b => {
             let esMC1 = b.mc1_id == mcActualID;
-            let cambio = esMC1 ? b.calc_cambio_mc1 : b.calc_cambio_mc2;
-            eloAcumulado += cambio;
+            let cambio = (esMC1 ? b.calc_cambio_mc1 : b.calc_cambio_mc2) || 0;
+            let previoReal = (esMC1 ? b.calc_previo_mc1 : b.calc_previo_mc2) || 1500;
             
-            if (eloAcumulado > maxElo) maxElo = eloAcumulado; if (eloAcumulado < minElo) minElo = eloAcumulado;
+            let eloPostBatalla = 1500;
+            if (modo === 'aislado') {
+                // En aislado, acumulamos manualmente sumando el cambio paso a paso
+                eloAcumulado += cambio;
+                eloPostBatalla = eloAcumulado;
+            } else {
+                // En histórico, tomamos la foto real de ese instante de la base de datos
+                eloPostBatalla = previoReal + cambio;
+                eloAcumulado = eloPostBatalla; 
+            }
+            
+            if (eloAcumulado > maxElo) maxElo = eloAcumulado; 
+            if (eloAcumulado < minElo) minElo = eloAcumulado;
 
             if (b.resultado !== 'bono') {
                 let etiquetaFase = b.fase;
@@ -131,14 +145,16 @@ function aplicarFiltroPerfil() {
                     else if (etiquetaFase === '3P') etiquetaFase = '3er Puesto';
                 }
                 
-                labels.push(etiquetaFase); datosElo.push(eloAcumulado);
+                labels.push(etiquetaFase); 
+                datosElo.push(eloPostBatalla);
                 
                 let gano = false;
                 if (esMC1) { if (['victoria', 'victoria_replica', 'victoria_total'].includes(b.resultado)) gano = true; } 
                 else { if (['derrota', 'derrota_replica', 'derrota_total'].includes(b.resultado)) gano = true; }
                 if (gano) victorias++; else derrotas++;
             } else {
-                labels.push('Bono: ' + (b.fase || '')); datosElo.push(eloAcumulado);
+                labels.push('Bono: ' + (b.fase || '')); 
+                datosElo.push(eloPostBatalla);
             }
         });
 
@@ -148,7 +164,7 @@ function aplicarFiltroPerfil() {
         
         dataReversa.forEach(b => {
             let esMC1 = b.mc1_id == mcActualID;
-            let cambio = esMC1 ? b.calc_cambio_mc1 : b.calc_cambio_mc2;
+            let cambio = (esMC1 ? b.calc_cambio_mc1 : b.calc_cambio_mc2) || 0;
             let cambioTxt = cambio > 0 ? `+${cambio}` : `${cambio}`;
             let colorCambio = cambio > 0 ? '#2ed573' : (cambio < 0 ? '#ff4757' : '#aaa');
             let fechaTorneo = b.torneos ? b.torneos.fecha_evento : 'Sin Fecha';
@@ -163,10 +179,10 @@ function aplicarFiltroPerfil() {
 
             let oponenteObj = esMC1 ? listaMCs.find(m => m.id == b.mc2_id) : listaMCs.find(m => m.id == b.mc1_id);
             let nombreOpo = oponenteObj ? oponenteObj.aka : 'Desconocido';
-            let eloOpo = esMC1 ? b.calc_previo_mc2 : b.calc_previo_mc1;
+            let eloOpo = (esMC1 ? b.calc_previo_mc2 : b.calc_previo_mc1) || 1500;
             let celdaOponente = `<strong>${nombreOpo}</strong> <span style="color:#aaa; font-size:12px;">(${eloOpo})</span>`; 
             
-            let eloPrevioNuestroMC = esMC1 ? b.calc_previo_mc1 : b.calc_previo_mc2; 
+            let eloPrevioNuestroMC = (esMC1 ? b.calc_previo_mc1 : b.calc_previo_mc2) || 1500; 
 
             let textoRes = ''; let colorRes = '';
             if (esMC1) {
