@@ -2,7 +2,6 @@ import { supabase, cargarFranquiciasSelect } from './supabase.js';
 import { configurarSesion } from './auth.js';
 const K = 32;
 
-// LA RUTA VUELVE A TENER EL '3P' INCLUIDO
 const RUTA_TORNEO = {
     'O1': { sig: 'C1', slot: 'mc1' }, 'O2': { sig: 'C1', slot: 'mc2' },
     'O3': { sig: 'C2', slot: 'mc1' }, 'O4': { sig: 'C2', slot: 'mc2' },
@@ -202,9 +201,16 @@ async function iniciarTorneo() {
         }
 
         let unicos = new Set(idsAValidar); if (unicos.has(NaN) || unicos.size !== limiteMcsActual) return alert("Asigna a todos sin repetir.");
-        evento.pozo = Math.round((sumaElo / limiteMcsActual) * 0.05); document.getElementById('mensajeConsola').innerHTML = "Registrando...";
+        
+        // ===============================================
+        // NUEVA MATEMÁTICA: 0.3% POR COMPETIDOR 
+        // ===============================================
+        let eloPromedio = sumaElo / limiteMcsActual;
+        evento.pozo = Math.round(eloPromedio * (limiteMcsActual * 0.003)); 
+        
+        document.getElementById('mensajeConsola').innerHTML = "Registrando...";
 
-        const { data: torneoDB, error } = await supabase.from('torneos').insert([{ nombre: evento.nombre, franquicia: evento.franquicia, formato: evento.formatoStr, fecha_evento: evento.fecha, estado: 'En Curso', elo_medio_calculado: Math.round(sumaElo/limiteMcsActual), pozo_total: evento.pozo }]).select();
+        const { data: torneoDB, error } = await supabase.from('torneos').insert([{ nombre: evento.nombre, franquicia: evento.franquicia, formato: evento.formatoStr, fecha_evento: evento.fecha, estado: 'En Curso', elo_medio_calculado: Math.round(eloPromedio), pozo_total: evento.pozo }]).select();
         if (error) return alert("Error al guardar."); evento.id = torneoDB[0].id;
 
         await supabase.from('inscripciones').insert(idsAValidar.map(id => ({ torneo_id: evento.id, competidor_id: id })));
@@ -224,7 +230,7 @@ async function iniciarTorneo() {
             contenedor.innerHTML = htmlAcumulado;
         });
         
-        document.getElementById('bracketTercero').innerHTML = generarHTMLBatalla('3P', 'Batalla por el Bronce', 'ZZZ', false);
+        document.getElementById('bracketTercero').innerHTML = generarHTMLBatalla('3P', 'Batalla por el Bronce (Opcional)', 'ZZZ', false);
 
         for(let i=1; i<=limiteMcsActual/2; i++) {
             document.getElementById(`${prefijo}${i}_mc1_nombre`).innerText = evento[`${prefijo}${i}`].mc1.aka; document.getElementById(`${prefijo}${i}_mc2_nombre`).innerText = evento[`${prefijo}${i}`].mc2.aka;
@@ -284,11 +290,17 @@ async function procesarBatallaAuto(faseStr, esLiga = false) {
             }
         }
         
-        if ((faseStr === 'F' || faseStr === '3P') && evento.F.ganador && evento['3P'].ganador) {
+        // HABILITAMOS CERRAR SI LA FINAL ESTÁ LISTA (EL 3ER PUESTO AHORA ES OPCIONAL)
+        if ((faseStr === 'F' || faseStr === '3P') && evento.F.ganador) {
             document.getElementById('resumen_final').style.display = 'block';
             document.getElementById('c_camp').innerText = evento.F.ganador.aka;
             document.getElementById('c_sub').innerText = evento.F.perdedor.aka;
-            document.getElementById('c_tercero').innerText = evento['3P'].ganador.aka;
+            if (evento['3P'].ganador) {
+                document.getElementById('c_tercero').innerText = evento['3P'].ganador.aka;
+            } else {
+                document.getElementById('c_tercero').innerText = 'Empate (Ambos Semifinalistas)';
+                document.getElementById('c_tercero').style.color = '#aaa';
+            }
         }
     }
 
@@ -298,17 +310,29 @@ async function procesarBatallaAuto(faseStr, esLiga = false) {
 async function cerrarTorneoAutomatico() {
     if(!confirm("¿Cerrar el evento y sumar la distribución de puntos?")) return;
 
-    let bonoCamp = 0, bonoSub = 0, bonoTercero = 0, bonoCuarto = 0, bonoCuartos = 0;
+    let bonoCamp = 0, bonoSub = 0, bonoTercero = 0, bonoCuarto = 0, bonoSemis = 0, bonoCuartos = 0;
+    let hayTercero = evento['3P'].ganador !== null;
 
-    if(limiteMcsActual === 16) {
-        bonoCamp = Math.round(evento.pozo * 0.35); bonoSub = Math.round(evento.pozo * 0.20);
-        bonoTercero = Math.round(evento.pozo * 0.12); bonoCuarto = Math.round(evento.pozo * 0.08); bonoCuartos = Math.round(evento.pozo * 0.05); 
+    // ===============================================
+    // DISTRIBUCIÓN MAESTRA DE PREMIOS 
+    // ===============================================
+    if (limiteMcsActual === 16) {
+        bonoCamp = Math.round(evento.pozo * 0.40); bonoSub = Math.round(evento.pozo * 0.20);
+        if (hayTercero) { bonoTercero = Math.round(evento.pozo * 0.12); bonoCuarto = Math.round(evento.pozo * 0.08); }
+        else { bonoSemis = Math.round(evento.pozo * 0.10); } // 10% a cada semi
+        bonoCuartos = Math.round(evento.pozo * 0.05); 
     } else if (limiteMcsActual === 8) {
-        bonoCamp = Math.round(evento.pozo * 0.40); bonoSub = Math.round(evento.pozo * 0.25); 
-        bonoTercero = Math.round(evento.pozo * 0.15); bonoCuarto = Math.round(evento.pozo * 0.10);
+        bonoCamp = Math.round(evento.pozo * 0.45); bonoSub = Math.round(evento.pozo * 0.25); 
+        if (hayTercero) { bonoTercero = Math.round(evento.pozo * 0.18); bonoCuarto = Math.round(evento.pozo * 0.12); }
+        else { bonoSemis = Math.round(evento.pozo * 0.15); } // 15% a cada semi
     } else if (limiteMcsActual === 4) {
-        bonoCamp = Math.round(evento.pozo * 0.45); bonoSub = Math.round(evento.pozo * 0.30); 
-        bonoTercero = Math.round(evento.pozo * 0.15); bonoCuarto = Math.round(evento.pozo * 0.10);
+        if (hayTercero) {
+            bonoCamp = Math.round(evento.pozo * 0.50); bonoSub = Math.round(evento.pozo * 0.30); 
+            bonoTercero = Math.round(evento.pozo * 0.20); bonoCuarto = 0; // El 4to no cobra
+        } else {
+            bonoCamp = Math.round(evento.pozo * 0.60); bonoSub = Math.round(evento.pozo * 0.40); 
+            // Los semifinalistas no cobran nada
+        }
     }
 
     async function sumarPremio(idMC, bono, tituloPremio) {
@@ -321,18 +345,28 @@ async function cerrarTorneoAutomatico() {
 
     await sumarPremio(evento.F.ganador.id, bonoCamp, '🏆 Campeón');     
     await sumarPremio(evento.F.perdedor.id, bonoSub, '🥈 Subcampeón');     
-    await sumarPremio(evento['3P'].ganador.id, bonoTercero, '🥉 Tercer Lugar');   
-    await sumarPremio(evento['3P'].perdedor.id, bonoCuarto, '🎖️ Cuarto Lugar');   
     
-    if(limiteMcsActual >= 8) {
+    if (hayTercero) {
+        if (bonoTercero > 0) await sumarPremio(evento['3P'].ganador.id, bonoTercero, '🥉 Tercer Lugar');   
+        if (bonoCuarto > 0) await sumarPremio(evento['3P'].perdedor.id, bonoCuarto, '🎖️ Cuarto Lugar');   
+    } else {
+        if (bonoSemis > 0) {
+            await sumarPremio(evento.S1.perdedor.id, bonoSemis, '🎖️ Semifinalista');
+            await sumarPremio(evento.S2.perdedor.id, bonoSemis, '🎖️ Semifinalista');
+        }
+    }
+    
+    if (limiteMcsActual >= 16) {
         await sumarPremio(evento.C1.perdedor.id, bonoCuartos, '🏅 Cuartofinalista'); await sumarPremio(evento.C2.perdedor.id, bonoCuartos, '🏅 Cuartofinalista');
         await sumarPremio(evento.C3.perdedor.id, bonoCuartos, '🏅 Cuartofinalista'); await sumarPremio(evento.C4.perdedor.id, bonoCuartos, '🏅 Cuartofinalista');
     }
 
     await supabase.from('torneos').update({ estado: 'Finalizado' }).eq('id', evento.id);
     
-    let msgAlerta = `¡Torneo Finalizado con Éxito!\n\n👑 Campeón: +${bonoCamp} pts\n🥈 Subcampeón: +${bonoSub} pts\n🥉 3er Lugar: +${bonoTercero} pts\n🎖️ 4to Lugar: +${bonoCuarto} pts`;
-    if (limiteMcsActual >= 8) msgAlerta += `\n🏅 Cuartos de Final: +${bonoCuartos} pts`;
+    let msgAlerta = `¡Torneo Finalizado con Éxito!\n\n👑 Campeón: +${bonoCamp} pts\n🥈 Subcampeón: +${bonoSub} pts`;
+    if (hayTercero) { msgAlerta += `\n🥉 3er Lugar: +${bonoTercero} pts\n🎖️ 4to Lugar: +${bonoCuarto} pts`; } 
+    else if (bonoSemis > 0) { msgAlerta += `\n🎖️ Semifinalistas: +${bonoSemis} pts c/u`; }
+    if (limiteMcsActual >= 16) msgAlerta += `\n🏅 Cuartos de Final: +${bonoCuartos} pts c/u`;
     
     alert(msgAlerta);
     window.location.reload();
@@ -346,12 +380,6 @@ async function cerrarLiga() {
 window.abrirReorden = abrirReorden; window.cerrarReorden = cerrarReorden; window.guardarReorden = guardarReorden;
 window.cambiarFormato = cambiarFormato; window.filtrarBuscador = filtrarBuscador; window.agregarChip = agregarChip; window.quitarChip = quitarChip; window.irACruces = irACruces; window.actualizarDesplegables = actualizarDesplegables; window.iniciarTorneo = iniciarTorneo; window.procesarBatallaAuto = procesarBatallaAuto; window.cerrarTorneoAutomatico = cerrarTorneoAutomatico; window.crearYAgregarMC = crearYAgregarMC; window.agregarBatallaLiga = agregarBatallaLiga; window.quitarBatallaLiga = quitarBatallaLiga; window.cerrarLiga = cerrarLiga;
 
-(async () => {
-    try {
-        await configurarSesion();
-        await cargarBD();
-        await cargarFranquiciasSelect('franquiciaTorneo', false);
-    } catch (error) {
-        console.error("Error al inicializar la página de torneos:", error);
-    }
-})();
+configurarSesion();
+cargarBD();
+cargarFranquiciasSelect('franquiciaTorneo', false);

@@ -55,11 +55,8 @@ async function eliminarTorneo(id, nombre) {
     cargarTorneos();
 }
 
-// ==========================================
-// V2.4.0: MOTOR DE RECÁLCULO TEMPORAL (NUEVO)
-// ==========================================
 async function repararEloGlobal(silent = false) {
-    if (!silent && !confirm("🔄 ¿Iniciar Recálculo Global Maestro?\n\nEl sistema viajará en el tiempo, ordenará los torneos cronológicamente y ajustará el tamaño de los pozos de premios de la historia según el Elo real de esa época.")) return;
+    if (!silent && !confirm("🔄 ¿Iniciar Recálculo Global Maestro?\n\nEl sistema viajará en el tiempo, ordenará los torneos cronológicamente y ajustará el tamaño de los pozos de premios a la regla del 0.3%.")) return;
     
     let msg = document.getElementById('msgReparacion'); msg.style.color = "#eccc68"; msg.innerText = "⏳ 1. Reseteando Línea Temporal...";
 
@@ -75,60 +72,67 @@ async function repararEloGlobal(silent = false) {
     for (let torneo of torneos) {
         let batallasTorneo = batallas.filter(b => b.torneo_id === torneo.id);
         
-        // Ordenamos: primero batallas normales (para calcular Elo), luego reparto de Bonos
         batallasTorneo.sort((a, b) => {
             if (a.resultado === 'bono' && b.resultado !== 'bono') return 1;
             if (a.resultado !== 'bono' && b.resultado === 'bono') return -1;
             return a.id - b.id;
         });
 
-        // Averiguamos el tamaño real del torneo según quienes batallaron
         let uniqueIds = new Set();
         batallasTorneo.filter(b => b.resultado !== 'bono').forEach(bx => { uniqueIds.add(bx.mc1_id); uniqueIds.add(bx.mc2_id); });
         let sizeReal = uniqueIds.size;
         
         let isLiga = torneo.formato && torneo.formato.toLowerCase().includes('liga');
-        let pozoHistorico = 0;
-        let eloMedioHistorico = 1500;
+        let pozoHistorico = 0; let eloMedioHistorico = 1500;
 
-        // CALCULAMOS EL POZO EXACTO EN EL TIEMPO
         if (!isLiga && sizeReal >= 4) {
             let sumaElo = 0;
             uniqueIds.forEach(id => { sumaElo += rankingNube[id].elo; });
             eloMedioHistorico = Math.round(sumaElo / sizeReal);
-            pozoHistorico = Math.round(eloMedioHistorico * 0.05);
+            // REGLA DEL 0.3% (0.003)
+            pozoHistorico = Math.round(eloMedioHistorico * (sizeReal * 0.003)); 
             
             await supabase.from('torneos').update({ elo_medio_calculado: eloMedioHistorico, pozo_total: pozoHistorico }).eq('id', torneo.id);
         }
 
-        let formatoOficial = parseInt(torneo.formato);
-        if (isNaN(formatoOficial)) {
-            if (sizeReal > 8) formatoOficial = 16; else if (sizeReal > 4) formatoOficial = 8; else formatoOficial = 4;
-        }
+        let formatoOficial = sizeReal > 8 ? 16 : (sizeReal > 4 ? 8 : 4);
 
         for (let b of batallasTorneo) {
             if (b.resultado === 'bono') {
-                // REPARTIMOS EL POZO NUEVO Y LIMPIO
                 let bono = 0;
-                if (formatoOficial === 16) {
-                    if (b.fase.includes('Campeón')) bono = Math.round(pozoHistorico * 0.35);
-                    else if (b.fase.includes('Subcampeón')) bono = Math.round(pozoHistorico * 0.20);
-                    else if (b.fase.includes('Tercer')) bono = Math.round(pozoHistorico * 0.12);
-                    else if (b.fase.includes('Cuarto Lugar')) bono = Math.round(pozoHistorico * 0.08);
-                    else if (b.fase.includes('Cuartofinalista')) bono = Math.round(pozoHistorico * 0.05);
-                } else if (formatoOficial === 8) {
-                    if (b.fase.includes('Campeón')) bono = Math.round(pozoHistorico * 0.40);
-                    else if (b.fase.includes('Subcampeón')) bono = Math.round(pozoHistorico * 0.25);
-                    else if (b.fase.includes('Tercer')) bono = Math.round(pozoHistorico * 0.15);
-                    else if (b.fase.includes('Cuarto Lugar')) bono = Math.round(pozoHistorico * 0.10);
-                } else if (formatoOficial === 4) {
-                    if (b.fase.includes('Campeón')) bono = Math.round(pozoHistorico * 0.45);
-                    else if (b.fase.includes('Subcampeón')) bono = Math.round(pozoHistorico * 0.30);
-                    else if (b.fase.includes('Tercer')) bono = Math.round(pozoHistorico * 0.15);
-                    else if (b.fase.includes('Cuarto Lugar')) bono = Math.round(pozoHistorico * 0.10);
+                let f = b.fase || '';
+                let hayTercero = batallasTorneo.some(bx => bx.resultado === 'bono' && (bx.fase || '').includes('Tercer'));
+
+                if (!isLiga && pozoHistorico > 0) {
+                    if (formatoOficial === 16) { 
+                        if (f.includes('Campeón')) bono = Math.round(pozoHistorico * 0.40);
+                        else if (f.includes('Subcampeón')) bono = Math.round(pozoHistorico * 0.20);
+                        else if (f.includes('Tercer')) bono = Math.round(pozoHistorico * 0.12);
+                        else if (f.includes('Cuarto Lugar')) bono = Math.round(pozoHistorico * 0.08);
+                        else if (f.includes('Cuartofinalista')) bono = Math.round(pozoHistorico * 0.05);
+                        else if (f.includes('Semifinalista')) bono = Math.round(pozoHistorico * 0.10); 
+                    } 
+                    else if (formatoOficial === 8) { 
+                        if (f.includes('Campeón')) bono = Math.round(pozoHistorico * 0.45);
+                        else if (f.includes('Subcampeón')) bono = Math.round(pozoHistorico * 0.25);
+                        else if (f.includes('Tercer')) bono = Math.round(pozoHistorico * 0.18);
+                        else if (f.includes('Cuarto Lugar')) bono = Math.round(pozoHistorico * 0.12);
+                        else if (f.includes('Semifinalista')) bono = Math.round(pozoHistorico * 0.15); 
+                    } 
+                    else if (formatoOficial === 4) { 
+                        if (hayTercero) {
+                            if (f.includes('Campeón')) bono = Math.round(pozoHistorico * 0.50);
+                            else if (f.includes('Subcampeón')) bono = Math.round(pozoHistorico * 0.30);
+                            else if (f.includes('Tercer')) bono = Math.round(pozoHistorico * 0.20);
+                            // Cuarto no cobra
+                        } else {
+                            if (f.includes('Campeón')) bono = Math.round(pozoHistorico * 0.60);
+                            else if (f.includes('Subcampeón')) bono = Math.round(pozoHistorico * 0.40);
+                        }
+                    }
                 }
 
-                if (bono === 0) bono = b.cambio_mc1; // Seguro anti-fallos para torneos heredados de la V1
+                if (bono === 0 && b.cambio_mc1 > 0 && isLiga) bono = b.cambio_mc1; 
 
                 let R1 = rankingNube[b.mc1_id].elo;
                 rankingNube[b.mc1_id].elo += bono;
@@ -161,7 +165,6 @@ async function repararEloGlobal(silent = false) {
     msg.style.color = "#2ed573"; msg.innerText = "✅ ¡Línea Temporal Alineada y Premios Restaurados!";
     setTimeout(() => { msg.innerText = ""; }, 4000);
 }
-// ==========================================
 
 async function verTorneo(idTorneo, nombre) {
     torneoAbiertoId = idTorneo; torneoAbiertoNombre = nombre;
