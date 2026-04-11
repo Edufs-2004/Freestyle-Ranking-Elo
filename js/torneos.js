@@ -14,7 +14,7 @@ const RUTA_TORNEO = {
 };
 
 let evento = { id: null, pozo: 0, nombre: "", franquicia: "", formatoStr: "", fecha: "" };
-Object.keys(RUTA_TORNEO).forEach(fase => { evento[fase] = { mc1: null, mc2: null, ganador: null, perdedor: null }; });
+Object.keys(RUTA_TORNEO).forEach(fase => { evento[fase] = { mc1: null, mc2: null, ganador: null, perdedor: null, omitido: false }; });
 
 let mcsDisponibles = []; let mcsSeleccionados = []; let limiteMcsActual = 16; let batallasLigaPreparadas = []; 
 
@@ -169,6 +169,42 @@ function generarHTMLBatalla(faseId, tituloFase, faseArranque, esLiga = false) {
     </div>`;
 }
 
+// ===============================================
+// NUEVA FUNCIÓN PARA ANULAR EL BRONCE (UI/UX)
+// ===============================================
+function omitirTercero() {
+    if(!confirm("¿Omitir la batalla por el bronce?\n\nLos dos perdedores de las Semifinales empatarán y se repartirán el premio de consolación en partes iguales.")) return;
+    
+    evento['3P'].omitido = true;
+    
+    let caja = document.getElementById('caja_3P');
+    caja.style.opacity = '0.3';
+    caja.style.pointerEvents = 'none';
+    document.getElementById('btnOmitir3P').style.display = 'none';
+    
+    verificarCierreTorneo();
+}
+
+function verificarCierreTorneo() {
+    // El torneo se puede cerrar si ya hay ganador de la Final Y (ya se jugó el 3er Puesto O se omitió)
+    if (evento.F.ganador && (evento['3P'].ganador || evento['3P'].omitido)) {
+        document.getElementById('resumen_final').style.display = 'block';
+        document.getElementById('c_camp').innerText = evento.F.ganador.aka;
+        document.getElementById('c_sub').innerText = evento.F.perdedor.aka;
+        
+        if (evento['3P'].ganador) {
+            document.getElementById('c_tercero').innerText = evento['3P'].ganador.aka;
+            document.getElementById('c_tercero').style.color = '#cd84f1';
+        } else {
+            document.getElementById('c_tercero').innerText = 'Empate (Ambos Semifinalistas)';
+            document.getElementById('c_tercero').style.color = '#aaa';
+        }
+        
+        // Hacemos scroll suave hacia el resumen final
+        document.getElementById('resumen_final').scrollIntoView({ behavior: 'smooth' });
+    }
+}
+
 async function iniciarTorneo() {
     let isLiga = document.getElementById('formatoTorneo').value === 'liga'; let sumaElo = 0;
 
@@ -202,9 +238,6 @@ async function iniciarTorneo() {
 
         let unicos = new Set(idsAValidar); if (unicos.has(NaN) || unicos.size !== limiteMcsActual) return alert("Asigna a todos sin repetir.");
         
-        // ===============================================
-        // NUEVA MATEMÁTICA: 0.3% POR COMPETIDOR 
-        // ===============================================
         let eloPromedio = sumaElo / limiteMcsActual;
         evento.pozo = Math.round(eloPromedio * (limiteMcsActual * 0.003)); 
         
@@ -230,7 +263,9 @@ async function iniciarTorneo() {
             contenedor.innerHTML = htmlAcumulado;
         });
         
-        document.getElementById('bracketTercero').innerHTML = generarHTMLBatalla('3P', 'Batalla por el Bronce (Opcional)', 'ZZZ', false);
+        // AÑADIMOS EL BOTÓN DE OMITIR JUSTO DEBAJO DEL BRACKET DEL 3ER PUESTO
+        document.getElementById('bracketTercero').innerHTML = generarHTMLBatalla('3P', 'Batalla por el Bronce', 'ZZZ', false) + 
+        `<button id="btnOmitir3P" onclick="omitirTercero()" style="background-color: #57606f; margin-top: 10px; width: 100%; padding: 12px; border: none; color: white; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.3s;">🚫 Omitir 3er Puesto (Empate de Semis)</button>`;
 
         for(let i=1; i<=limiteMcsActual/2; i++) {
             document.getElementById(`${prefijo}${i}_mc1_nombre`).innerText = evento[`${prefijo}${i}`].mc1.aka; document.getElementById(`${prefijo}${i}_mc2_nombre`).innerText = evento[`${prefijo}${i}`].mc2.aka;
@@ -290,21 +325,16 @@ async function procesarBatallaAuto(faseStr, esLiga = false) {
             }
         }
         
-        // HABILITAMOS CERRAR SI LA FINAL ESTÁ LISTA (EL 3ER PUESTO AHORA ES OPCIONAL)
-        if ((faseStr === 'F' || faseStr === '3P') && evento.F.ganador) {
-            document.getElementById('resumen_final').style.display = 'block';
-            document.getElementById('c_camp').innerText = evento.F.ganador.aka;
-            document.getElementById('c_sub').innerText = evento.F.perdedor.aka;
-            if (evento['3P'].ganador) {
-                document.getElementById('c_tercero').innerText = evento['3P'].ganador.aka;
-            } else {
-                document.getElementById('c_tercero').innerText = 'Empate (Ambos Semifinalistas)';
-                document.getElementById('c_tercero').style.color = '#aaa';
-            }
-        }
+        verificarCierreTorneo();
     }
 
     btn.disabled = true; btn.style.backgroundColor = "#2ed573"; btn.innerText = "✅ Registrado";
+    
+    // Ocultar botón de omitir si decides registrarla
+    if (faseStr === '3P') {
+        let btnOmitir = document.getElementById('btnOmitir3P');
+        if (btnOmitir) btnOmitir.style.display = 'none';
+    }
 }
 
 async function cerrarTorneoAutomatico() {
@@ -313,25 +343,21 @@ async function cerrarTorneoAutomatico() {
     let bonoCamp = 0, bonoSub = 0, bonoTercero = 0, bonoCuarto = 0, bonoSemis = 0, bonoCuartos = 0;
     let hayTercero = evento['3P'].ganador !== null;
 
-    // ===============================================
-    // DISTRIBUCIÓN MAESTRA DE PREMIOS 
-    // ===============================================
     if (limiteMcsActual === 16) {
         bonoCamp = Math.round(evento.pozo * 0.40); bonoSub = Math.round(evento.pozo * 0.20);
         if (hayTercero) { bonoTercero = Math.round(evento.pozo * 0.12); bonoCuarto = Math.round(evento.pozo * 0.08); }
-        else { bonoSemis = Math.round(evento.pozo * 0.10); } // 10% a cada semi
+        else { bonoSemis = Math.round(evento.pozo * 0.10); } 
         bonoCuartos = Math.round(evento.pozo * 0.05); 
     } else if (limiteMcsActual === 8) {
         bonoCamp = Math.round(evento.pozo * 0.45); bonoSub = Math.round(evento.pozo * 0.25); 
         if (hayTercero) { bonoTercero = Math.round(evento.pozo * 0.18); bonoCuarto = Math.round(evento.pozo * 0.12); }
-        else { bonoSemis = Math.round(evento.pozo * 0.15); } // 15% a cada semi
+        else { bonoSemis = Math.round(evento.pozo * 0.15); } 
     } else if (limiteMcsActual === 4) {
         if (hayTercero) {
             bonoCamp = Math.round(evento.pozo * 0.50); bonoSub = Math.round(evento.pozo * 0.30); 
-            bonoTercero = Math.round(evento.pozo * 0.20); bonoCuarto = 0; // El 4to no cobra
+            bonoTercero = Math.round(evento.pozo * 0.20); bonoCuarto = 0; 
         } else {
             bonoCamp = Math.round(evento.pozo * 0.60); bonoSub = Math.round(evento.pozo * 0.40); 
-            // Los semifinalistas no cobran nada
         }
     }
 
@@ -379,6 +405,7 @@ async function cerrarLiga() {
 
 window.abrirReorden = abrirReorden; window.cerrarReorden = cerrarReorden; window.guardarReorden = guardarReorden;
 window.cambiarFormato = cambiarFormato; window.filtrarBuscador = filtrarBuscador; window.agregarChip = agregarChip; window.quitarChip = quitarChip; window.irACruces = irACruces; window.actualizarDesplegables = actualizarDesplegables; window.iniciarTorneo = iniciarTorneo; window.procesarBatallaAuto = procesarBatallaAuto; window.cerrarTorneoAutomatico = cerrarTorneoAutomatico; window.crearYAgregarMC = crearYAgregarMC; window.agregarBatallaLiga = agregarBatallaLiga; window.quitarBatallaLiga = quitarBatallaLiga; window.cerrarLiga = cerrarLiga;
+window.omitirTercero = omitirTercero;
 
 configurarSesion();
 cargarBD();

@@ -7,8 +7,8 @@ let batallaEditandoId = null; let listaMcsGlobal = []; let torneoAbiertoId = nul
 let torneosGlobal = [];
 
 async function cargarMcsParaEdicion() {
-    const {data} = await supabase.from('competidores').select('id, aka').order('aka');
-    listaMcsGlobal = data;
+    const {data} = await supabase.from('competidores').select('*').order('aka');
+    listaMcsGlobal = data || [];
     let opts = ''; data.forEach(mc => opts += `<option value="${mc.id}">${mc.aka}</option>`);
     document.getElementById('editBatMC1').innerHTML = opts;
     document.getElementById('editBatMC2').innerHTML = opts;
@@ -89,13 +89,11 @@ async function repararEloGlobal(silent = false) {
             let sumaElo = 0;
             uniqueIds.forEach(id => { sumaElo += rankingNube[id].elo; });
             eloMedioHistorico = Math.round(sumaElo / sizeReal);
-            // REGLA DEL 0.3% (0.003)
             pozoHistorico = Math.round(eloMedioHistorico * (sizeReal * 0.003)); 
-            
             await supabase.from('torneos').update({ elo_medio_calculado: eloMedioHistorico, pozo_total: pozoHistorico }).eq('id', torneo.id);
         }
 
-        let formatoOficial = sizeReal > 8 ? 16 : (sizeReal > 4 ? 8 : 4);
+        let formatoOficial = sizeReal > 16 ? 32 : (sizeReal > 8 ? 16 : (sizeReal > 4 ? 8 : 4));
 
         for (let b of batallasTorneo) {
             if (b.resultado === 'bono') {
@@ -104,7 +102,16 @@ async function repararEloGlobal(silent = false) {
                 let hayTercero = batallasTorneo.some(bx => bx.resultado === 'bono' && (bx.fase || '').includes('Tercer'));
 
                 if (!isLiga && pozoHistorico > 0) {
-                    if (formatoOficial === 16) { 
+                    if (formatoOficial === 32) { 
+                        if (f.includes('Campeón')) bono = Math.round(pozoHistorico * 0.35);
+                        else if (f.includes('Subcampeón')) bono = Math.round(pozoHistorico * 0.18);
+                        else if (f.includes('Tercer')) bono = Math.round(pozoHistorico * 0.10);
+                        else if (f.includes('Cuarto Lugar')) bono = Math.round(pozoHistorico * 0.07);
+                        else if (f.includes('Semifinalista')) bono = Math.round(pozoHistorico * 0.085);
+                        else if (f.includes('Cuartofinalista')) bono = Math.round(pozoHistorico * 0.05);
+                        else if (f.includes('Octavofinalista')) bono = Math.round(pozoHistorico * 0.0125);
+                    }
+                    else if (formatoOficial === 16) { 
                         if (f.includes('Campeón')) bono = Math.round(pozoHistorico * 0.40);
                         else if (f.includes('Subcampeón')) bono = Math.round(pozoHistorico * 0.20);
                         else if (f.includes('Tercer')) bono = Math.round(pozoHistorico * 0.12);
@@ -124,7 +131,6 @@ async function repararEloGlobal(silent = false) {
                             if (f.includes('Campeón')) bono = Math.round(pozoHistorico * 0.50);
                             else if (f.includes('Subcampeón')) bono = Math.round(pozoHistorico * 0.30);
                             else if (f.includes('Tercer')) bono = Math.round(pozoHistorico * 0.20);
-                            // Cuarto no cobra
                         } else {
                             if (f.includes('Campeón')) bono = Math.round(pozoHistorico * 0.60);
                             else if (f.includes('Subcampeón')) bono = Math.round(pozoHistorico * 0.40);
@@ -186,12 +192,16 @@ async function verTorneo(idTorneo, nombre) {
         let mc1Final = ganoIzquierda ? `<span class="ganador-text">👑 ${n1}</span>` : n1; let mc2Final = !ganoIzquierda ? `<span class="ganador-text">${n2} 👑</span>` : n2;
         let textoRes = b.resultado.replace('_', ' ').toUpperCase();
         
+        // AÑADIDO EL BOTÓN DEL OJITO 👁️
         htmlVisual += `
         <div class="batalla-item">
             <div style="flex: 1; text-align: right; padding-right: 15px;">${mc1Final}</div>
             <div style="font-size: 12px; color: #aaa; background: #1e1e2f; padding: 5px 10px; border-radius: 10px; text-align:center; min-width: 120px;">[${b.fase}]<br>${textoRes}</div>
             <div style="flex: 1; text-align: left; padding-left: 15px;">${mc2Final}</div>
-            <button class="btn-editar" onclick="abrirEdicionBatalla(${b.id}, '${b.fase}', ${b.mc1_id}, ${b.mc2_id}, '${b.resultado}')" style="margin-left:10px; padding: 5px 10px;">⚙️</button>
+            <div style="display: flex; gap: 5px;">
+                <button onclick="abrirAnalisisBatalla(${b.id})" style="background:transparent; color:#1e90ff; padding: 5px; cursor: pointer; font-size: 16px; border: 1px solid #1e90ff; border-radius: 4px;" title="Ver Análisis Histórico">👁️</button>
+                <button class="btn-editar" onclick="abrirEdicionBatalla(${b.id}, '${b.fase}', ${b.mc1_id}, ${b.mc2_id}, '${b.resultado}')" style="padding: 5px 10px;">⚙️</button>
+            </div>
         </div>`;
     });
     document.getElementById('contenedorBatallas').innerHTML = htmlVisual;
@@ -203,25 +213,17 @@ function abrirEdicionBatalla(id, fase, mc1, mc2, res) {
     batallaEditandoId = id; document.getElementById('editBatFase').value = fase; document.getElementById('editBatMC1').value = mc1; document.getElementById('editBatMC2').value = mc2; document.getElementById('editBatRes').value = res;
     document.getElementById('overlayEditBat').style.display = 'block'; document.getElementById('modalEditBat').style.display = 'block';
 }
-
 function cerrarEdicionBatalla() { document.getElementById('overlayEditBat').style.display = 'none'; document.getElementById('modalEditBat').style.display = 'none'; }
 
 async function guardarEdicionBatalla(recalcular = true) {
-    let f = document.getElementById('editBatFase').value.trim();
-    let m1 = parseInt(document.getElementById('editBatMC1').value);
-    let m2 = parseInt(document.getElementById('editBatMC2').value);
-    let r = document.getElementById('editBatRes').value;
-
-    if(!f || !m1 || !m2) return alert("Completa todos los campos");
-    if(m1 === m2) return alert("Un MC no puede batallar consigo mismo.");
-
+    let f = document.getElementById('editBatFase').value.trim(); let m1 = parseInt(document.getElementById('editBatMC1').value); let m2 = parseInt(document.getElementById('editBatMC2').value); let r = document.getElementById('editBatRes').value;
+    if(!f || !m1 || !m2) return alert("Completa todos los campos"); if(m1 === m2) return alert("Un MC no puede batallar consigo mismo.");
     await supabase.from('batallas').update({ fase: f, mc1_id: m1, mc2_id: m2, resultado: r }).eq('id', batallaEditandoId);
 
     if (recalcular) {
         document.getElementById('modalEditBat').innerHTML = '<h3 style="text-align:center; color:#1e90ff;">⏳ Guardando y Recalculando Línea Temporal...</h3>';
         await repararEloGlobal(true);
     }
-
     cerrarEdicionBatalla();
     
     document.getElementById('modalEditBat').innerHTML = `
@@ -238,8 +240,146 @@ async function guardarEdicionBatalla(recalcular = true) {
             <button style="background:#ff4757; flex:1; font-size:12px;" onclick="cerrarEdicionBatalla()">❌ Cancelar</button>
         </div>`;
     
-    cargarMcsParaEdicion(); 
-    verTorneo(torneoAbiertoId, torneoAbiertoNombre);
+    cargarMcsParaEdicion(); verTorneo(torneoAbiertoId, torneoAbiertoNombre);
+}
+
+// ============================================================================
+// NUEVO MOTOR: TALE OF THE TAPE (CARA A CARA HISTÓRICO CON VIAJE EN EL TIEMPO)
+// ============================================================================
+async function abrirAnalisisBatalla(idBatalla) {
+    document.getElementById('overlayAnalisis').style.display = 'block';
+    document.getElementById('modalAnalisis').style.display = 'block';
+    document.getElementById('contenidoAnalisis').innerHTML = '<h3 style="text-align:center; color:#eccc68; margin-top: 40px;">⏳ Viajando en el tiempo para extraer datos...</h3>';
+
+    try {
+        // 1. Obtener la batalla objetivo
+        const { data: bTarget } = await supabase.from('batallas').select('*, torneos(nombre, franquicia)').eq('id', idBatalla).single();
+        if (!bTarget) throw new Error("Batalla no encontrada");
+        
+        let mc1 = listaMcsGlobal.find(m => m.id === bTarget.mc1_id);
+        let mc2 = listaMcsGlobal.find(m => m.id === bTarget.mc2_id);
+        
+        document.getElementById('analisisTitulo').innerText = `${bTarget.torneos.franquicia} - ${bTarget.torneos.nombre} [${bTarget.fase}]`;
+
+        // 2. Descargar toda la historia en orden cronológico (usando ID como reloj temporal)
+        const { data: todasBatallas } = await supabase.from('batallas').select('id, torneo_id, fase, mc1_id, mc2_id, cambio_mc1, cambio_mc2, resultado').order('id', {ascending: true});
+
+        // 3. Crear el Libro Mayor (Ledger) para simular el Elo de todos
+        let ledger = {};
+        listaMcsGlobal.forEach(m => ledger[m.id] = { elo: 1500, maxElo: 1500 });
+
+        let snapshotPre = null; let snapshotPost = null; let objetivoEncontrado = false;
+
+        // 4. Bucle de Rebobinado
+        for (let i = 0; i < todasBatallas.length; i++) {
+            let b = todasBatallas[i];
+
+            // Si llegamos a la batalla que apretó el usuario, sacamos FOTO PREVIA
+            if (b.id === idBatalla) {
+                objetivoEncontrado = true;
+                let tablaRank = Object.keys(ledger).map(id => ({id: parseInt(id), elo: ledger[id].elo})).sort((x,y) => y.elo - x.elo);
+                snapshotPre = {
+                    rank1: tablaRank.findIndex(r => r.id === mc1.id) + 1,
+                    rank2: tablaRank.findIndex(r => r.id === mc2.id) + 1,
+                    max1: ledger[mc1.id].maxElo,
+                    max2: ledger[mc2.id].maxElo
+                };
+            }
+
+            // Aplicamos los puntos a la historia
+            if (ledger[b.mc1_id]) {
+                ledger[b.mc1_id].elo += b.cambio_mc1;
+                if (ledger[b.mc1_id].elo > ledger[b.mc1_id].maxElo) ledger[b.mc1_id].maxElo = ledger[b.mc1_id].elo;
+            }
+            if (b.resultado !== 'bono' && ledger[b.mc2_id]) {
+                ledger[b.mc2_id].elo += b.cambio_mc2;
+                if (ledger[b.mc2_id].elo > ledger[b.mc2_id].maxElo) ledger[b.mc2_id].maxElo = ledger[b.mc2_id].elo;
+            }
+
+            // Si ya pasamos la batalla, buscamos cuándo se acaba la Fase actual (ej: Cuartos) para sacar FOTO POST
+            if (objetivoEncontrado && !snapshotPost) {
+                let sigBat = todasBatallas[i+1];
+                let finDeFase = !sigBat || sigBat.torneo_id !== bTarget.torneo_id || sigBat.fase !== bTarget.fase;
+                
+                if (finDeFase) {
+                    let tablaRankPost = Object.keys(ledger).map(id => ({id: parseInt(id), elo: ledger[id].elo})).sort((x,y) => y.elo - x.elo);
+                    snapshotPost = {
+                        rank1: tablaRankPost.findIndex(r => r.id === mc1.id) + 1,
+                        rank2: tablaRankPost.findIndex(r => r.id === mc2.id) + 1
+                    };
+                    break; // Terminamos la simulación
+                }
+            }
+        }
+
+        // 5. Inyectar Visuales
+        let img1 = mc1.foto || 'https://via.placeholder.com/150/373752/FFFFFF?text=MC1';
+        let img2 = mc2.foto || 'https://via.placeholder.com/150/373752/FFFFFF?text=MC2';
+        
+        let difPos1 = snapshotPre.rank1 - snapshotPost.rank1; // Si baja el número, subió de posición (positivo)
+        let flechaPos1 = difPos1 > 0 ? `<span style="color:#2ed573;">(Subió ${difPos1}) ⬆️</span>` : (difPos1 < 0 ? `<span style="color:#ff4757;">(Bajó ${Math.abs(difPos1)}) ⬇️</span>` : `<span style="color:#aaa;">(Se mantuvo) ➖</span>`);
+        
+        let difPos2 = snapshotPre.rank2 - snapshotPost.rank2;
+        let flechaPos2 = difPos2 > 0 ? `<span style="color:#2ed573;">(Subió ${difPos2}) ⬆️</span>` : (difPos2 < 0 ? `<span style="color:#ff4757;">(Bajó ${Math.abs(difPos2)}) ⬇️</span>` : `<span style="color:#aaa;">(Se mantuvo) ➖</span>`);
+
+        let html = `
+        <div style="display: flex; justify-content: space-around; align-items: center; margin-bottom: 20px; background: #2f3542; padding: 15px; border-radius: 8px;">
+            <div style="text-align: center; flex: 1;">
+                <img src="${img1}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 50%; border: 3px solid #1e90ff;">
+                <h3 style="margin: 5px 0 0 0;">${mc1.aka}</h3>
+            </div>
+            <div style="font-size: 24px; font-weight: bold; color: #ff4757; flex: 0.5; text-align: center;">VS</div>
+            <div style="text-align: center; flex: 1;">
+                <img src="${img2}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 50%; border: 3px solid #ff4757;">
+                <h3 style="margin: 5px 0 0 0;">${mc2.aka}</h3>
+            </div>
+        </div>
+
+        <table style="width: 100%; border-collapse: collapse; text-align: center; font-size: 14px;">
+            <tr style="background: #ff4757; color: white;">
+                <th style="padding: 10px; width: 33%;">Métrica</th>
+                <th style="padding: 10px; width: 33%;">Izquierda</th>
+                <th style="padding: 10px; width: 33%;">Derecha</th>
+            </tr>
+            <tr style="border-bottom: 1px solid #373752;">
+                <td style="padding: 10px; font-weight: bold; color: #aaa; text-align: left;">Puntos Previos</td>
+                <td style="padding: 10px;">${bTarget.elo_previo_mc1}</td>
+                <td style="padding: 10px;">${bTarget.elo_previo_mc2}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #373752; background: rgba(30, 144, 255, 0.1);">
+                <td style="padding: 10px; font-weight: bold; color: #1e90ff; text-align: left;">Pico Máx. Histórico</td>
+                <td style="padding: 10px;">${snapshotPre.max1} pts</td>
+                <td style="padding: 10px;">${snapshotPre.max2} pts</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #373752;">
+                <td style="padding: 10px; font-weight: bold; color: #aaa; text-align: left;">Posición Global Previa</td>
+                <td style="padding: 10px; font-weight: bold;">Rank #${snapshotPre.rank1}</td>
+                <td style="padding: 10px; font-weight: bold;">Rank #${snapshotPre.rank2}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #373752; background: rgba(46, 213, 115, 0.1);">
+                <td style="padding: 10px; font-weight: bold; color: #2ed573; text-align: left;">Pts Post Batalla (+/-)</td>
+                <td style="padding: 10px;">${bTarget.elo_previo_mc1 + bTarget.cambio_mc1} <span style="font-size: 11px;">(${bTarget.cambio_mc1 > 0 ? '+'+bTarget.cambio_mc1 : bTarget.cambio_mc1})</span></td>
+                <td style="padding: 10px;">${bTarget.elo_previo_mc2 + bTarget.cambio_mc2} <span style="font-size: 11px;">(${bTarget.cambio_mc2 > 0 ? '+'+bTarget.cambio_mc2 : bTarget.cambio_mc2})</span></td>
+            </tr>
+            <tr>
+                <td style="padding: 10px; font-weight: bold; color: #aaa; text-align: left;">Rango tras la Ronda</td>
+                <td style="padding: 10px;">Rank #${snapshotPost.rank1}<br>${flechaPos1}</td>
+                <td style="padding: 10px;">Rank #${snapshotPost.rank2}<br>${flechaPos2}</td>
+            </tr>
+        </table>
+        <div style="font-size: 11px; color: #57606f; text-align: center; margin-top: 15px;">*El 'Rango tras la Ronda' se calcula simulando el final de todos los cruces de esta misma fase.</div>
+        `;
+        document.getElementById('contenidoAnalisis').innerHTML = html;
+
+    } catch (e) {
+        console.error(e);
+        document.getElementById('contenidoAnalisis').innerHTML = `<h3 style="text-align:center; color:#ff4757;">Error al procesar el análisis.</h3>`;
+    }
+}
+
+function cerrarAnalisisBatalla() {
+    document.getElementById('overlayAnalisis').style.display = 'none';
+    document.getElementById('modalAnalisis').style.display = 'none';
 }
 
 async function cargarFranquiciasPanel() {
@@ -291,6 +431,7 @@ function cerrarEdicionTorneo() { document.getElementById('panelEdicion').style.d
 
 window.verTorneo = verTorneo; window.eliminarTorneo = eliminarTorneo; window.repararEloGlobal = repararEloGlobal; window.cerrarDetalle = cerrarDetalle; window.agregarFranquicia = agregarFranquicia; window.borrarFranquicia = borrarFranquicia; window.abrirEdicionTorneo = abrirEdicionTorneo; window.guardarEdicionTorneo = guardarEdicionTorneo; window.cerrarEdicionTorneo = cerrarEdicionTorneo; window.abrirEdicionBatalla = abrirEdicionBatalla; window.cerrarEdicionBatalla = cerrarEdicionBatalla; window.guardarEdicionBatalla = guardarEdicionBatalla; 
 window.aplicarFiltroMuseo = aplicarFiltroMuseo;
+window.abrirAnalisisBatalla = abrirAnalisisBatalla; window.cerrarAnalisisBatalla = cerrarAnalisisBatalla;
 
 configurarSesion();
 cargarMcsParaEdicion();
