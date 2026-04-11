@@ -4,7 +4,7 @@ const K = 32;
 
 let torneoEditandoId = null; let fechaOriginalEdicion = null;
 let batallaEditandoId = null; let listaMcsGlobal = []; let torneoAbiertoId = null; let torneoAbiertoNombre = "";
-let torneosGlobal = []; // Array para almacenar torneos y no llamar a la base de datos en cada filtro
+let torneosGlobal = [];
 
 async function cargarMcsParaEdicion() {
     const {data} = await supabase.from('competidores').select('id, aka').order('aka');
@@ -14,15 +14,13 @@ async function cargarMcsParaEdicion() {
     document.getElementById('editBatMC2').innerHTML = opts;
 }
 
-// Carga principal desde la Base de Datos
 async function cargarTorneos() {
     const { data: torneos, error } = await supabase.from('torneos').select('*').order('fecha_evento', { ascending: false });
     if (error) return console.error(error);
     torneosGlobal = torneos; 
-    aplicarFiltroMuseo(); // Aplica el filtro por defecto y dibuja la tabla
+    aplicarFiltroMuseo(); 
 }
 
-// Nueva función de Filtrado
 function aplicarFiltroMuseo() {
     let f = document.getElementById('filtroFranqMuseo').value;
     let d = document.getElementById('filtroDesdeMuseo').value;
@@ -40,7 +38,6 @@ function aplicarFiltroMuseo() {
     renderizarTablaTorneos(filtrados);
 }
 
-// Función encargada solo de dibujar el HTML
 function renderizarTablaTorneos(listaTorneos) {
     let html = '';
     listaTorneos.forEach(t => {
@@ -58,47 +55,113 @@ async function eliminarTorneo(id, nombre) {
     cargarTorneos();
 }
 
+// ==========================================
+// V2.4.0: MOTOR DE RECÁLCULO TEMPORAL (NUEVO)
+// ==========================================
 async function repararEloGlobal(silent = false) {
-    if (!silent && !confirm("🔄 ¿Iniciar Recálculo Global?")) return;
-    let msg = document.getElementById('msgReparacion'); msg.style.color = "#eccc68"; msg.innerText = "⏳ 1. Reseteando MCs...";
+    if (!silent && !confirm("🔄 ¿Iniciar Recálculo Global Maestro?\n\nEl sistema viajará en el tiempo, ordenará los torneos cronológicamente y ajustará el tamaño de los pozos de premios de la historia según el Elo real de esa época.")) return;
+    
+    let msg = document.getElementById('msgReparacion'); msg.style.color = "#eccc68"; msg.innerText = "⏳ 1. Reseteando Línea Temporal...";
 
     const { data: mcs } = await supabase.from('competidores').select('*');
     let rankingNube = {}; mcs.forEach(mc => { rankingNube[mc.id] = { id: mc.id, elo: 1500, batallas: 0 }; });
 
-    msg.innerText = "⏳ 2. Simulando Línea Temporal...";
-    const { data: batallas } = await supabase.from('batallas').select(`*, torneos(fecha_evento)`).order('id', { ascending: true });
-    batallas.sort((a, b) => new Date(a.torneos.fecha_evento) - new Date(b.torneos.fecha_evento));
+    msg.innerText = "⏳ 2. Descargando Archivos Históricos...";
+    const { data: torneos } = await supabase.from('torneos').select('*').order('fecha_evento', { ascending: true });
+    const { data: batallas } = await supabase.from('batallas').select('*');
 
-    for (let b of batallas) {
-        if (b.resultado === 'bono') {
-            let R1 = rankingNube[b.mc1_id].elo; rankingNube[b.mc1_id].elo += b.cambio_mc1;
-            await supabase.from('batallas').update({ elo_previo_mc1: R1, elo_previo_mc2: R1 }).eq('id', b.id);
-            continue;
+    msg.innerText = "⏳ 3. Simulando Historia y Regenerando Premios...";
+    
+    for (let torneo of torneos) {
+        let batallasTorneo = batallas.filter(b => b.torneo_id === torneo.id);
+        
+        // Ordenamos: primero batallas normales (para calcular Elo), luego reparto de Bonos
+        batallasTorneo.sort((a, b) => {
+            if (a.resultado === 'bono' && b.resultado !== 'bono') return 1;
+            if (a.resultado !== 'bono' && b.resultado === 'bono') return -1;
+            return a.id - b.id;
+        });
+
+        // Averiguamos el tamaño real del torneo según quienes batallaron
+        let uniqueIds = new Set();
+        batallasTorneo.filter(b => b.resultado !== 'bono').forEach(bx => { uniqueIds.add(bx.mc1_id); uniqueIds.add(bx.mc2_id); });
+        let sizeReal = uniqueIds.size;
+        
+        let isLiga = torneo.formato && torneo.formato.toLowerCase().includes('liga');
+        let pozoHistorico = 0;
+        let eloMedioHistorico = 1500;
+
+        // CALCULAMOS EL POZO EXACTO EN EL TIEMPO
+        if (!isLiga && sizeReal >= 4) {
+            let sumaElo = 0;
+            uniqueIds.forEach(id => { sumaElo += rankingNube[id].elo; });
+            eloMedioHistorico = Math.round(sumaElo / sizeReal);
+            pozoHistorico = Math.round(eloMedioHistorico * 0.05);
+            
+            await supabase.from('torneos').update({ elo_medio_calculado: eloMedioHistorico, pozo_total: pozoHistorico }).eq('id', torneo.id);
         }
 
-        let R1 = rankingNube[b.mc1_id].elo; let R2 = rankingNube[b.mc2_id].elo;
-        let E1 = 1 / (1 + Math.pow(10, (R2 - R1) / 400)); let E2 = 1 / (1 + Math.pow(10, (R1 - R2) / 400));
-        let S1 = 0, S2 = 0; let bono1 = false, bono2 = false;
-        
-        if (b.resultado === "victoria_total") { S1 = 1.0; S2 = 0.0; bono1 = true; } else if (b.resultado === "victoria") { S1 = 1.0; S2 = 0.0; } 
-        else if (b.resultado === "victoria_replica") { S1 = 0.75; S2 = 0.25; } else if (b.resultado === "derrota_replica") { S1 = 0.25; S2 = 0.75; } 
-        else if (b.resultado === "derrota") { S1 = 0.0; S2 = 1.0; } else if (b.resultado === "derrota_total") { S1 = 0.0; S2 = 1.0; bono2 = true; }
+        let formatoOficial = parseInt(torneo.formato);
+        if (isNaN(formatoOficial)) {
+            if (sizeReal > 8) formatoOficial = 16; else if (sizeReal > 4) formatoOficial = 8; else formatoOficial = 4;
+        }
 
-        let p1 = Math.round(K * (S1 - E1) * (bono1 ? 1.2 : 1)); let p2 = Math.round(K * (S2 - E2) * (bono2 ? 1.2 : 1));
-        await supabase.from('batallas').update({ elo_previo_mc1: R1, elo_previo_mc2: R2, cambio_mc1: p1, cambio_mc2: p2 }).eq('id', b.id);
+        for (let b of batallasTorneo) {
+            if (b.resultado === 'bono') {
+                // REPARTIMOS EL POZO NUEVO Y LIMPIO
+                let bono = 0;
+                if (formatoOficial === 16) {
+                    if (b.fase.includes('Campeón')) bono = Math.round(pozoHistorico * 0.35);
+                    else if (b.fase.includes('Subcampeón')) bono = Math.round(pozoHistorico * 0.20);
+                    else if (b.fase.includes('Tercer')) bono = Math.round(pozoHistorico * 0.12);
+                    else if (b.fase.includes('Cuarto Lugar')) bono = Math.round(pozoHistorico * 0.08);
+                    else if (b.fase.includes('Cuartofinalista')) bono = Math.round(pozoHistorico * 0.05);
+                } else if (formatoOficial === 8) {
+                    if (b.fase.includes('Campeón')) bono = Math.round(pozoHistorico * 0.40);
+                    else if (b.fase.includes('Subcampeón')) bono = Math.round(pozoHistorico * 0.25);
+                    else if (b.fase.includes('Tercer')) bono = Math.round(pozoHistorico * 0.15);
+                    else if (b.fase.includes('Cuarto Lugar')) bono = Math.round(pozoHistorico * 0.10);
+                } else if (formatoOficial === 4) {
+                    if (b.fase.includes('Campeón')) bono = Math.round(pozoHistorico * 0.45);
+                    else if (b.fase.includes('Subcampeón')) bono = Math.round(pozoHistorico * 0.30);
+                    else if (b.fase.includes('Tercer')) bono = Math.round(pozoHistorico * 0.15);
+                    else if (b.fase.includes('Cuarto Lugar')) bono = Math.round(pozoHistorico * 0.10);
+                }
 
-        rankingNube[b.mc1_id].elo = R1 + p1; rankingNube[b.mc2_id].elo = R2 + p2;
-        rankingNube[b.mc1_id].batallas += 1; rankingNube[b.mc2_id].batallas += 1;
+                if (bono === 0) bono = b.cambio_mc1; // Seguro anti-fallos para torneos heredados de la V1
+
+                let R1 = rankingNube[b.mc1_id].elo;
+                rankingNube[b.mc1_id].elo += bono;
+                
+                await supabase.from('batallas').update({ elo_previo_mc1: R1, elo_previo_mc2: R1, cambio_mc1: bono, cambio_mc2: 0 }).eq('id', b.id);
+            } else {
+                let R1 = rankingNube[b.mc1_id].elo; let R2 = rankingNube[b.mc2_id].elo;
+                let E1 = 1 / (1 + Math.pow(10, (R2 - R1) / 400)); let E2 = 1 / (1 + Math.pow(10, (R1 - R2) / 400));
+                let S1 = 0, S2 = 0; let bono1 = false, bono2 = false;
+                
+                if (b.resultado === "victoria_total") { S1 = 1.0; S2 = 0.0; bono1 = true; } else if (b.resultado === "victoria") { S1 = 1.0; S2 = 0.0; } 
+                else if (b.resultado === "victoria_replica") { S1 = 0.75; S2 = 0.25; } else if (b.resultado === "derrota_replica") { S1 = 0.25; S2 = 0.75; } 
+                else if (b.resultado === "derrota") { S1 = 0.0; S2 = 1.0; } else if (b.resultado === "derrota_total") { S1 = 0.0; S2 = 1.0; bono2 = true; }
+
+                let p1 = Math.round(K * (S1 - E1) * (bono1 ? 1.2 : 1)); let p2 = Math.round(K * (S2 - E2) * (bono2 ? 1.2 : 1));
+                await supabase.from('batallas').update({ elo_previo_mc1: R1, elo_previo_mc2: R2, cambio_mc1: p1, cambio_mc2: p2 }).eq('id', b.id);
+
+                rankingNube[b.mc1_id].elo = R1 + p1; rankingNube[b.mc2_id].elo = R2 + p2;
+                rankingNube[b.mc1_id].batallas += 1; rankingNube[b.mc2_id].batallas += 1;
+            }
+        }
     }
 
-    msg.innerText = "⏳ 3. Guardando puntos...";
+    msg.innerText = "⏳ 4. Guardando Puntos Actualizados...";
     for (const key in rankingNube) {
         let mc = rankingNube[key];
         await supabase.from('competidores').update({ elo_actual: mc.elo, batallas_totales: mc.batallas }).eq('id', mc.id);
     }
-    msg.style.color = "#2ed573"; msg.innerText = "✅ ¡Reparado Perfectamente!";
-    setTimeout(() => { msg.innerText = ""; }, 3000);
+    
+    msg.style.color = "#2ed573"; msg.innerText = "✅ ¡Línea Temporal Alineada y Premios Restaurados!";
+    setTimeout(() => { msg.innerText = ""; }, 4000);
 }
+// ==========================================
 
 async function verTorneo(idTorneo, nombre) {
     torneoAbiertoId = idTorneo; torneoAbiertoNombre = nombre;
@@ -133,9 +196,6 @@ async function verTorneo(idTorneo, nombre) {
 
 function cerrarDetalle() { document.getElementById('panelDetalle').style.display = 'none'; document.getElementById('panelLista').style.display = 'block'; }
 
-// ===================================
-// EDICIÓN QUIRÚRGICA DE BATALLAS
-// ===================================
 function abrirEdicionBatalla(id, fase, mc1, mc2, res) {
     batallaEditandoId = id; document.getElementById('editBatFase').value = fase; document.getElementById('editBatMC1').value = mc1; document.getElementById('editBatMC2').value = mc2; document.getElementById('editBatRes').value = res;
     document.getElementById('overlayEditBat').style.display = 'block'; document.getElementById('modalEditBat').style.display = 'block';
@@ -164,7 +224,7 @@ async function guardarEdicionBatalla(recalcular = true) {
     document.getElementById('modalEditBat').innerHTML = `
         <h2 style="margin-top:0; color:#1e90ff;">⚙️ Editor Quirúrgico</h2>
         <p style="font-size: 13px; color:#aaa;">Usa <b>"Aplicar"</b> para cambios rápidos (requiere recálculo manual después), o <b>"Aplicar y Recalcular"</b> para arreglar todo al instante.</p>
-        <label style="font-size: 12px; color: #eccc68; font-weight: bold;">Fase (Puedes escribir para reordenar llaves o jornadas):</label> <input type="text" id="editBatFase">
+        <label style="font-size: 12px; color: #eccc68; font-weight: bold;">Fase:</label> <input type="text" id="editBatFase">
         <label style="font-size: 12px; color: #eccc68; font-weight: bold;">MC Izquierdo:</label> <select id="editBatMC1"></select>
         <label style="font-size: 12px; color: #eccc68; font-weight: bold;">MC Derecho:</label> <select id="editBatMC2"></select>
         <label style="font-size: 12px; color: #eccc68; font-weight: bold;">Resultado:</label>
@@ -179,9 +239,6 @@ async function guardarEdicionBatalla(recalcular = true) {
     verTorneo(torneoAbiertoId, torneoAbiertoNombre);
 }
 
-// ===================================
-// SISTEMA DE FRANQUICIAS (CARPETAS)
-// ===================================
 async function cargarFranquiciasPanel() {
     const { data } = await supabase.from('franquicias').select('*').order('nombre');
     let selectPadre = document.getElementById('nuevaFranqPadre'); let principales = data.filter(f => !f.padre);
@@ -197,7 +254,7 @@ async function cargarFranquiciasPanel() {
     document.getElementById('listaFranq').innerHTML = html; 
     
     cargarFranquiciasSelect('editFranqTorneo', false);
-    cargarFranquiciasSelect('filtroFranqMuseo', true); // Actualizamos también el nuevo filtro
+    cargarFranquiciasSelect('filtroFranqMuseo', true);
 }
 
 async function agregarFranquicia() {
@@ -230,16 +287,10 @@ async function guardarEdicionTorneo() {
 function cerrarEdicionTorneo() { document.getElementById('panelEdicion').style.display = 'none'; document.getElementById('panelLista').style.display = 'block'; }
 
 window.verTorneo = verTorneo; window.eliminarTorneo = eliminarTorneo; window.repararEloGlobal = repararEloGlobal; window.cerrarDetalle = cerrarDetalle; window.agregarFranquicia = agregarFranquicia; window.borrarFranquicia = borrarFranquicia; window.abrirEdicionTorneo = abrirEdicionTorneo; window.guardarEdicionTorneo = guardarEdicionTorneo; window.cerrarEdicionTorneo = cerrarEdicionTorneo; window.abrirEdicionBatalla = abrirEdicionBatalla; window.cerrarEdicionBatalla = cerrarEdicionBatalla; window.guardarEdicionBatalla = guardarEdicionBatalla; 
-window.aplicarFiltroMuseo = aplicarFiltroMuseo; // Exportamos la nueva función
+window.aplicarFiltroMuseo = aplicarFiltroMuseo;
 
-(async () => {
-    try {
-        await configurarSesion();
-        await cargarMcsParaEdicion();
-        await cargarTorneos();
-        await cargarFranquiciasPanel();
-        await cargarFranquiciasSelect('filtroFranqMuseo', true); // Inicializamos el filtro con TODAS
-    } catch (error) {
-        console.error("Error al inicializar la página del museo:", error);
-    }
-})();
+configurarSesion();
+cargarMcsParaEdicion();
+cargarTorneos();
+cargarFranquiciasPanel();
+cargarFranquiciasSelect('filtroFranqMuseo', true);
