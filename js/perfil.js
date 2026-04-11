@@ -8,7 +8,6 @@ async function inicializar() {
     const { data: mcs } = await supabase.from('competidores').select('*').order('aka', { ascending: true });
     listaMCs = mcs || [];
     
-    // Descargamos todo el universo para poder hacer cálculos aislados
     const { data: bts } = await supabase.from('batallas').select(`*, torneos(nombre, franquicia, fecha_evento)`);
     batallasUniverso = (bts || []).sort((a,b) => {
         let fA = a.torneos ? new Date(a.torneos.fecha_evento) : new Date(0);
@@ -53,7 +52,6 @@ function aplicarFiltroPerfil() {
 
         let franquiciasPermitidas = obtenerFranquiciasValidas(f);
 
-        // 1. Aislamos el universo de batallas según el filtro de fechas/franquicia
         let batallasValidas = batallasUniverso.filter(b => {
             if(!b.torneos) return false;
             let okF = (f === 'TODAS') ? true : franquiciasPermitidas.includes(b.torneos.franquicia);
@@ -62,12 +60,11 @@ function aplicarFiltroPerfil() {
             return okF && okD && okH;
         });
 
-        let dataDelMC = []; // Aquí guardaremos los resultados calculados para mostrar
+        let dataDelMC = []; 
         
-        // 2. MATEMÁTICA SEGÚN EL MODO ELEGIDO
         if (modo === 'aislado') {
             let rankingAislado = {};
-            listaMCs.forEach(m => rankingAislado[m.id] = 1500); // Todos parten de 1500
+            listaMCs.forEach(m => rankingAislado[m.id] = 1500); 
 
             batallasValidas.forEach(b => {
                 let r1 = rankingAislado[b.mc1_id] || 1500;
@@ -75,7 +72,7 @@ function aplicarFiltroPerfil() {
                 let c1 = 0, c2 = 0;
 
                 if (b.resultado === 'bono') {
-                    c1 = b.cambio_mc1; // Respetamos el tamaño del bono
+                    c1 = b.cambio_mc1; 
                 } else {
                     let e1 = 1 / (1 + Math.pow(10, (r2 - r1) / 400)); let e2 = 1 / (1 + Math.pow(10, (r1 - r2) / 400));
                     let s1 = 0, s2 = 0, bono1 = false, bono2 = false;
@@ -93,7 +90,6 @@ function aplicarFiltroPerfil() {
                 }
             });
         } else {
-            // Modo Histórico (Tomamos los puntos reales de la DB)
             batallasValidas.forEach(b => {
                 if (b.mc1_id == mcActualID || b.mc2_id == mcActualID) {
                     dataDelMC.push({ ...b, calc_previo_mc1: b.elo_previo_mc1, calc_previo_mc2: b.elo_previo_mc2, calc_cambio_mc1: b.cambio_mc1, calc_cambio_mc2: b.cambio_mc2 });
@@ -101,9 +97,18 @@ function aplicarFiltroPerfil() {
             });
         }
 
-        // 3. GENERACIÓN DE TABLA Y GRÁFICA CON LOS DATOS OBTENIDOS
-        let labels = ['Inicio']; let datosElo = [1500]; let eloAcumulado = 1500;
-        let maxElo = 1500; let minElo = 1500; let victorias = 0; let derrotas = 0; 
+        // ==========================================
+        // SOLUCIÓN AL GRÁFICO (INICIO DINÁMICO)
+        // ==========================================
+        let eloInicial = 1500;
+        if (dataDelMC.length > 0) {
+            let primeraBatalla = dataDelMC[0];
+            let esMC1Primera = primeraBatalla.mc1_id == mcActualID;
+            eloInicial = esMC1Primera ? primeraBatalla.calc_previo_mc1 : primeraBatalla.calc_previo_mc2;
+        }
+
+        let labels = ['Inicio Filtro']; let datosElo = [eloInicial]; let eloAcumulado = eloInicial;
+        let maxElo = eloInicial; let minElo = eloInicial; let victorias = 0; let derrotas = 0; 
         let htmlTabla = '';
 
         let dataReversa = [...dataDelMC].reverse();
@@ -156,13 +161,12 @@ function aplicarFiltroPerfil() {
                 return;
             }
 
-            // EXPRESIÓN EXACTA COMO LA PEDISTE
             let oponenteObj = esMC1 ? listaMCs.find(m => m.id == b.mc2_id) : listaMCs.find(m => m.id == b.mc1_id);
             let nombreOpo = oponenteObj ? oponenteObj.aka : 'Desconocido';
             let eloOpo = esMC1 ? b.calc_previo_mc2 : b.calc_previo_mc1;
-            let celdaOponente = `<strong>${nombreOpo}</strong> <span style="color:#aaa; font-size:12px;">(${eloOpo})</span>`; // Oponente (Pts Oponente)
+            let celdaOponente = `<strong>${nombreOpo}</strong> <span style="color:#aaa; font-size:12px;">(${eloOpo})</span>`; 
             
-            let eloPrevioNuestroMC = esMC1 ? b.calc_previo_mc1 : b.calc_previo_mc2; // Puntos de Nuestro MC
+            let eloPrevioNuestroMC = esMC1 ? b.calc_previo_mc1 : b.calc_previo_mc2; 
 
             let textoRes = ''; let colorRes = '';
             if (esMC1) {
@@ -177,7 +181,6 @@ function aplicarFiltroPerfil() {
 
             let faseTabla = b.fase || '-';
 
-            // ORDEN EXACTO DE TUS COLUMNAS
             htmlTabla += `<tr>
                 <td>${fechaTorneo}</td>
                 <td>${nombreTorneo}</td>
