@@ -192,7 +192,6 @@ async function verTorneo(idTorneo, nombre) {
         let mc1Final = ganoIzquierda ? `<span class="ganador-text">👑 ${n1}</span>` : n1; let mc2Final = !ganoIzquierda ? `<span class="ganador-text">${n2} 👑</span>` : n2;
         let textoRes = b.resultado.replace('_', ' ').toUpperCase();
         
-        // AÑADIDO EL BOTÓN DEL OJITO 👁️
         htmlVisual += `
         <div class="batalla-item">
             <div style="flex: 1; text-align: right; padding-right: 15px;">${mc1Final}</div>
@@ -244,7 +243,7 @@ async function guardarEdicionBatalla(recalcular = true) {
 }
 
 // ============================================================================
-// NUEVO MOTOR: TALE OF THE TAPE (CARA A CARA HISTÓRICO CON VIAJE EN EL TIEMPO)
+// NUEVO MOTOR: TALE OF THE TAPE (DISEÑO CENTRALIZADO Y MEJOR POSICIÓN HISTÓRICA)
 // ============================================================================
 async function abrirAnalisisBatalla(idBatalla) {
     document.getElementById('overlayAnalisis').style.display = 'block';
@@ -252,7 +251,6 @@ async function abrirAnalisisBatalla(idBatalla) {
     document.getElementById('contenidoAnalisis').innerHTML = '<h3 style="text-align:center; color:#eccc68; margin-top: 40px;">⏳ Viajando en el tiempo para extraer datos...</h3>';
 
     try {
-        // 1. Obtener la batalla objetivo
         const { data: bTarget } = await supabase.from('batallas').select('*, torneos(nombre, franquicia)').eq('id', idBatalla).single();
         if (!bTarget) throw new Error("Batalla no encontrada");
         
@@ -261,20 +259,17 @@ async function abrirAnalisisBatalla(idBatalla) {
         
         document.getElementById('analisisTitulo').innerText = `${bTarget.torneos.franquicia} - ${bTarget.torneos.nombre} [${bTarget.fase}]`;
 
-        // 2. Descargar toda la historia en orden cronológico (usando ID como reloj temporal)
         const { data: todasBatallas } = await supabase.from('batallas').select('id, torneo_id, fase, mc1_id, mc2_id, cambio_mc1, cambio_mc2, resultado').order('id', {ascending: true});
 
-        // 3. Crear el Libro Mayor (Ledger) para simular el Elo de todos
         let ledger = {};
-        listaMcsGlobal.forEach(m => ledger[m.id] = { elo: 1500, maxElo: 1500 });
+        // Inicializamos a todos con un rank altísimo (99999) para que la primera vez que batallen se actualice a su rank real
+        listaMcsGlobal.forEach(m => ledger[m.id] = { elo: 1500, maxElo: 1500, bestRank: 99999, batallas: 0 });
 
         let snapshotPre = null; let snapshotPost = null; let objetivoEncontrado = false;
 
-        // 4. Bucle de Rebobinado
         for (let i = 0; i < todasBatallas.length; i++) {
             let b = todasBatallas[i];
 
-            // Si llegamos a la batalla que apretó el usuario, sacamos FOTO PREVIA
             if (b.id === idBatalla) {
                 objetivoEncontrado = true;
                 let tablaRank = Object.keys(ledger).map(id => ({id: parseInt(id), elo: ledger[id].elo})).sort((x,y) => y.elo - x.elo);
@@ -282,92 +277,117 @@ async function abrirAnalisisBatalla(idBatalla) {
                     rank1: tablaRank.findIndex(r => r.id === mc1.id) + 1,
                     rank2: tablaRank.findIndex(r => r.id === mc2.id) + 1,
                     max1: ledger[mc1.id].maxElo,
-                    max2: ledger[mc2.id].maxElo
+                    max2: ledger[mc2.id].maxElo,
+                    bestRank1: ledger[mc1.id].bestRank === 99999 ? '-' : ledger[mc1.id].bestRank,
+                    bestRank2: ledger[mc2.id].bestRank === 99999 ? '-' : ledger[mc2.id].bestRank
                 };
             }
 
-            // Aplicamos los puntos a la historia
+            let huboCambio = false;
             if (ledger[b.mc1_id]) {
                 ledger[b.mc1_id].elo += b.cambio_mc1;
+                ledger[b.mc1_id].batallas += 1;
                 if (ledger[b.mc1_id].elo > ledger[b.mc1_id].maxElo) ledger[b.mc1_id].maxElo = ledger[b.mc1_id].elo;
+                huboCambio = true;
             }
             if (b.resultado !== 'bono' && ledger[b.mc2_id]) {
                 ledger[b.mc2_id].elo += b.cambio_mc2;
+                ledger[b.mc2_id].batallas += 1;
                 if (ledger[b.mc2_id].elo > ledger[b.mc2_id].maxElo) ledger[b.mc2_id].maxElo = ledger[b.mc2_id].elo;
+                huboCambio = true;
             }
 
-            // Si ya pasamos la batalla, buscamos cuándo se acaba la Fase actual (ej: Cuartos) para sacar FOTO POST
+            // Calculamos si alguien alcanzó su mejor posición histórica después de esta batalla
+            if (huboCambio) {
+                let tablaRankTemp = Object.keys(ledger).map(id => ({id: parseInt(id), elo: ledger[id].elo, bts: ledger[id].batallas})).sort((x,y) => y.elo - x.elo);
+                tablaRankTemp.forEach((r, index) => {
+                    let rnk = index + 1;
+                    if (r.bts > 0 && rnk < ledger[r.id].bestRank) {
+                        ledger[r.id].bestRank = rnk;
+                    }
+                });
+            }
+
             if (objetivoEncontrado && !snapshotPost) {
                 let sigBat = todasBatallas[i+1];
                 let finDeFase = !sigBat || sigBat.torneo_id !== bTarget.torneo_id || sigBat.fase !== bTarget.fase;
-                
                 if (finDeFase) {
                     let tablaRankPost = Object.keys(ledger).map(id => ({id: parseInt(id), elo: ledger[id].elo})).sort((x,y) => y.elo - x.elo);
                     snapshotPost = {
                         rank1: tablaRankPost.findIndex(r => r.id === mc1.id) + 1,
                         rank2: tablaRankPost.findIndex(r => r.id === mc2.id) + 1
                     };
-                    break; // Terminamos la simulación
+                    break;
                 }
             }
         }
 
-        // 5. Inyectar Visuales
         let img1 = mc1.foto || 'https://via.placeholder.com/150/373752/FFFFFF?text=MC1';
         let img2 = mc2.foto || 'https://via.placeholder.com/150/373752/FFFFFF?text=MC2';
         
-        let difPos1 = snapshotPre.rank1 - snapshotPost.rank1; // Si baja el número, subió de posición (positivo)
-        let flechaPos1 = difPos1 > 0 ? `<span style="color:#2ed573;">(Subió ${difPos1}) ⬆️</span>` : (difPos1 < 0 ? `<span style="color:#ff4757;">(Bajó ${Math.abs(difPos1)}) ⬇️</span>` : `<span style="color:#aaa;">(Se mantuvo) ➖</span>`);
+        let difPos1 = snapshotPre.rank1 - snapshotPost.rank1; 
+        let flechaPos1 = difPos1 > 0 ? `<span style="color:#2ed573; font-size: 11px;">(Subió ${difPos1}) ⬆️</span>` : (difPos1 < 0 ? `<span style="color:#ff4757; font-size: 11px;">(Bajó ${Math.abs(difPos1)}) ⬇️</span>` : `<span style="color:#aaa; font-size: 11px;">(Se mantuvo) ➖</span>`);
         
         let difPos2 = snapshotPre.rank2 - snapshotPost.rank2;
-        let flechaPos2 = difPos2 > 0 ? `<span style="color:#2ed573;">(Subió ${difPos2}) ⬆️</span>` : (difPos2 < 0 ? `<span style="color:#ff4757;">(Bajó ${Math.abs(difPos2)}) ⬇️</span>` : `<span style="color:#aaa;">(Se mantuvo) ➖</span>`);
+        let flechaPos2 = difPos2 > 0 ? `<span style="color:#2ed573; font-size: 11px;">(Subió ${difPos2}) ⬆️</span>` : (difPos2 < 0 ? `<span style="color:#ff4757; font-size: 11px;">(Bajó ${Math.abs(difPos2)}) ⬇️</span>` : `<span style="color:#aaa; font-size: 11px;">(Se mantuvo) ➖</span>`);
 
+        // ESTRUCTURA VISUAL MEJORADA (MÉTRICAS AL CENTRO)
         let html = `
-        <div style="display: flex; justify-content: space-around; align-items: center; margin-bottom: 20px; background: #2f3542; padding: 15px; border-radius: 8px;">
+        <div style="display: flex; justify-content: space-around; align-items: center; margin-bottom: 0px; background: #2f3542; padding: 15px 15px 5px 15px; border-radius: 8px 8px 0 0;">
             <div style="text-align: center; flex: 1;">
                 <img src="${img1}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 50%; border: 3px solid #1e90ff;">
-                <h3 style="margin: 5px 0 0 0;">${mc1.aka}</h3>
             </div>
             <div style="font-size: 24px; font-weight: bold; color: #ff4757; flex: 0.5; text-align: center;">VS</div>
             <div style="text-align: center; flex: 1;">
                 <img src="${img2}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 50%; border: 3px solid #ff4757;">
-                <h3 style="margin: 5px 0 0 0;">${mc2.aka}</h3>
             </div>
         </div>
 
-        <table style="width: 100%; border-collapse: collapse; text-align: center; font-size: 14px;">
-            <tr style="background: #ff4757; color: white;">
-                <th style="padding: 10px; width: 33%;">Métrica</th>
-                <th style="padding: 10px; width: 33%;">Izquierda</th>
-                <th style="padding: 10px; width: 33%;">Derecha</th>
+        <table style="width: 100%; border-collapse: collapse; text-align: center; font-size: 14px; background: #1e1e2f;">
+            <tr style="background: #373752; color: white;">
+                <th style="padding: 12px; width: 33%; color: #1e90ff; font-size: 16px;">${mc1.aka}</th>
+                <th style="padding: 12px; width: 34%; color: #eccc68; text-transform: uppercase; font-size: 12px; letter-spacing: 1px;">Métricas</th>
+                <th style="padding: 12px; width: 33%; color: #ff4757; font-size: 16px;">${mc2.aka}</th>
             </tr>
+            
             <tr style="border-bottom: 1px solid #373752;">
-                <td style="padding: 10px; font-weight: bold; color: #aaa; text-align: left;">Puntos Previos</td>
-                <td style="padding: 10px;">${bTarget.elo_previo_mc1}</td>
-                <td style="padding: 10px;">${bTarget.elo_previo_mc2}</td>
+                <td style="padding: 12px; font-size: 16px; font-weight: bold;">${bTarget.elo_previo_mc1}</td>
+                <td style="padding: 12px; font-weight: bold; color: #aaa; background: rgba(255,255,255,0.02);">Puntos Previos</td>
+                <td style="padding: 12px; font-size: 16px; font-weight: bold;">${bTarget.elo_previo_mc2}</td>
             </tr>
-            <tr style="border-bottom: 1px solid #373752; background: rgba(30, 144, 255, 0.1);">
-                <td style="padding: 10px; font-weight: bold; color: #1e90ff; text-align: left;">Pico Máx. Histórico</td>
-                <td style="padding: 10px;">${snapshotPre.max1} pts</td>
-                <td style="padding: 10px;">${snapshotPre.max2} pts</td>
-            </tr>
+            
             <tr style="border-bottom: 1px solid #373752;">
-                <td style="padding: 10px; font-weight: bold; color: #aaa; text-align: left;">Posición Global Previa</td>
-                <td style="padding: 10px; font-weight: bold;">Rank #${snapshotPre.rank1}</td>
-                <td style="padding: 10px; font-weight: bold;">Rank #${snapshotPre.rank2}</td>
+                <td style="padding: 12px; font-size: 15px; font-weight: bold;">Rank #${snapshotPre.rank1}</td>
+                <td style="padding: 12px; font-weight: bold; color: #aaa; background: rgba(255,255,255,0.02);">Posición Global Previa</td>
+                <td style="padding: 12px; font-size: 15px; font-weight: bold;">Rank #${snapshotPre.rank2}</td>
             </tr>
-            <tr style="border-bottom: 1px solid #373752; background: rgba(46, 213, 115, 0.1);">
-                <td style="padding: 10px; font-weight: bold; color: #2ed573; text-align: left;">Pts Post Batalla (+/-)</td>
-                <td style="padding: 10px;">${bTarget.elo_previo_mc1 + bTarget.cambio_mc1} <span style="font-size: 11px;">(${bTarget.cambio_mc1 > 0 ? '+'+bTarget.cambio_mc1 : bTarget.cambio_mc1})</span></td>
-                <td style="padding: 10px;">${bTarget.elo_previo_mc2 + bTarget.cambio_mc2} <span style="font-size: 11px;">(${bTarget.cambio_mc2 > 0 ? '+'+bTarget.cambio_mc2 : bTarget.cambio_mc2})</span></td>
+
+            <tr style="border-bottom: 1px solid #373752; background: rgba(46, 213, 115, 0.05);">
+                <td style="padding: 12px; font-size: 15px;">${bTarget.elo_previo_mc1 + bTarget.cambio_mc1} <br><span style="font-size: 11px; color: ${bTarget.cambio_mc1 > 0 ? '#2ed573' : '#ff4757'}">(${bTarget.cambio_mc1 > 0 ? '+'+bTarget.cambio_mc1 : bTarget.cambio_mc1})</span></td>
+                <td style="padding: 12px; font-weight: bold; color: #2ed573; background: rgba(255,255,255,0.02);">Puntos Post Batalla</td>
+                <td style="padding: 12px; font-size: 15px;">${bTarget.elo_previo_mc2 + bTarget.cambio_mc2} <br><span style="font-size: 11px; color: ${bTarget.cambio_mc2 > 0 ? '#2ed573' : '#ff4757'}">(${bTarget.cambio_mc2 > 0 ? '+'+bTarget.cambio_mc2 : bTarget.cambio_mc2})</span></td>
             </tr>
+
+            <tr style="border-bottom: 1px solid #373752;">
+                <td style="padding: 12px; font-size: 15px; font-weight: bold;">Rank #${snapshotPost.rank1}<br>${flechaPos1}</td>
+                <td style="padding: 12px; font-weight: bold; color: #aaa; background: rgba(255,255,255,0.02);">Posición tras la Ronda</td>
+                <td style="padding: 12px; font-size: 15px; font-weight: bold;">Rank #${snapshotPost.rank2}<br>${flechaPos2}</td>
+            </tr>
+
+            <tr style="border-bottom: 1px solid #373752; border-top: 2px dashed #373752;">
+                <td style="padding: 12px; font-size: 14px; color: #1e90ff;">${snapshotPre.max1} pts</td>
+                <td style="padding: 12px; font-weight: bold; color: #1e90ff; background: rgba(255,255,255,0.02);">Pico Máx. de Elo</td>
+                <td style="padding: 12px; font-size: 14px; color: #1e90ff;">${snapshotPre.max2} pts</td>
+            </tr>
+
             <tr>
-                <td style="padding: 10px; font-weight: bold; color: #aaa; text-align: left;">Rango tras la Ronda</td>
-                <td style="padding: 10px;">Rank #${snapshotPost.rank1}<br>${flechaPos1}</td>
-                <td style="padding: 10px;">Rank #${snapshotPost.rank2}<br>${flechaPos2}</td>
+                <td style="padding: 12px; font-size: 14px; color: #eccc68; font-weight: bold;">Rank #${snapshotPre.bestRank1}</td>
+                <td style="padding: 12px; font-weight: bold; color: #eccc68; background: rgba(255,255,255,0.02);">Mejor Pos. Histórica</td>
+                <td style="padding: 12px; font-size: 14px; color: #eccc68; font-weight: bold;">Rank #${snapshotPre.bestRank2}</td>
             </tr>
+
         </table>
-        <div style="font-size: 11px; color: #57606f; text-align: center; margin-top: 15px;">*El 'Rango tras la Ronda' se calcula simulando el final de todos los cruces de esta misma fase.</div>
+        <div style="font-size: 11px; color: #57606f; text-align: center; margin-top: 15px;">*Toda la información es exacta hasta el milisegundo previo de la batalla.</div>
         `;
         document.getElementById('contenidoAnalisis').innerHTML = html;
 
