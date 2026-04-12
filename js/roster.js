@@ -1,13 +1,19 @@
 import { supabase, cargarFranquiciasSelect, obtenerFranquiciasValidas } from './supabase.js';
+import { configurarSesion } from './auth.js';
 
 const K = 32;
-
-let listaMCs = []; let miGrafico = null; let batallasUniverso = []; let mcActualID = null;
+let listaMcs = [];
+let batallasUniverso = [];
+let mcActualID = null;
+let miGraficoModal = null;
 
 async function inicializar() {
-    const { data: mcs } = await supabase.from('competidores').select('*').order('aka', { ascending: true });
-    listaMCs = mcs || [];
+    document.getElementById('rosterGrid').innerHTML = '<h3 style="color:#a4b0be; text-align:center; width:100%; grid-column: 1 / -1;">⏳ Cargando base de datos...</h3>';
     
+    const { data: mcs, error: errMcs } = await supabase.from('competidores').select('*').order('elo_actual', { ascending: false });
+    if (errMcs) return document.getElementById('rosterGrid').innerHTML = '<h3 style="color:#ff4757; text-align:center; width:100%; grid-column: 1 / -1;">Error al cargar datos.</h3>';
+    listaMcs = mcs || [];
+
     const { data: bts } = await supabase.from('batallas').select(`*, torneos(nombre, franquicia, fecha_evento)`);
     batallasUniverso = (bts || []).sort((a,b) => {
         let fA = a.torneos ? new Date(a.torneos.fecha_evento) : new Date(0);
@@ -15,51 +21,128 @@ async function inicializar() {
         return fA - fB;
     });
 
-    await cargarFranquiciasSelect('filtroFranqPerfil', true);
-
-    const urlParams = new URLSearchParams(window.location.search);
-    const idUrl = urlParams.get('id');
-    if (idUrl) {
-        let mcEncontrado = listaMCs.find(m => m.id == idUrl);
-        if (mcEncontrado) cargarPerfil(idUrl);
-    }
+    await cargarFranquiciasSelect('modalFranqPerfil', true);
+    renderizarRoster(listaMcs);
 }
 
-function filtrarBuscador() {
-    let texto = document.getElementById('buscadorMCs').value.toLowerCase();
-    let cajaSugerencias = document.getElementById('sugerenciasMCs');
-    if (texto.length < 1) return cajaSugerencias.style.display = 'none';
-
-    let resultados = listaMCs.filter(mc => mc.aka.toLowerCase().includes(texto));
+function renderizarRoster(lista) {
     let html = '';
-    if (resultados.length === 0) html += `<div class="sugerencia-item" style="color: #888; cursor: default;">No se encontraron competidores</div>`;
-    else resultados.forEach(mc => { html += `<div class="sugerencia-item" onclick="cargarPerfil(${mc.id})"><span>${mc.aka}</span><span style="color: #00d2d3;">${mc.elo_actual} pts</span></div>`; });
+    lista.forEach(mc => {
+        let foto = mc.foto || 'https://via.placeholder.com/150/1e1e2f/00d2d3?text=MC';
+        let bandera = mc.nacionalidad || '🌍';
+        
+        html += `
+        <div class="mc-card" onclick="abrirPerfilModal(${mc.id})">
+            <img src="${foto}" class="mc-photo" alt="${mc.aka}">
+            <h3 class="mc-name">${mc.aka}</h3>
+            <div class="mc-flag">${bandera}</div>
+            <div class="mc-elo">🏆 ${mc.elo_actual} pts</div>
+            
+            <div class="card-actions">
+                <button class="btn-edit-card" onclick="event.stopPropagation(); abrirEdicionMC(${mc.id})">✏️ Editar</button>
+                <button class="btn-del-card" onclick="event.stopPropagation(); eliminarMC(${mc.id}, '${mc.aka}')">🗑️ Borrar</button>
+            </div>
+        </div>
+        `;
+    });
     
-    cajaSugerencias.innerHTML = html; cajaSugerencias.style.display = 'block';
+    if(html === '') html = '<h3 style="color:#a4b0be; text-align:center; width:100%; grid-column: 1 / -1;">No se encontraron competidores.</h3>';
+    document.getElementById('rosterGrid').innerHTML = html;
 }
 
-function cargarPerfil(idMC) {
-    mcActualID = idMC;
-    let mcPrincipal = listaMCs.find(m => m.id == idMC);
-    document.getElementById('buscadorMCs').value = ''; document.getElementById('sugerenciasMCs').style.display = 'none';
-    
-    document.getElementById('nombreMC').innerText = mcPrincipal.aka;
-    document.getElementById('banderaMC').innerText = mcPrincipal.nacionalidad || '🌍';
-    document.getElementById('imgAtleta').src = mcPrincipal.foto || 'https://via.placeholder.com/150/1e1e2f/00d2d3?text=MC';
-    document.getElementById('statEloActual').innerText = mcPrincipal.elo_actual;
-    
-    window.history.replaceState({}, '', `perfil.html?id=${idMC}`);
-
-    document.getElementById('zonaPerfil').style.display = 'block';
-    aplicarFiltroPerfil();
+window.filtrarRoster = function() {
+    let texto = document.getElementById('buscadorRoster').value.toLowerCase();
+    let filtrados = listaMcs.filter(mc => mc.aka.toLowerCase().includes(texto));
+    renderizarRoster(filtrados);
 }
 
-function aplicarFiltroPerfil() {
+window.agregarMC = async function() {
+    let aka = document.getElementById('nuevoAka').value.trim();
+    let nac = document.getElementById('nuevaNac').value.trim() || '🌍';
+    let foto = document.getElementById('nuevaFoto').value.trim() || 'https://via.placeholder.com/150/1e1e2f/00d2d3?text=MC';
+
+    if (!aka) return alert("Debes ingresar al menos el A.K.A del competidor.");
+
+    const { error } = await supabase.from('competidores').insert([{ 
+        aka: aka, nacionalidad: nac, foto: foto, elo_actual: 1500, batallas_totales: 0 
+    }]);
+
+    if (error) return alert("Error al guardar en la base de datos.");
+    
+    document.getElementById('nuevoAka').value = ""; document.getElementById('nuevaNac').value = ""; document.getElementById('nuevaFoto').value = "";
+    inicializar();
+}
+
+window.abrirEdicionMC = function(id) {
+    let mc = listaMcs.find(m => m.id === id);
+    if(!mc) return;
+    
+    document.getElementById('editMcId').value = mc.id;
+    document.getElementById('editMcAka').value = mc.aka;
+    document.getElementById('editMcNac').value = mc.nacionalidad || '';
+    document.getElementById('editMcFoto').value = mc.foto || '';
+    
+    document.getElementById('overlayEditMC').style.display = 'block';
+    document.getElementById('modalEditMC').style.display = 'block';
+}
+
+window.cerrarEdicionMC = function() {
+    document.getElementById('overlayEditMC').style.display = 'none';
+    document.getElementById('modalEditMC').style.display = 'none';
+}
+
+window.guardarEdicionMC = async function() {
+    let id = document.getElementById('editMcId').value;
+    let aka = document.getElementById('editMcAka').value.trim();
+    let nac = document.getElementById('editMcNac').value.trim();
+    let foto = document.getElementById('editMcFoto').value.trim();
+
+    if(!aka) return alert("El nombre no puede estar vacío.");
+
+    const { error } = await supabase.from('competidores').update({ 
+        aka: aka, nacionalidad: nac, foto: foto 
+    }).eq('id', id);
+
+    if (error) return alert("Error al actualizar los datos.");
+    
+    cerrarEdicionMC();
+    inicializar();
+}
+
+window.eliminarMC = async function(id, nombre) {
+    if(!confirm(`⚠️ ¿Estás seguro de que quieres borrar a ${nombre}?`)) return;
+    const { error } = await supabase.from('competidores').delete().eq('id', id);
+    if (error) alert("❌ No se pudo borrar a este MC. Es probable que ya tenga batallas registradas.");
+    else inicializar();
+}
+
+window.abrirPerfilModal = function(id) {
+    mcActualID = id;
+    let mc = listaMcs.find(m => m.id === id);
+    if(!mc) return;
+
+    document.getElementById('modalAkaMC').innerText = mc.aka;
+    document.getElementById('modalBanderaMC').innerText = mc.nacionalidad || '🌍';
+    document.getElementById('modalImgMC').src = mc.foto || 'https://via.placeholder.com/150/1e1e2f/00d2d3?text=MC';
+    document.getElementById('modalEloMC').innerText = mc.elo_actual;
+
+    document.getElementById('overlayPerfil').style.display = 'block';
+    document.getElementById('modalPerfil').style.display = 'flex';
+
+    aplicarFiltroModal();
+}
+
+window.cerrarPerfilModal = function() {
+    document.getElementById('overlayPerfil').style.display = 'none';
+    document.getElementById('modalPerfil').style.display = 'none';
+}
+
+window.aplicarFiltroModal = function() {
     try {
-        let f = document.getElementById('filtroFranqPerfil').value;
-        let modo = document.getElementById('modoAnalisisPerfil').value;
-        let d = document.getElementById('filtroDesdePerfil').value;
-        let h = document.getElementById('filtroHastaPerfil').value;
+        let f = document.getElementById('modalFranqPerfil').value;
+        let modo = document.getElementById('modalModoPerfil').value;
+        let d = document.getElementById('modalDesdePerfil').value;
+        let h = document.getElementById('modalHastaPerfil').value;
 
         let franquiciasPermitidas = obtenerFranquiciasValidas(f);
 
@@ -72,7 +155,7 @@ function aplicarFiltroPerfil() {
         });
 
         let rankingTemp = {};
-        listaMCs.forEach(mc => { rankingTemp[mc.id] = { id: mc.id, elo_actual: 1500, batallas_totales: 0 }; });
+        listaMcs.forEach(mc => { rankingTemp[mc.id] = { id: mc.id, elo_actual: 1500, batallas_totales: 0 }; });
 
         if (modo === 'aislado') {
             let mapTorneos = new Map(); let ordenTorneos = [];
@@ -118,7 +201,6 @@ function aplicarFiltroPerfil() {
                             bono = b.cambio_mc1; 
                         } 
                         
-                        // MAGIA AQUÍ: Guardamos el Elo simulado real
                         b.sim_previo_mc1 = rankingTemp[b.mc1_id].elo_actual;
                         b.sim_previo_mc2 = 1500;
                         b.sim_cambio_mc1 = bono;
@@ -133,7 +215,6 @@ function aplicarFiltroPerfil() {
                         if (b.resultado === "victoria_total") { S1 = 1.0; S2 = 0.0; bono1 = true; } else if (b.resultado === "victoria") { S1 = 1.0; S2 = 0.0; } else if (b.resultado === "victoria_replica") { S1 = 0.75; S2 = 0.25; } else if (b.resultado === "derrota_replica") { S1 = 0.25; S2 = 0.75; } else if (b.resultado === "derrota") { S1 = 0.0; S2 = 1.0; } else if (b.resultado === "derrota_total") { S1 = 0.0; S2 = 1.0; bono2 = true; }
                         let c1 = Math.round(K * (S1 - E1) * (bono1 ? 1.2 : 1)); let c2 = Math.round(K * (S2 - E2) * (bono2 ? 1.2 : 1));
                         
-                        // MAGIA AQUÍ: Guardamos el Elo simulado real
                         b.sim_previo_mc1 = R1;
                         b.sim_previo_mc2 = R2;
                         b.sim_cambio_mc1 = c1;
@@ -153,13 +234,12 @@ function aplicarFiltroPerfil() {
 
         let rankingOrdenado = Object.values(rankingTemp).filter(m => m.batallas_totales > 0).sort((a,b) => b.elo_actual - a.elo_actual);
         let posGlobal = rankingOrdenado.findIndex(m => m.id == mcActualID);
-        document.getElementById('statRank').innerText = posGlobal !== -1 ? `#${posGlobal + 1}` : '-';
+        document.getElementById('modalRank').innerText = posGlobal !== -1 ? `#${posGlobal + 1}` : '-';
 
         let dataDelMC = []; 
         if (modo === 'aislado') {
             batallasValidas.forEach(b => {
                 if (b.mc1_id == mcActualID || b.mc2_id == mcActualID) {
-                    // Extraemos la simulación real que acabamos de hacer
                     dataDelMC.push({ 
                         ...b, 
                         calc_previo_mc1: b.sim_previo_mc1, 
@@ -224,10 +304,10 @@ function aplicarFiltroPerfil() {
             }
         });
 
-        document.getElementById('statPeakElo').innerText = maxElo;
+        document.getElementById('modalPeak').innerText = maxElo;
         let cantBatallas = dataDelMC.filter(b => b.resultado !== 'bono').length;
-        document.getElementById('statBatallas').innerText = cantBatallas;
-        document.getElementById('statWinRate').innerText = (victorias + derrotas > 0) ? Math.round((victorias / (victorias + derrotas)) * 100) + '%' : '0%';
+        document.getElementById('modalBatallas').innerText = cantBatallas;
+        document.getElementById('modalWinRate').innerText = (victorias + derrotas > 0) ? Math.round((victorias / (victorias + derrotas)) * 100) + '%' : '0%';
         
         dataReversa.forEach(b => {
             let esMC1 = b.mc1_id == mcActualID;
@@ -239,7 +319,7 @@ function aplicarFiltroPerfil() {
 
             if (b.resultado === 'bono') {
                 let estiloBono = "background: rgba(46, 213, 115, 0.15) !important; border-top: 1px solid rgba(46, 213, 115, 0.3) !important; border-bottom: 1px solid rgba(46, 213, 115, 0.3) !important;";
-                htmlTabla += `<tr class="fila-bono">
+                htmlTabla += `<tr>
                     <td style="${estiloBono} font-size: 14px; border-top-left-radius: 6px; border-bottom-left-radius: 6px;">${fechaTorneo}</td>
                     <td style="${estiloBono} font-size: 14px; font-weight: bold; color:white;">${nombreTorneo}</td>
                     <td colspan="4" style="${estiloBono} text-align:center; color: var(--neon-green); font-weight:bold; text-transform: uppercase; letter-spacing: 1px;">✨ ${b.fase || 'Bono'}</td>
@@ -247,12 +327,12 @@ function aplicarFiltroPerfil() {
                 return;
             }
 
-            let oponenteObj = esMC1 ? listaMCs.find(m => m.id == b.mc2_id) : listaMCs.find(m => m.id == b.mc1_id);
+            let oponenteObj = esMC1 ? listaMcs.find(m => m.id == b.mc2_id) : listaMcs.find(m => m.id == b.mc1_id);
             let nombreOpo = oponenteObj ? oponenteObj.aka : 'Desconocido';
             let eloOpo = (esMC1 ? b.calc_previo_mc2 : b.calc_previo_mc1) || 1500;
             // ELO DEL OPONENTE DEVUELTO
             let celdaOponente = `<strong>${nombreOpo}</strong> <span style="color:#a4b0be; font-size:11px; margin-left:5px;">(${eloOpo})</span>`; 
-            
+
             let eloPrevioNuestroMC = (esMC1 ? b.calc_previo_mc1 : b.calc_previo_mc2) || 1500; 
 
             let textoRes = ''; let claseRes = '';
@@ -277,15 +357,14 @@ function aplicarFiltroPerfil() {
             </tr>`;
         });
 
-        document.getElementById('cuerpoHistorial').innerHTML = htmlTabla || '<tr><td colspan="7" style="text-align:center; padding:30px; color:#a4b0be;">Sin batallas en el registro.</td></tr>';
+        document.getElementById('modalCuerpoHistorial').innerHTML = htmlTabla || '<tr><td colspan="7" style="text-align:center; padding:30px; color:#a4b0be;">Sin batallas en el registro.</td></tr>';
 
-        // LÓGICA DE CHART.JS PARA PINTAR LÍNEAS DE BONO EN VERDE NEÓN
         if (typeof Chart !== 'undefined') {
-            if (miGrafico) miGrafico.destroy();
-            let canvas = document.getElementById('eloChart');
+            if (miGraficoModal) miGraficoModal.destroy();
+            let canvas = document.getElementById('modalChart');
             if (canvas) {
                 let ctx = canvas.getContext('2d');
-                miGrafico = new Chart(ctx, {
+                miGraficoModal = new Chart(ctx, {
                     type: 'line',
                     data: { 
                         labels: labels, 
@@ -309,12 +388,34 @@ function aplicarFiltroPerfil() {
         }
 
     } catch (e) {
-        console.error("Error al aplicar filtros o dibujar:", e);
+        console.error("Error al aplicar filtros en el modal:", e);
     }
 }
 
-window.filtrarBuscador = filtrarBuscador; 
-window.cargarPerfil = cargarPerfil; 
-window.aplicarFiltroPerfil = aplicarFiltroPerfil; 
+window.descargarFichaAdmin = function(boton) {
+    document.getElementById('controlesFiltroFicha').style.display = 'none';
+    document.getElementById('historialAdminWrap').style.display = 'none'; 
+    document.getElementById('marcaAgua').style.display = 'block';
+    
+    let tarjeta = document.getElementById('areaCapturaFicha');
+    let textoOriginal = boton.innerText;
+    boton.innerText = "⏳ Generando Imagen Profesional...";
+    boton.disabled = true;
 
+    html2canvas(tarjeta, { backgroundColor: '#1e1e2f', scale: 2 }).then(canvas => {
+        let enlace = document.createElement('a');
+        let titulo = document.getElementById('modalAkaMC').innerText.replace(/[^a-zA-Z0-9]/g, '_');
+        enlace.download = `Ficha_Tecnica_${titulo}.png`;
+        enlace.href = canvas.toDataURL('image/png');
+        enlace.click();
+        
+        document.getElementById('controlesFiltroFicha').style.display = 'flex';
+        document.getElementById('historialAdminWrap').style.display = 'block'; 
+        document.getElementById('marcaAgua').style.display = 'none';
+        boton.innerText = textoOriginal;
+        boton.disabled = false;
+    });
+}
+
+configurarSesion();
 inicializar();

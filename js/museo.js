@@ -42,10 +42,23 @@ function renderizarTablaTorneos(listaTorneos) {
     let html = '';
     listaTorneos.forEach(t => {
         let colorEstado = t.estado === 'Finalizado' ? '#2ed573' : '#ffa502';
-        html += `<tr><td>${t.fecha_evento || 'Sin fecha'}</td><td><strong>${t.franquicia || '-'}</strong></td><td>${t.nombre}</td><td style="color: ${colorEstado}; font-weight: bold;">${t.estado}</td>
-            <td><button class="btn-ver" onclick="verTorneo(${t.id}, '${t.nombre}')">👁️</button> <button class="btn-editar" onclick="abrirEdicionTorneo(${t.id}, '${t.nombre}', '${t.franquicia}', '${t.fecha_evento}')">✏️</button> <button class="btn-borrar" onclick="eliminarTorneo(${t.id}, '${t.nombre}')">🗑️</button></td></tr>`;
+        
+        // BOTONES ACTUALIZADOS A FLEXBOX CON DISEÑO PREMIUM
+        html += `<tr>
+            <td>${t.fecha_evento || 'Sin fecha'}</td>
+            <td style="color: #eccc68;"><strong>${t.franquicia || '-'}</strong></td>
+            <td style="font-weight: bold;">${t.nombre}</td>
+            <td style="color: ${colorEstado}; font-weight: bold;">${t.estado}</td>
+            <td>
+                <div class="action-group">
+                    <button class="btn-ver" onclick="verTorneo(${t.id}, '${t.nombre}')" title="Ver Torneo">👁️ Ver</button> 
+                    <button class="btn-editar" onclick="abrirEdicionTorneo(${t.id}, '${t.nombre}', '${t.franquicia}', '${t.fecha_evento}')" title="Editar Evento">✏️ Edit</button> 
+                    <button class="btn-borrar" onclick="eliminarTorneo(${t.id}, '${t.nombre}')" title="Eliminar">🗑️ Borrar</button>
+                </div>
+            </td>
+        </tr>`;
     });
-    document.getElementById('cuerpoTorneos').innerHTML = html || '<tr><td colspan="5" style="text-align:center; color: #aaa;">No se encontraron torneos con estos filtros.</td></tr>';
+    document.getElementById('cuerpoTorneos').innerHTML = html || '<tr><td colspan="5" style="text-align:center; color: #a4b0be; padding: 30px;">No se encontraron torneos registrados.</td></tr>';
 }
 
 async function eliminarTorneo(id, nombre) {
@@ -168,7 +181,7 @@ async function repararEloGlobal(silent = false) {
         await supabase.from('competidores').update({ elo_actual: mc.elo, batallas_totales: mc.batallas }).eq('id', mc.id);
     }
     
-    msg.style.color = "#2ed573"; msg.innerText = "✅ ¡Línea Temporal Alineada y Premios Restaurados!";
+    msg.style.color = "#2ed573"; msg.innerText = "✅ ¡Universo Restaurado!";
     setTimeout(() => { msg.innerText = ""; }, 4000);
 }
 
@@ -176,10 +189,10 @@ async function verTorneo(idTorneo, nombre) {
     torneoAbiertoId = idTorneo; torneoAbiertoNombre = nombre;
     document.getElementById('panelLista').style.display = 'none'; document.getElementById('panelEdicion').style.display = 'none';
     document.getElementById('panelDetalle').style.display = 'block'; document.getElementById('detalleTitulo').innerText = `🏆 ${nombre}`; 
-    document.getElementById('contenedorBatallas').innerHTML = '<p>Cargando...</p>';
+    document.getElementById('contenedorBatallas').innerHTML = '<p style="color: #a4b0be; text-align:center;">Analizando registros...</p>';
 
     const { data: batallas, error } = await supabase.from('batallas').select(`id, fase, resultado, mc1_id, mc2_id`).eq('torneo_id', idTorneo);
-    if(error || !batallas || batallas.length === 0) return document.getElementById('contenedorBatallas').innerHTML = '<p>No hay batallas.</p>';
+    if(error || !batallas || batallas.length === 0) return document.getElementById('contenedorBatallas').innerHTML = '<p style="color: #ff4757; text-align:center;">Este torneo no tiene batallas registradas.</p>';
 
     batallas.sort((a, b) => a.fase.localeCompare(b.fase));
     let mapMcs = {}; listaMcsGlobal.forEach(c => mapMcs[c.id] = c.aka);
@@ -187,19 +200,21 @@ async function verTorneo(idTorneo, nombre) {
     let htmlVisual = '';
     batallas.forEach(b => {
         if(b.resultado === 'bono') return; 
-        let n1 = mapMcs[b.mc1_id] || 'Desc'; let n2 = mapMcs[b.mc2_id] || 'Desc';
+        let n1 = mapMcs[b.mc1_id] || 'Desconocido'; let n2 = mapMcs[b.mc2_id] || 'Desconocido';
         let ganoIzquierda = ['victoria', 'victoria_replica', 'victoria_total'].includes(b.resultado);
         let mc1Final = ganoIzquierda ? `<span class="ganador-text">👑 ${n1}</span>` : n1; let mc2Final = !ganoIzquierda ? `<span class="ganador-text">${n2} 👑</span>` : n2;
         let textoRes = b.resultado.replace('_', ' ').toUpperCase();
         
+        // BOTONES DE LA BATALLA ALINEADOS EN GRUPO
         htmlVisual += `
         <div class="batalla-item">
-            <div style="flex: 1; text-align: right; padding-right: 15px;">${mc1Final}</div>
-            <div style="font-size: 12px; color: #aaa; background: #1e1e2f; padding: 5px 10px; border-radius: 10px; text-align:center; min-width: 120px;">[${b.fase}]<br>${textoRes}</div>
-            <div style="flex: 1; text-align: left; padding-left: 15px;">${mc2Final}</div>
-            <div style="display: flex; gap: 5px;">
-                <button onclick="abrirAnalisisBatalla(${b.id})" style="background:transparent; color:#1e90ff; padding: 5px; cursor: pointer; font-size: 16px; border: 1px solid #1e90ff; border-radius: 4px;" title="Ver Análisis Histórico">👁️</button>
-                <button class="btn-editar" onclick="abrirEdicionBatalla(${b.id}, '${b.fase}', ${b.mc1_id}, ${b.mc2_id}, '${b.resultado}')" style="padding: 5px 10px;">⚙️</button>
+            <div style="flex: 1; text-align: right; padding-right: 15px; font-size: 16px;">${mc1Final}</div>
+            <div class="batalla-fase">${b.fase}<br><span style="color: #1e90ff; font-size: 9px;">${textoRes}</span></div>
+            <div style="flex: 1; text-align: left; padding-left: 15px; font-size: 16px;">${mc2Final}</div>
+            
+            <div class="action-group" style="margin-left: 15px;">
+                <button class="btn-ver" onclick="abrirAnalisisBatalla(${b.id})" title="Cara a Cara">👁️ Ficha</button>
+                <button class="btn-editar" onclick="abrirEdicionBatalla(${b.id}, '${b.fase}', ${b.mc1_id}, ${b.mc2_id}, '${b.resultado}')" title="Forzar Resultado">⚙️ Edit</button>
             </div>
         </div>`;
     });
@@ -220,30 +235,31 @@ async function guardarEdicionBatalla(recalcular = true) {
     await supabase.from('batallas').update({ fase: f, mc1_id: m1, mc2_id: m2, resultado: r }).eq('id', batallaEditandoId);
 
     if (recalcular) {
-        document.getElementById('modalEditBat').innerHTML = '<h3 style="text-align:center; color:#1e90ff;">⏳ Guardando y Recalculando Línea Temporal...</h3>';
+        document.getElementById('modalEditBat').innerHTML = '<h3 style="text-align:center; color:#1e90ff;">⏳ Modificando el pasado...</h3>';
         await repararEloGlobal(true);
     }
     cerrarEdicionBatalla();
     
     document.getElementById('modalEditBat').innerHTML = `
-        <h2 style="margin-top:0; color:#1e90ff;">⚙️ Editor Quirúrgico</h2>
-        <input type="text" id="editBatFase"> <select id="editBatMC1"></select> <select id="editBatMC2"></select>
+        <h2 style="color: var(--neon-gold); font-size: 24px; margin-top: 0; border-bottom: none;">⚙️ Editor Quirúrgico</h2>
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 20px;">Forzar un resultado alterará la línea de tiempo. Requiere recálculo.</p>
+        <input type="text" id="editBatFase" placeholder="Fase (Ej: Cuartos 1)" style="margin-bottom: 15px;">
+        <select id="editBatMC1" style="margin-bottom: 15px;"></select> 
+        <select id="editBatMC2" style="margin-bottom: 15px;"></select>
         <select id="editBatRes">
             <option value="victoria">Victoria Normal</option><option value="victoria_replica">Victoria tras Réplica</option><option value="derrota_replica">Derrota tras Réplica</option>
             <option value="derrota">Derrota Normal</option><option value="victoria_total">Victoria Total</option><option value="derrota_total">Derrota Total</option>
         </select>
-        <div style="display:flex; gap:10px; margin-top:20px;">
-            <button style="background:#eccc68; color:#2f3542; flex:1;" onclick="guardarEdicionBatalla(false)">💾 Aplicar</button>
-            <button style="background:#2ed573; flex:1;" onclick="guardarEdicionBatalla(true)">🔄 Recalcular</button>
-            <button style="background:#ff4757; flex:1;" onclick="cerrarEdicionBatalla()">❌ Cancelar</button>
+        <div style="display:flex; gap:10px; margin-top:25px;">
+            <button style="background:#57606f; color:#fff; flex:1; font-size: 11px;" onclick="guardarEdicionBatalla(false)">💾 Aplicar Falso</button>
+            <button style="background:var(--neon-green); color:#000; flex:1; font-size: 11px;" onclick="guardarEdicionBatalla(true)">🔄 Recalcular</button>
+            <button class="btn-danger" style="flex:1; font-size: 11px; padding: 12px;" onclick="cerrarEdicionBatalla()">Cancelar</button>
         </div>`;
     
     cargarMcsParaEdicion(); verTorneo(torneoAbiertoId, torneoAbiertoNombre);
 }
 
-// ============================================================================
-// MOTOR CORREGIDO: TALE OF THE TAPE (A PRUEBA DE BALAS CON BOTÓN INYECTADO)
-// ============================================================================
+// TALE OF THE TAPE
 async function abrirAnalisisBatalla(idBatalla) {
     document.getElementById('overlayAnalisis').style.display = 'block';
     document.getElementById('modalAnalisis').style.display = 'block';
@@ -335,78 +351,79 @@ async function abrirAnalisisBatalla(idBatalla) {
         let img2 = mc2.foto || 'https://via.placeholder.com/150/373752/FFFFFF?text=MC2';
         
         let difPos1 = snapshotPre.rank1 - snapshotPost.rank1; 
-        let flechaPos1 = difPos1 > 0 ? `<span style="color:#2ed573; font-size: 12px;">(Subió ${difPos1}) ⬆️</span>` : (difPos1 < 0 ? `<span style="color:#ff4757; font-size: 12px;">(Bajó ${Math.abs(difPos1)}) ⬇️</span>` : `<span style="color:#aaa; font-size: 12px;">(Se mantuvo) ➖</span>`);
+        let flechaPos1 = difPos1 > 0 ? `<span style="color:#2ed573; font-size: 12px;">(Subió ${difPos1}) ⬆️</span>` : (difPos1 < 0 ? `<span style="color:#ff4757; font-size: 12px;">(Bajó ${Math.abs(difPos1)}) ⬇️</span>` : `<span style="color:#a4b0be; font-size: 12px;">(Se mantuvo) ➖</span>`);
         
         let difPos2 = snapshotPre.rank2 - snapshotPost.rank2;
-        let flechaPos2 = difPos2 > 0 ? `<span style="color:#2ed573; font-size: 12px;">(Subió ${difPos2}) ⬆️</span>` : (difPos2 < 0 ? `<span style="color:#ff4757; font-size: 12px;">(Bajó ${Math.abs(difPos2)}) ⬇️</span>` : `<span style="color:#aaa; font-size: 12px;">(Se mantuvo) ➖</span>`);
+        let flechaPos2 = difPos2 > 0 ? `<span style="color:#2ed573; font-size: 12px;">(Subió ${difPos2}) ⬆️</span>` : (difPos2 < 0 ? `<span style="color:#ff4757; font-size: 12px;">(Bajó ${Math.abs(difPos2)}) ⬇️</span>` : `<span style="color:#a4b0be; font-size: 12px;">(Se mantuvo) ➖</span>`);
 
         let html = `
-        <div id="tarjetaCaptura" style="background: #1e1e2f; padding: 20px; color: white; font-family: Arial, sans-serif;">
+        <div id="tarjetaCaptura" style="background: #1e1e2f; padding: 20px; color: white; font-family: 'Montserrat', sans-serif;">
+            
             <div style="text-align: center; margin-bottom: 15px;">
-                <h3 style="margin:0; color:#aaa; font-size: 12px; text-transform: uppercase; letter-spacing: 2px;">HEAD TO HEAD</h3>
-                <h2 style="margin:5px 0 0 0; color:#fff;">${bTarget.torneos.franquicia} ${bTarget.torneos.nombre.replace(bTarget.torneos.franquicia,'')}</h2>
+                <h3 style="margin:0; color:#a4b0be; font-size: 12px; text-transform: uppercase; letter-spacing: 2px;">HEAD TO HEAD</h3>
+                <h2 style="margin:5px 0 0 0; color:#fff; font-family: 'Rajdhani', sans-serif; font-size: 26px;">${bTarget.torneos.franquicia} ${bTarget.torneos.nombre.replace(bTarget.torneos.franquicia,'')}</h2>
                 <div style="color:#eccc68; font-size: 14px; font-weight: bold; margin-top: 5px;">[ ${bTarget.fase} ]</div>
             </div>
 
-            <div style="display: flex; justify-content: space-around; align-items: center; margin-bottom: 0px; background: #2f3542; padding: 20px 15px; border-radius: 8px 8px 0 0;">
+            <div style="display: flex; justify-content: space-around; align-items: center; margin-bottom: 0px; background: #2a2a40; padding: 20px 15px; border-radius: 8px 8px 0 0; border: 1px solid rgba(255,255,255,0.05); border-bottom: none;">
                 <div style="text-align: center; flex: 1;">
                     <img src="${img1}" style="width: 90px; height: 90px; object-fit: cover; border-radius: 50%; border: 3px solid #1e90ff;">
-                    <h3 style="margin: 10px 0 0 0; color: #1e90ff; font-size: 20px;">${mc1.aka}</h3>
+                    <h3 style="margin: 10px 0 0 0; color: #1e90ff; font-size: 20px; font-family: 'Rajdhani', sans-serif;">${mc1.aka}</h3>
                 </div>
                 <div style="font-size: 30px; font-weight: bold; color: #ff4757; flex: 0.5; text-align: center; text-shadow: 0px 2px 5px rgba(0,0,0,0.5);">VS</div>
                 <div style="text-align: center; flex: 1;">
                     <img src="${img2}" style="width: 90px; height: 90px; object-fit: cover; border-radius: 50%; border: 3px solid #ff4757;">
-                    <h3 style="margin: 10px 0 0 0; color: #ff4757; font-size: 20px;">${mc2.aka}</h3>
+                    <h3 style="margin: 10px 0 0 0; color: #ff4757; font-size: 20px; font-family: 'Rajdhani', sans-serif;">${mc2.aka}</h3>
                 </div>
             </div>
 
-            <table style="width: 100%; border-collapse: collapse; text-align: center; font-size: 15px; background: #2a2a40;">
-                <tr style="background: #373752; color: white;">
-                    <th style="padding: 12px; width: 33%; color: #1e90ff;">Esquina Azul</th>
-                    <th style="padding: 12px; width: 34%; color: #eccc68; text-transform: uppercase; font-size: 12px; letter-spacing: 1px;">Métricas</th>
-                    <th style="padding: 12px; width: 33%; color: #ff4757;">Esquina Roja</th>
+            <table style="width: 100%; border-collapse: collapse; text-align: center; font-size: 15px; background: #1e1e2f;">
+                <tr style="background: rgba(0,0,0,0.6); color: white;">
+                    <th style="padding: 12px; width: 33%; color: #1e90ff; border: none; text-align:center;">Esquina Azul</th>
+                    <th style="padding: 12px; width: 34%; color: #eccc68; text-transform: uppercase; font-size: 12px; letter-spacing: 1px; border: none; text-align:center;">Métricas</th>
+                    <th style="padding: 12px; width: 33%; color: #ff4757; border: none; text-align:center;">Esquina Roja</th>
                 </tr>
                 
                 <tr style="border-bottom: 1px solid #373752;">
-                    <td style="padding: 12px; font-size: 18px; font-weight: bold; color: #fff;">${bTarget.elo_previo_mc1}</td>
-                    <td style="padding: 12px; font-weight: bold; color: #aaa; background: rgba(0,0,0,0.2);">Elo Previo</td>
-                    <td style="padding: 12px; font-size: 18px; font-weight: bold; color: #fff;">${bTarget.elo_previo_mc2}</td>
+                    <td style="padding: 12px; font-size: 18px; font-weight: bold; color: #fff; border: none;">${bTarget.elo_previo_mc1}</td>
+                    <td style="padding: 12px; font-weight: bold; color: #a4b0be; background: rgba(0,0,0,0.2); border: none;">Elo Previo</td>
+                    <td style="padding: 12px; font-size: 18px; font-weight: bold; color: #fff; border: none;">${bTarget.elo_previo_mc2}</td>
                 </tr>
                 
                 <tr style="border-bottom: 1px solid #373752;">
-                    <td style="padding: 12px; font-size: 16px; font-weight: bold; color: #fff;">#${snapshotPre.rank1}</td>
-                    <td style="padding: 12px; font-weight: bold; color: #aaa; background: rgba(0,0,0,0.2);">Ranking Previo</td>
-                    <td style="padding: 12px; font-size: 16px; font-weight: bold; color: #fff;">#${snapshotPre.rank2}</td>
+                    <td style="padding: 12px; font-size: 16px; font-weight: bold; color: #fff; border: none;">#${snapshotPre.rank1}</td>
+                    <td style="padding: 12px; font-weight: bold; color: #a4b0be; background: rgba(0,0,0,0.2); border: none;">Ranking Previo</td>
+                    <td style="padding: 12px; font-size: 16px; font-weight: bold; color: #fff; border: none;">#${snapshotPre.rank2}</td>
                 </tr>
 
                 <tr style="border-bottom: 1px solid #373752; background: rgba(46, 213, 115, 0.05);">
-                    <td style="padding: 12px; font-size: 16px; color: #fff; font-weight: bold;">${bTarget.elo_previo_mc1 + bTarget.cambio_mc1} <br><span style="font-size: 13px; color: ${bTarget.cambio_mc1 > 0 ? '#2ed573' : '#ff4757'}">(${bTarget.cambio_mc1 > 0 ? '+'+bTarget.cambio_mc1 : bTarget.cambio_mc1})</span></td>
-                    <td style="padding: 12px; font-weight: bold; color: #2ed573; background: rgba(0,0,0,0.2);">Elo Post Batalla</td>
-                    <td style="padding: 12px; font-size: 16px; color: #fff; font-weight: bold;">${bTarget.elo_previo_mc2 + bTarget.cambio_mc2} <br><span style="font-size: 13px; color: ${bTarget.cambio_mc2 > 0 ? '#2ed573' : '#ff4757'}">(${bTarget.cambio_mc2 > 0 ? '+'+bTarget.cambio_mc2 : bTarget.cambio_mc2})</span></td>
+                    <td style="padding: 12px; font-size: 16px; color: #fff; font-weight: bold; border: none;">${bTarget.elo_previo_mc1 + bTarget.cambio_mc1} <br><span style="font-size: 13px; color: ${bTarget.cambio_mc1 > 0 ? '#2ed573' : '#ff4757'}">(${bTarget.cambio_mc1 > 0 ? '+'+bTarget.cambio_mc1 : bTarget.cambio_mc1})</span></td>
+                    <td style="padding: 12px; font-weight: bold; color: #2ed573; background: rgba(0,0,0,0.2); border: none;">Elo Post Batalla</td>
+                    <td style="padding: 12px; font-size: 16px; color: #fff; font-weight: bold; border: none;">${bTarget.elo_previo_mc2 + bTarget.cambio_mc2} <br><span style="font-size: 13px; color: ${bTarget.cambio_mc2 > 0 ? '#2ed573' : '#ff4757'}">(${bTarget.cambio_mc2 > 0 ? '+'+bTarget.cambio_mc2 : bTarget.cambio_mc2})</span></td>
                 </tr>
 
                 <tr style="border-bottom: 1px solid #373752;">
-                    <td style="padding: 12px; font-size: 16px; font-weight: bold; color: #fff;">#${snapshotPost.rank1}<br>${flechaPos1}</td>
-                    <td style="padding: 12px; font-weight: bold; color: #aaa; background: rgba(0,0,0,0.2);">Ranking al Finalizar</td>
-                    <td style="padding: 12px; font-size: 16px; font-weight: bold; color: #fff;">#${snapshotPost.rank2}<br>${flechaPos2}</td>
+                    <td style="padding: 12px; font-size: 16px; font-weight: bold; color: #fff; border: none;">#${snapshotPost.rank1}<br>${flechaPos1}</td>
+                    <td style="padding: 12px; font-weight: bold; color: #a4b0be; background: rgba(0,0,0,0.2); border: none;">Ranking al Finalizar</td>
+                    <td style="padding: 12px; font-size: 16px; font-weight: bold; color: #fff; border: none;">#${snapshotPost.rank2}<br>${flechaPos2}</td>
                 </tr>
 
                 <tr style="border-bottom: 1px solid #373752; border-top: 2px dashed #373752;">
-                    <td style="padding: 12px; font-size: 15px; color: #1e90ff; font-weight: bold;">${snapshotPre.max1} pts</td>
-                    <td style="padding: 12px; font-weight: bold; color: #1e90ff; background: rgba(0,0,0,0.2);">Pico Máx. Histórico</td>
-                    <td style="padding: 12px; font-size: 15px; color: #1e90ff; font-weight: bold;">${snapshotPre.max2} pts</td>
+                    <td style="padding: 12px; font-size: 15px; color: #1e90ff; font-weight: bold; border: none;">${snapshotPre.max1} pts</td>
+                    <td style="padding: 12px; font-weight: bold; color: #1e90ff; background: rgba(0,0,0,0.2); border: none;">Pico Máx. Histórico</td>
+                    <td style="padding: 12px; font-size: 15px; color: #1e90ff; font-weight: bold; border: none;">${snapshotPre.max2} pts</td>
                 </tr>
 
                 <tr>
-                    <td style="padding: 12px; font-size: 15px; color: #eccc68; font-weight: bold;">#${snapshotPre.bestRank1}</td>
-                    <td style="padding: 12px; font-weight: bold; color: #eccc68; background: rgba(0,0,0,0.2);">Mejor Ranking Histórico</td>
-                    <td style="padding: 12px; font-size: 15px; color: #eccc68; font-weight: bold;">#${snapshotPre.bestRank2}</td>
+                    <td style="padding: 12px; font-size: 15px; color: #eccc68; font-weight: bold; border: none;">#${snapshotPre.bestRank1}</td>
+                    <td style="padding: 12px; font-weight: bold; color: #eccc68; background: rgba(0,0,0,0.2); border: none;">Mejor Ranking Histórico</td>
+                    <td style="padding: 12px; font-size: 15px; color: #eccc68; font-weight: bold; border: none;">#${snapshotPre.bestRank2}</td>
                 </tr>
             </table>
         </div>
         
-        <div style="padding: 15px;">
-            <button onclick="descargarCaraACara(this)" style="width: 100%; background: #1e90ff; color: white; padding: 12px; font-size: 16px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">📸 Descargar Imagen para Redes</button>
+        <div style="padding: 15px; background: rgba(0,0,0,0.5); border-top: 1px solid rgba(255,255,255,0.05);">
+            <button onclick="descargarCaraACara(this)" style="width: 100%; background: #1e90ff; color: white; padding: 12px; font-size: 14px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-family: 'Montserrat'; text-transform: uppercase;">📸 Descargar para Redes</button>
         </div>
         `;
         document.getElementById('contenidoAnalisis').innerHTML = html;
@@ -422,7 +439,6 @@ function cerrarAnalisisBatalla() {
     document.getElementById('modalAnalisis').style.display = 'none';
 }
 
-// LA NUEVA FUNCIÓN A PRUEBA DE BALAS PARA TOMAR LA FOTO 📸
 window.descargarCaraACara = function(boton) {
     let tarjeta = document.getElementById('tarjetaCaptura');
     if (!tarjeta) return;
@@ -443,7 +459,6 @@ window.descargarCaraACara = function(boton) {
         });
     };
 
-    // Si el HTML del usuario no tiene la librería, el JS la instala por arte de magia
     if (typeof html2canvas === 'undefined') {
         let script = document.createElement('script');
         script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
@@ -462,9 +477,9 @@ async function cargarFranquiciasPanel() {
 
     let html = '';
     principales.forEach(p => {
-        html += `<li style="display:flex; justify-content:space-between; margin-bottom:5px; background:#2a2a40; padding:8px; border-radius:4px; border-left: 4px solid #1e90ff;"><strong>📂 ${p.nombre}</strong> <button class="btn-borrar" onclick="borrarFranquicia(${p.id})" style="background:transparent; color:#ff4757; padding:0; font-size:16px;">✖</button></li>`;
+        html += `<li style="display:flex; justify-content:space-between; margin-bottom:5px; background:rgba(0,0,0,0.5); padding:10px; border-radius:6px; border-left: 4px solid #1e90ff;"><strong>📂 ${p.nombre}</strong> <button class="action-btn action-btn-del" onclick="borrarFranquicia(${p.id})" style="padding: 5px;">✖</button></li>`;
         let hijos = data.filter(f => f.padre === p.nombre);
-        hijos.forEach(h => { html += `<li style="display:flex; justify-content:space-between; margin-bottom:5px; margin-left:20px; background:#2f3542; padding:8px; border-radius:4px; border-left: 2px solid #eccc68;">↳ ${h.nombre} <button class="btn-borrar" onclick="borrarFranquicia(${h.id})" style="background:transparent; color:#ff4757; padding:0; font-size:16px;">✖</button></li>`; });
+        hijos.forEach(h => { html += `<li style="display:flex; justify-content:space-between; margin-bottom:5px; margin-left:20px; background:rgba(0,0,0,0.3); padding:10px; border-radius:6px; border-left: 2px solid #eccc68;">↳ ${h.nombre} <button class="action-btn action-btn-del" onclick="borrarFranquicia(${h.id})" style="padding: 5px;">✖</button></li>`; });
     });
     document.getElementById('listaFranq').innerHTML = html; 
     

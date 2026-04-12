@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor de Roster - Freestyle Power Ranking Elo</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-color: #0b0c10; --glass-bg: rgba(30, 30, 46, 0.7); --glass-border: rgba(255, 255, 255, 0.05);
+            --neon-cyan: #00d2d3; --neon-red: #ff4757; --neon-green: #2ed573; --neon-gold: #eccc68;
+            --text-main: #f1f2f6; --text-muted: #a4b0be;
+        }
+
+        body { font-family: 'Montserrat', sans-serif; background: radial-gradient(circle at top center, #1a1a2e 0%, var(--bg-color) 100%); color: var(--text-main); margin: 0; min-height: 100vh; }
+
+        .nav-admin { width: 100%; background: rgba(11, 12, 16, 0.9); border-bottom: 2px solid var(--neon-cyan); padding: 15px 0; position: sticky; top: 0; z-index: 100; box-shadow: 0 0 15px rgba(0, 210, 211, 0.2); }
+        .nav-content { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; }
+        .logo { font-family: 'Rajdhani', sans-serif; font-size: 22px; font-weight: 700; color: white; text-transform: uppercase; letter-spacing: 2px; text-decoration: none; }
+        .logo span { color: var(--neon-cyan); }
+        .logo .badge { background: var(--neon-red); color: white; font-size: 10px; padding: 3px 6px; border-radius: 4px; vertical-align: top; margin-left: 5px;}
+        .nav-links a { color: var(--text-muted); text-decoration: none; margin-left: 20px; font-weight: 600; font-size: 14px; transition: 0.3s; }
+        .nav-links a:hover, .nav-links a.active { color: var(--neon-cyan); }
+
+        .container { max-width: 1200px; margin: 40px auto; padding: 0 20px; }
+        
+        .glass-panel { background: var(--glass-bg); backdrop-filter: blur(12px); border: 1px solid var(--glass-border); border-radius: 12px; padding: 30px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4); margin-bottom: 30px; }
+        h2 { font-family: 'Rajdhani', sans-serif; font-size: 28px; color: var(--neon-cyan); margin-top: 0; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;}
+
+        .row-inputs { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 20px;}
+        .row-inputs > div { flex: 1; min-width: 200px; }
+        label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; font-weight: bold; letter-spacing: 1px;}
+        input[type="text"], input[type="date"], select { width: 100%; padding: 12px; background: rgba(0, 0, 0, 0.6); border: 1px solid #373752; color: white; border-radius: 6px; font-family: 'Montserrat', sans-serif; transition: 0.3s; box-sizing: border-box; }
+        input:focus, select:focus { outline: none; border-color: var(--neon-cyan); }
+
+        button { background: var(--neon-cyan); color: var(--bg-color); border: none; padding: 12px 20px; border-radius: 6px; font-weight: 700; font-family: 'Montserrat', sans-serif; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; transition: 0.3s; width: 100%; margin-top: 15px; }
+        button:hover { box-shadow: 0 0 15px rgba(0, 210, 211, 0.5); transform: translateY(-2px); }
+        .btn-danger { background: transparent; color: var(--neon-red); border: 2px solid var(--neon-red); }
+        .btn-danger:hover { background: var(--neon-red); color: white; box-shadow: 0 0 15px rgba(255, 71, 87, 0.5); }
+        .btn-success { background: var(--neon-green); color: var(--bg-color); }
+
+        .roster-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; margin-top: 30px; }
+        .mc-card { background: rgba(0,0,0,0.4); border: 1px solid var(--glass-border); border-radius: 12px; padding: 20px; text-align: center; transition: 0.3s; position: relative; overflow: hidden; cursor: pointer; }
+        .mc-card:hover { transform: translateY(-5px); border-color: var(--neon-cyan); box-shadow: 0 10px 20px rgba(0, 210, 211, 0.1); }
+        .mc-photo { width: 90px; height: 90px; object-fit: cover; border-radius: 50%; border: 3px solid var(--neon-cyan); margin-bottom: 10px; }
+        .mc-name { font-family: 'Rajdhani', sans-serif; font-size: 22px; margin: 0 0 5px 0; color: white; text-transform: uppercase; }
+        .mc-flag { font-size: 18px; margin-bottom: 10px; }
+        .mc-elo { color: var(--neon-gold); font-weight: bold; font-size: 14px; margin-bottom: 15px; }
+        
+        .card-actions { display: flex; gap: 10px; }
+        .btn-edit-card { background: rgba(236, 204, 104, 0.1); color: var(--neon-gold); border: 1px solid var(--neon-gold); padding: 8px; font-size: 12px; margin: 0;}
+        .btn-edit-card:hover { background: var(--neon-gold); color: #000; }
+        .btn-del-card { background: rgba(255, 71, 87, 0.1); color: var(--neon-red); border: 1px solid var(--neon-red); padding: 8px; font-size: 12px; margin: 0;}
+        .btn-del-card:hover { background: var(--neon-red); color: white; }
+
+        /* MODALES Y TABLA HISTORIAL */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); z-index: 999; }
+        .modal-box { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1e1e2f; padding: 30px; border-radius: 12px; border: 1px solid var(--neon-gold); z-index: 1000; width: 90%; max-width: 400px; box-shadow: 0 0 30px rgba(236, 204, 104, 0.2); }
+
+        .history-table { width: 100%; border-collapse: separate; border-spacing: 0 5px; text-align: left; }
+        .history-table th { padding: 12px; color: var(--text-muted); font-size: 11px; text-transform: uppercase; border-bottom: 1px solid var(--glass-border); }
+        .history-table td { padding: 12px; background: rgba(255,255,255,0.02); font-size: 14px; }
+        .history-table tr td:first-child { border-top-left-radius: 6px; border-bottom-left-radius: 6px; }
+        .history-table tr td:last-child { border-top-right-radius: 6px; border-bottom-right-radius: 6px; }
+        .history-table tbody tr:hover td { background: rgba(255,255,255,0.05); }
+
+        .fila-bono td { background: rgba(46, 213, 115, 0.15) !important; border-top: 1px solid rgba(46, 213, 115, 0.3); border-bottom: 1px solid rgba(46, 213, 115, 0.3); }
+
+        .footer { text-align: center; padding: 30px; color: #57606f; font-size: 12px; margin-top: 50px; border-top: 1px solid var(--glass-border); }
+    </style>
+</head>
+<body>
+
+    <nav class="nav-admin">
+        <div class="nav-content">
+            <a href="admin.html" class="logo">FREESTYLE POWER RANKING ELO <span class="badge">ADMIN</span></a>
+            <div class="nav-links">
+                <a href="admin.html">Crear Torneo</a>
+                <a href="museo.html">Museo Histórico</a>
+                <a href="roster.html" class="active">Gestor de Atletas</a>
+                <a href="index.html" style="color: var(--neon-cyan);">Ver Web Pública ↗</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="modal-overlay" id="overlayEditMC"></div>
+    <div class="modal-box" id="modalEditMC">
+        <h2 style="color: var(--neon-gold); border:none; margin-bottom:20px;">✏️ Editar Atleta</h2>
+        <input type="hidden" id="editMcId">
+        <label>A.K.A (Nombre)</label><input type="text" id="editMcAka" style="margin-bottom:15px;">
+        <label>Nacionalidad (Emoji Bandera)</label><input type="text" id="editMcNac" style="margin-bottom:15px;">
+        <label>URL de la Foto</label><input type="text" id="editMcFoto" style="margin-bottom:15px;">
+        
+        <div style="display:flex; gap:10px; margin-top:20px;">
+            <button class="btn-success" onclick="guardarEdicionMC()" style="margin:0;">💾 Guardar</button>
+            <button class="btn-danger" onclick="cerrarEdicionMC()" style="margin:0;">Cancelar</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="overlayPerfil"></div>
+    <div class="modal-box" id="modalPerfil" style="max-width: 900px; padding: 0; overflow: hidden; border-color: var(--neon-cyan); width: 95%; max-height: 95vh; display: none; flex-direction: column;">
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: rgba(0,0,0,0.8); border-bottom: 1px solid var(--glass-border);">
+            <h2 style="margin: 0; color: var(--neon-cyan); font-size: 20px; border: none; padding: 0;">Ficha Técnica del Atleta</h2>
+            <button onclick="cerrarPerfilModal()" style="background: transparent; color: var(--neon-red); width: auto; padding: 0; font-size: 24px; cursor: pointer; margin: 0; box-shadow: none;">✖</button>
+        </div>
+        
+        <div id="areaCapturaFicha" style="background: #1e1e2f; padding: 20px; overflow-y: auto; flex: 1;">
+            
+            <div id="controlesFiltroFicha" style="display: flex; gap: 10px; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 12px; border: 1px dashed #373752; margin-bottom: 20px; flex-wrap: wrap; align-items: flex-end;">
+                <div style="flex:1; min-width: 120px;"><label>Universo</label><select id="modalModoPerfil"><option value="historico">Global</option><option value="aislado">Aislado</option></select></div>
+                <div style="flex:1; min-width: 120px;"><label>Franquicia</label><select id="modalFranqPerfil"></select></div>
+                <div style="flex:1; min-width: 120px;"><label>Desde</label><input type="date" id="modalDesdePerfil"></div>
+                <div style="flex:1; min-width: 120px;"><label>Hasta</label><input type="date" id="modalHastaPerfil"></div>
+                <div style="flex:0.5; min-width: 100px;">
+                    <button class="btn-success" onclick="aplicarFiltroModal()" style="margin:0; width:100%; height: 40px;">APLICAR</button>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 250px; background: rgba(0,0,0,0.4); padding: 20px; border-radius: 12px; border: 1px solid var(--glass-border); text-align: center; position: relative;">
+                    <img id="modalImgMC" src="" style="width: 120px; height: 120px; object-fit: cover; border-radius: 50%; border: 3px solid var(--neon-cyan); margin-bottom: 10px;">
+                    <div id="modalBanderaMC" style="position: absolute; top: 20px; right: 20px; font-size: 24px; background: var(--bg-color); border-radius: 50%; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center;"></div>
+                    <h3 id="modalAkaMC" style="margin: 0; font-size: 28px; color: white; font-family: 'Rajdhani'; text-transform: uppercase;"></h3>
+                    
+                    <div style="background: rgba(0,0,0,0.5); padding: 15px; border-radius: 8px; margin-top: 15px;">
+                        <div id="modalEloMC" style="font-size: 36px; font-weight: bold; color: var(--neon-gold); font-family: 'Rajdhani'; line-height: 1;">1500</div>
+                        <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Power Rating (Elo)</div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 15px;">
+                        <div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px;">
+                            <div id="modalRank" style="font-size: 16px; font-weight: bold; color: #a29bfe;">#0</div>
+                            <div style="font-size: 9px; color: var(--text-muted); text-transform: uppercase;">Rank</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px;">
+                            <div id="modalWinRate" style="font-size: 16px; font-weight: bold; color: var(--neon-green);">0%</div>
+                            <div style="font-size: 9px; color: var(--text-muted); text-transform: uppercase;">Win %</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px;">
+                            <div id="modalBatallas" style="font-size: 16px; font-weight: bold; color: white;">0</div>
+                            <div style="font-size: 9px; color: var(--text-muted); text-transform: uppercase;">Batallas</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px;">
+                            <div id="modalPeak" style="font-size: 16px; font-weight: bold; color: var(--neon-cyan);">0</div>
+                            <div style="font-size: 9px; color: var(--text-muted); text-transform: uppercase;">Peak</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="flex: 2; min-width: 300px; background: rgba(0,0,0,0.4); padding: 20px; border-radius: 12px; border: 1px solid var(--glass-border); min-height: 250px; position: relative;">
+                    <canvas id="modalChart"></canvas>
+                </div>
+            </div>
+
+            <div id="historialAdminWrap" style="margin-top: 20px; background: rgba(0,0,0,0.4); padding: 20px; border-radius: 12px; border: 1px solid var(--glass-border);">
+                <h3 style="font-family: 'Rajdhani'; font-size: 20px; color: var(--neon-cyan); margin-top: 0; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">Historial de Combates</h3>
+                <div style="overflow-x: auto;">
+                    <table class="history-table">
+                        <thead>
+                            <tr><th>Fecha</th><th>Evento</th><th>Fase</th><th>Oponente</th><th>Resultado</th><th>Elo Previo</th><th>+/-</th></tr>
+                        </thead>
+                        <tbody id="modalCuerpoHistorial"></tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div id="marcaAgua" style="display: none; text-align: center; margin-top: 15px; font-family: 'Rajdhani'; color: var(--neon-cyan); letter-spacing: 2px; font-weight: bold;">FREESTYLE POWER RANKING ELO</div>
+        </div>
+
+        <div style="padding: 15px; background: rgba(0,0,0,0.8); border-top: 1px solid var(--glass-border);">
+            <button onclick="descargarFichaAdmin(this)" style="width: 100%; background: #1e90ff; color: white; padding: 12px; font-size: 14px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-family: 'Montserrat'; text-transform: uppercase; margin: 0;">📸 Exportar Ficha Técnica</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="glass-panel" style="border-top: 4px solid var(--neon-green);">
+            <h2 style="color: var(--neon-green);">➕ Inscribir Nuevo Competidor</h2>
+            <div class="row-inputs">
+                <div><label>A.K.A (Nombre Profesional)</label><input type="text" id="nuevoAka" placeholder="Ej: Aczino"></div>
+                <div><label>Bandera (Emoji)</label><input type="text" id="nuevaNac" placeholder="Ej: 🇲🇽"></div>
+                <div style="flex: 2;"><label>URL de Foto (Opcional)</label><input type="text" id="nuevaFoto" placeholder="https://ejemplo.com/foto.jpg"></div>
+            </div>
+            <button class="btn-success" onclick="agregarMC()" style="width: auto; padding: 12px 40px;">Registrar en Base de Datos</button>
+        </div>
+
+        <div class="glass-panel">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--glass-border); padding-bottom: 15px;">
+                <h2 style="margin: 0; border: none;">🗃️ Roster Oficial</h2>
+                <input type="text" id="buscadorRoster" placeholder="🔍 Buscar MC..." onkeyup="filtrarRoster()" style="width: 250px; padding: 8px; margin: 0;">
+            </div>
+            
+            <div id="rosterGrid" class="roster-grid"></div>
+        </div>
+    </div>
+
+    <div class="footer">FREESTYLE POWER RANKING ELO V3.0 © 2026 | Área Administrativa</div>
+
+    <script type="module" src="js/roster.js?v=4.0"></script> 
+</body>
+</html>

@@ -2,181 +2,246 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Registro Histórico - Liga Fénix</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ranking Global - Freestyle Power Ranking Elo</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
+    
     <style>
-        /* Modal Flotante */
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 999; }
-        .modal-box { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #2a2a40; padding: 30px; border-radius: 8px; border: 2px dashed #1e90ff; z-index: 1000; width: 90%; max-width: 450px; box-shadow: 0 0 20px rgba(0,0,0,0.8); }
-        body { font-family: Arial, sans-serif; background-color: #1e1e2f; color: white; padding: 20px; }
-        .panel { background: #2a2a40; padding: 20px; border-radius: 8px; max-width: 800px; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
-        input[type="text"], select, input[type="date"] { width: 100%; padding: 10px; margin: 10px 0; border-radius: 5px; border: none; box-sizing: border-box; background: #fff; color: #333;}
-        button { background-color: #ff4757; color: white; border: none; padding: 12px; width: 100%; cursor: pointer; font-weight: bold; border-radius: 5px; font-size: 16px; margin-top: 15px; }
-        button:hover { background-color: #ff6b81; }
-        
-        .navegacion { text-align: center; margin-bottom: 20px; display: flex; justify-content: center; gap: 15px;}
-        .navegacion a { color: #1e90ff; text-decoration: none; font-weight: bold; background: #2f3542; padding: 10px 20px; border-radius: 5px; }
-        .navegacion a:hover { background: #373752; }
-        
-        .row-inputs { display: flex; gap: 10px; }
-        .row-inputs > div { flex: 1; }
+        :root {
+            --bg-color: #0b0c10;
+            --glass-bg: rgba(20, 20, 35, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.05);
+            --neon-cyan: #00d2d3;
+            --neon-gold: #feca57;
+            --text-main: #f1f2f6;
+            --text-muted: #a4b0be;
+        }
 
-        .buscador-wrapper { position: relative; width: 100%; margin-top: 10px; }
-        .sugerencias-box { position: absolute; top: 100%; left: 0; right: 0; background: #fff; color: #333; border-radius: 0 0 5px 5px; max-height: 200px; overflow-y: auto; z-index: 10; display: none; }
-        .sugerencia-item { padding: 12px; cursor: pointer; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; }
-        .sugerencia-item:hover { background: #f0f8ff; color: #1e90ff; font-weight: bold; }
-        .chips-container { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; min-height: 45px; padding: 10px; background: #1e1e2f; border-radius: 5px; border: 1px dashed #373752;}
-        .chip { background: #1e90ff; color: white; padding: 8px 15px; border-radius: 20px; display: flex; align-items: center; gap: 8px; font-size: 14px;}
-        .chip-btn { background: rgba(0,0,0,0.2); border: none; color: white; border-radius: 50%; width: 22px; height: 22px; cursor: pointer; display: flex; justify-content: center; align-items: center; padding: 0; margin: 0;}
-        .chip-btn:hover { background: #ff4757; }
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background: radial-gradient(circle at top center, #1a1a2e 0%, var(--bg-color) 100%);
+            color: var(--text-main);
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
 
-        .grid-fase { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin-bottom: 30px;}
-        .batalla-caja { background: #1e1e2f; padding: 15px; border-radius: 5px; border-left: 4px solid #ff4757; text-align: center; position: relative;}
-        .batalla-caja h4 { margin-top: 0; color: #ff6b81; margin-bottom: 10px;}
-        .versus { font-size: 16px; font-weight: bold; margin-bottom: 10px; background: #2f3542; padding: 10px; border-radius: 5px; display: flex; justify-content: space-around; align-items: center;}
-        .mc-name { color: #1e90ff; flex: 1; text-align: center;}
-        .vs-text { color: white; font-size: 12px; margin: 0 10px; }
-        .setup-cruce { background: #1e1e2f; padding: 10px; border-radius: 5px; border: 1px solid #373752; }
-        .btn-batalla { background-color: #1e90ff; margin-top: 10px; }
-        .btn-batalla:hover { background-color: #3742fa; }
-        .btn-batalla:disabled { background-color: #57606f; cursor: not-allowed; }
-        .btn-cerrar { background-color: #eccc68; color: #2f3542; font-size: 18px;}
+        /* NAVEGACIÓN PÚBLICA */
+        .nav-public {
+            width: 100%;
+            background: rgba(11, 12, 16, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--glass-border);
+            padding: 15px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .nav-content {
+            max-width: 1000px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+        }
+
+        .logo {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 20px;
+            font-weight: 700;
+            color: white;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-decoration: none;
+        }
+
+        .logo span { color: var(--neon-cyan); }
+
+        .nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            margin-left: 20px;
+            font-weight: 600;
+            font-size: 14px;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover { color: var(--neon-cyan); }
+        .nav-links a.active { color: var(--neon-cyan); }
+
+        /* CONTENEDOR PRINCIPAL */
+        .container {
+            max-width: 1000px;
+            width: 100%;
+            padding: 40px 20px;
+            box-sizing: border-box;
+        }
+
+        .hero-title {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 48px;
+            text-align: center;
+            margin: 0 0 5px 0;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+        }
+
+        .hero-subtitle {
+            text-align: center;
+            color: var(--neon-cyan);
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 5px;
+            margin-bottom: 40px;
+        }
+
+        /* EFECTO CRISTAL */
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+
+        /* FILTROS */
+        .filters-grid {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+
+        .filter-group { flex: 1; min-width: 150px; }
+        .filter-group label { display: block; font-size: 11px; color: var(--text-muted); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
+        
+        input[type="date"], select {
+            width: 100%;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #373752;
+            color: white;
+            border-radius: 6px;
+            font-family: 'Montserrat', sans-serif;
+            transition: all 0.3s;
+            box-sizing: border-box;
+        }
+
+        input:focus, select:focus { outline: none; border-color: var(--neon-cyan); box-shadow: 0 0 10px rgba(0, 210, 211, 0.2); }
+
+        .btn-neon {
+            background: transparent;
+            color: var(--neon-cyan);
+            border: 2px solid var(--neon-cyan);
+            padding: 12px 25px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-family: 'Montserrat', sans-serif;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s;
+            width: 100%;
+        }
+
+        .btn-neon:hover { background: var(--neon-cyan); color: var(--bg-color); box-shadow: 0 0 15px rgba(0, 210, 211, 0.6); }
+
+        /* TABLA DE RANKING V3.0 */
+        .ranking-wrapper { overflow-x: auto; }
+        table { width: 100%; border-collapse: separate; border-spacing: 0 8px; }
+        
+        th { padding: 15px; text-align: left; color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 2px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        td { padding: 16px 15px; background: rgba(255, 255, 255, 0.02); border-top: 1px solid rgba(255, 255, 255, 0.03); border-bottom: 1px solid rgba(255, 255, 255, 0.03); font-family: 'Rajdhani', sans-serif; font-size: 18px; transition: all 0.2s ease; }
+
+        tr td:first-child { border-left: 1px solid rgba(255, 255, 255, 0.03); border-top-left-radius: 8px; border-bottom-left-radius: 8px; font-weight: bold; color: var(--text-muted);}
+        tr td:last-child { border-right: 1px solid rgba(255, 255, 255, 0.03); border-top-right-radius: 8px; border-bottom-right-radius: 8px; color: var(--text-muted);}
+
+        tbody tr:hover td { background: rgba(0, 210, 211, 0.08); transform: scale(1.01); cursor: pointer; border-color: rgba(0, 210, 211, 0.3); }
+
+        tbody tr:nth-child(1) td { background: rgba(254, 202, 87, 0.05); border-color: rgba(254, 202, 87, 0.2); }
+        tbody tr:nth-child(1) td:nth-child(1) { color: var(--neon-gold); text-shadow: 0 0 10px rgba(254, 202, 87, 0.5); font-size: 22px; }
+        tbody tr:nth-child(1) td:nth-child(2) { font-weight: bold; color: var(--neon-gold); }
+
+        tbody tr:nth-child(2) td:nth-child(1) { color: #c8d6e5; font-size: 20px; }
+        tbody tr:nth-child(3) td:nth-child(1) { color: #cd6133; font-size: 19px; }
+
+        .footer { text-align: center; padding: 30px; color: #57606f; font-size: 12px; margin-top: auto; }
     </style>
 </head>
 <body>
-    <div class="modal-overlay" id="overlayReordenar"></div>
-    <div class="modal-box" id="modalReordenar">
-        <h2 style="margin-top:0; color:#1e90ff;">🔄 Reordenar Llave</h2>
-        <p style="font-size: 13px; color:#aaa;">Cambia los MCs de esta batalla si hubo un error en los cruces anteriores.</p>
-        
-        <label style="color: #eccc68; font-size:12px; font-weight:bold;">Competidor Lado Izquierdo:</label>
-        <select id="reordenarMC1"></select>
-        
-        <label style="color: #eccc68; font-size:12px; font-weight:bold; margin-top:10px; display:block;">Competidor Lado Derecho:</label>
-        <select id="reordenarMC2"></select>
-        
-        <input type="hidden" id="reordenarFase">
-        
-        <div style="display:flex; gap:10px; margin-top:20px;">
-            <button style="background:#2ed573; flex:1;" onclick="guardarReorden()">💾 Confirmar</button>
-            <button style="background:#ff4757; flex:1;" onclick="cerrarReorden()">❌ Cancelar</button>
+
+    <nav class="nav-public">
+        <div class="nav-content">
+            <a href="index.html" class="logo">FREESTYLE POWER <span>RANKING ELO</span></a>
+            <div class="nav-links">
+                <a href="index.html" class="active">LEADERBOARD</a>
+                <a href="perfil.html">PERFILES</a>
+                <a href="login.html" style="opacity: 0.5;">ADMIN LOGIN 🔒</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h1 class="hero-title">Leaderboard Oficial</h1>
+        <p class="hero-subtitle" id="tituloTabla">Clasificación Histórica Global</p>
+
+        <div class="glass-panel">
+            <div class="filters-grid">
+                <div class="filter-group">
+                    <label>Franquicia</label>
+                    <select id="filtroFranquicia"></select>
+                </div>
+                <div class="filter-group">
+                    <label>Modo de Análisis</label>
+                    <select id="modoAnalisisCalc">
+                        <option value="historico">Línea Temporal (Global)</option>
+                        <option value="aislado">Universo Aislado (Reset 1500)</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Fecha Desde</label>
+                    <input type="date" id="filtroDesde">
+                </div>
+                <div class="filter-group">
+                    <label>Fecha Hasta</label>
+                    <input type="date" id="filtroHasta">
+                </div>
+                <div class="filter-group" style="flex: 0.5;">
+                    <button class="btn-neon" onclick="aplicarFiltros()">APLICAR</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="ranking-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 10%;">Rank</th>
+                        <th style="width: 50%;">Competidor</th>
+                        <th style="width: 20%;">Puntos Elo</th>
+                        <th style="width: 20%;">Batallas</th>
+                    </tr>
+                </thead>
+                <tbody id="cuerpoRanking">
+                    <tr><td colspan="4" style="text-align: center; color: #a4b0be; padding: 40px;">Cargando base de datos estelar...</td></tr>
+                </tbody>
+            </table>
         </div>
     </div>
 
-    <div class="navegacion">
-        <a href="batallas.html">⚙️ Calculadora</a>
-        <a href="index.html" style="background: #1e90ff; color: white;">🏆 Torneos</a>
-        <a href="museo.html">🏛️ Museo</a>
-        <a href="perfil.html">👤 Perfil Atleta</a>
+    <div class="footer">
+        FREESTYLE POWER RANKING ELO V3.0 © 2026
     </div>
 
-    <div class="panel" id="panelSeleccion">
-        <h2>Paso 1: Datos del Evento Histórico</h2>
-        <input type="text" id="nombreTorneo" placeholder="Ej: Red Bull Nacional España 2026">
-        
-        <div class="row-inputs">
-            <div>
-                <label>Franquicia:</label>
-                <select id="franquiciaTorneo"></select>
-            </div>
-            <div>
-                <label>Formato (Tamaño):</label>
-                <select id="formatoTorneo" onchange="cambiarFormato()">
-                    <option value="16">Eliminatoria (16 MCs)</option>
-                    <option value="8">Eliminatoria (8 MCs)</option>
-                    <option value="4">Eliminatoria (4 MCs)</option>
-                    <option value="liga" style="font-weight: bold; color: #1e90ff;">📊 Modo Liga (Jornada Libre)</option>
-                </select>
-            </div>
-            <div>
-                <label>Fecha Real del Evento:</label>
-                <input type="date" id="fechaTorneo">
-            </div>
-        </div>
-        
-        <h3 style="margin-bottom: 5px; margin-top: 25px;" id="tituloRoster">Roster del Torneo (Elige 16 MCs)</h3>
-        <div class="buscador-wrapper">
-            <input type="text" id="buscadorMCs" placeholder="🔍 Escribe el nombre del MC..." onkeyup="filtrarBuscador()" autocomplete="off">
-            <div id="sugerenciasMCs" class="sugerencias-box"></div>
-        </div>
-        <div id="contenedorChips" class="chips-container"><span style="color: #57606f; margin: auto;">Esperando competidores...</span></div>
-        
-        <button onclick="irACruces()">Continuar a los Cruces ➡️</button>
-    </div>
-
-    <div class="panel" id="panelCreacion" style="display: none;">
-        <h2 id="tituloFaseArmado">Paso 2: Cruces Oficiales</h2>
-        <p id="tituloPaso2" style="color: #2ed573; font-weight: bold;"></p>
-        
-        <div id="contenedorSetupCruces" class="grid-fase"></div> 
-
-        <div id="setupLigaDiv" style="display: none; background: #2a2a40; border: 2px dashed #1e90ff; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-            <h3 style="margin-top: 0; color: #1e90ff;">Crear Enfrentamientos de Jornada</h3>
-            <p style="font-size: 13px; color: #aaa;">Puedes añadir tantas batallas como quieras. Recuerda registrar en orden cronológico.</p>
-            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                <input type="text" id="ligaFase" placeholder="Fase (Ej: Jornada 1)" value="Jornada 1" style="flex: 1; min-width: 100px; margin: 0;">
-                <select id="ligaMC1" style="flex: 2; min-width: 150px; margin: 0;"></select>
-                <span style="font-weight: bold;">VS</span>
-                <select id="ligaMC2" style="flex: 2; min-width: 150px; margin: 0;"></select>
-                <button onclick="agregarBatallaLiga()" style="margin: 0; background: #2ed573; flex: 1;">➕ Añadir Batalla</button>
-            </div>
-            <div id="listaBatallasLiga" style="margin-top: 15px;"></div>
-        </div>
-
-        <button onclick="iniciarTorneo()">Confirmar Cuadro e Iniciar Evento</button>
-        <button onclick="location.reload()" style="background-color: #57606f; margin-top: 10px;">⬅️ Volver y Reiniciar</button>
-        <div id="mensajeConsola" style="margin-top: 20px; text-align: center; color: #2ed573;"></div>
-    </div>
-
-    <div class="panel" id="panelTorneoActivo" style="display: none;">
-        <h2 id="tituloTorneoActivo" style="text-align: center; font-size: 28px;">Torneo en Curso</h2>
-        <p id="infoPozoActivo" style="color: #eccc68; font-weight: bold; text-align: center; margin-bottom: 30px;"></p>
-
-        <div id="zonaOctavos">
-            <h3 style="color: #1e90ff; border-bottom: 1px solid #373752; padding-bottom: 10px;">🔥 Octavos de Final</h3>
-            <div id="bracketOctavos" class="grid-fase"></div>
-        </div>
-        <div id="zonaCuartos">
-            <h3 style="color: #2ed573; border-bottom: 1px solid #373752; padding-bottom: 10px; margin-top: 40px;">⚡ Cuartos de Final</h3>
-            <div id="bracketCuartos" class="grid-fase"></div>
-        </div>
-        <div id="zonaSemis">
-            <h3 style="color: #ff6b81; border-bottom: 1px solid #373752; padding-bottom: 10px; margin-top: 40px;">🌪️ Semifinales</h3>
-            <div id="bracketSemis" class="grid-fase"></div>
-        </div>
-        
-        <div id="zonaFinal" style="display: flex; gap: 20px; flex-wrap: wrap; margin-top: 40px;">
-            <div style="flex: 1; min-width: 300px;">
-                <h3 style="color: #eccc68; border-bottom: 1px solid #373752; padding-bottom: 10px; margin-top: 0;">🏆 Gran Final</h3>
-                <div id="bracketFinal" class="grid-fase" style="grid-template-columns: 1fr;"></div>
-            </div>
-            <div style="flex: 1; min-width: 300px;">
-                <h3 style="color: #cd84f1; border-bottom: 1px solid #373752; padding-bottom: 10px; margin-top: 0;">🥉 3er y 4to Puesto</h3>
-                <div id="bracketTercero" class="grid-fase" style="grid-template-columns: 1fr;"></div>
-            </div>
-        </div>
-
-        <div id="zonaLigaActiva" style="display: none;">
-            <h3 style="color: #1e90ff; border-bottom: 1px solid #373752; padding-bottom: 10px;">📊 Panel de Jornada Activa</h3>
-            <div id="bracketLiga" class="grid-fase"></div>
-        </div>
-
-        <div id="resumen_final" style="display: none; text-align: center; margin-top: 40px; background: #1e1e2f; padding: 20px; border-radius: 5px; border: 2px solid #eccc68;">
-            <div id="cierre_eliminatoria">
-                <h3 style="color: #2ed573; margin-top: 0;">¡Torneo Concluido!</h3>
-                <p>👑 Campeón: <strong id="c_camp" style="color: #eccc68; font-size: 20px;"></strong></p>
-                <p>🥈 Subcampeón: <strong id="c_sub"></strong></p>
-                <p>🥉 Tercer Lugar: <strong id="c_tercero" style="color: #cd84f1;"></strong></p>
-                <button class="btn-cerrar" onclick="cerrarTorneoAutomatico()">Repartir Pozo y Finalizar Registro</button>
-            </div>
-            <div id="cierre_liga" style="display: none;">
-                <h3 style="color: #2ed573; margin-top: 0;">Opciones de Liga</h3>
-                <p style="color: #aaa;">Las batallas de liga se guardan al instante. Cuando termines la jornada, cierra el panel.</p>
-                <button class="btn-cerrar" onclick="cerrarLiga()">🏁 Finalizar Jornada</button>
-            </div>
-        </div>
-    </div>
-
-    <div style="position: fixed; bottom: 10px; right: 15px; color: #57606f; font-size: 14px; font-weight: bold; pointer-events: none; z-index: 9999;">V2.7.2</div>
-    <script type="module" src="js/torneos.js"></script> 
+    <script type="module" src="js/calculadora.js?v=5.0"></script>
 </body>
 </html>

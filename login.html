@@ -2,31 +2,102 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Login - Liga Fénix</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login - Freestyle Power Ranking Elo</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+    
     <style>
-        body { font-family: Arial, sans-serif; background-color: #1e1e2f; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .login-box { background: #2a2a40; padding: 40px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); text-align: center; width: 300px; border-top: 5px solid #1e90ff;}
-        input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 5px; border: none; box-sizing: border-box; background: #fff; color: #333;}
-        button { background-color: #1e90ff; color: white; border: none; padding: 12px; width: 100%; cursor: pointer; font-weight: bold; border-radius: 5px; font-size: 16px; margin-top: 10px;}
-        button:hover { background-color: #3742fa; }
-        .volver { display: block; margin-top: 20px; color: #aaa; text-decoration: none; font-size: 14px;}
-        .volver:hover { color: white; }
+        :root {
+            --bg-color: #0b0c10;
+            --glass-bg: rgba(30, 30, 46, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.05);
+            --neon-cyan: #00d2d3;
+            --neon-red: #ff4757;
+            --text-main: #f1f2f6;
+            --text-muted: #a4b0be;
+        }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background: radial-gradient(circle at center, #1a1a2e 0%, var(--bg-color) 100%);
+            color: var(--text-main);
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .login-container {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--neon-cyan);
+            border-radius: 12px;
+            padding: 40px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 0 30px rgba(0, 210, 211, 0.2);
+            text-align: center;
+        }
+
+        .logo {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 24px;
+            font-weight: 700;
+            color: white;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 30px;
+        }
+        .logo span { color: var(--neon-cyan); }
+        .logo .badge { background: var(--neon-red); color: white; font-size: 10px; padding: 3px 6px; border-radius: 4px; vertical-align: top; margin-left: 5px;}
+
+        .input-group { margin-bottom: 20px; text-align: left; }
+        label { display: block; font-size: 11px; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; font-weight: bold; letter-spacing: 1px;}
+        
+        input[type="email"], input[type="password"] {
+            width: 100%; padding: 15px; background: rgba(0, 0, 0, 0.6); border: 1px solid #373752; color: white; border-radius: 6px; font-family: 'Montserrat', sans-serif; transition: 0.3s; box-sizing: border-box; font-size: 14px;
+        }
+        input:focus { outline: none; border-color: var(--neon-cyan); box-shadow: 0 0 10px rgba(0, 210, 211, 0.2); }
+
+        button {
+            background: var(--neon-cyan); color: var(--bg-color); border: none; padding: 15px; border-radius: 6px; font-weight: 700; font-family: 'Montserrat', sans-serif; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; transition: 0.3s; width: 100%; font-size: 14px; margin-top: 10px;
+        }
+        button:hover { box-shadow: 0 0 20px rgba(0, 210, 211, 0.6); transform: translateY(-2px); }
+        
+        .btn-volver {
+            background: transparent; color: var(--text-muted); margin-top: 20px; border: 1px solid transparent; font-size: 12px;
+        }
+        .btn-volver:hover { background: rgba(255,255,255,0.05); color: white; box-shadow: none; transform: none;}
+
+        #mensajeError { color: var(--neon-red); font-size: 13px; margin-top: 15px; font-weight: bold; min-height: 20px; }
     </style>
 </head>
 <body>
-    <div class="login-box">
-        <h2 style="margin-top: 0; color: #1e90ff;">🔐 Acceso Oficial</h2>
-        <p style="color: #aaa; font-size: 14px;">Solo para administradores de la liga.</p>
+
+    <div class="login-container">
+        <div class="logo">POWER RANKING <span class="badge">ADMIN</span></div>
         
-        <input type="email" id="email" placeholder="Correo Electrónico">
-        <input type="password" id="password" placeholder="Contraseña">
-        
-        <button onclick="iniciarSesion()">Entrar a la Base de Datos</button>
-        <p id="msgError" style="color: #ff4757; font-size: 14px; display: none;">Credenciales incorrectas.</p>
-        
-        <a href="batallas.html" class="volver">⬅️ Volver como Espectador</a>
+        <form id="formLogin">
+            <div class="input-group">
+                <label>Correo de Administrador</label>
+                <input type="email" id="email" placeholder="admin@eos.com" required autocomplete="off">
+            </div>
+            <div class="input-group">
+                <label>Contraseña de Acceso</label>
+                <input type="password" id="password" placeholder="••••••••" required>
+            </div>
+            
+            <button type="submit" id="btnIngresar">Desbloquear Sistema</button>
+            <div id="mensajeError"></div>
+        </form>
+
+        <button class="btn-volver" onclick="window.location.href='index.html'">⬅️ Volver al Leaderboard Público</button>
     </div>
-    <script type="module" src="js/login.js"></script>
-    <div style="position: fixed; bottom: 10px; right: 15px; color: #57606f; font-size: 14px; font-weight: bold; pointer-events: none; z-index: 9999;">V2.7.2</div>
+
+    <script type="module" src="js/login.js?v=2.0"></script>
 </body>
 </html>
