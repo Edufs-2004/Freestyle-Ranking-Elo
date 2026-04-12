@@ -227,16 +227,15 @@ async function guardarEdicionBatalla(recalcular = true) {
     
     document.getElementById('modalEditBat').innerHTML = `
         <h2 style="margin-top:0; color:#1e90ff;">⚙️ Editor Quirúrgico</h2>
-        <p style="font-size: 13px; color:#aaa;">Usa <b>"Aplicar"</b> para cambios rápidos (requiere recálculo manual después), o <b>"Aplicar y Recalcular"</b> para arreglar todo al instante.</p>
-        <label style="font-size: 12px; color: #eccc68; font-weight: bold;">Fase:</label> <input type="text" id="editBatFase">
-        <label style="font-size: 12px; color: #eccc68; font-weight: bold;">MC Izquierdo:</label> <select id="editBatMC1"></select>
-        <label style="font-size: 12px; color: #eccc68; font-weight: bold;">MC Derecho:</label> <select id="editBatMC2"></select>
-        <label style="font-size: 12px; color: #eccc68; font-weight: bold;">Resultado:</label>
-        <select id="editBatRes"><option value="victoria">Victoria Normal</option><option value="victoria_replica">Victoria tras Réplica</option><option value="derrota_replica">Derrota tras Réplica</option><option value="derrota">Derrota Normal</option><option value="victoria_total">Victoria Total</option><option value="derrota_total">Derrota Total</option></select>
+        <input type="text" id="editBatFase"> <select id="editBatMC1"></select> <select id="editBatMC2"></select>
+        <select id="editBatRes">
+            <option value="victoria">Victoria Normal</option><option value="victoria_replica">Victoria tras Réplica</option><option value="derrota_replica">Derrota tras Réplica</option>
+            <option value="derrota">Derrota Normal</option><option value="victoria_total">Victoria Total</option><option value="derrota_total">Derrota Total</option>
+        </select>
         <div style="display:flex; gap:10px; margin-top:20px;">
-            <button style="background:#eccc68; color:#2f3542; flex:1; font-size:12px;" onclick="guardarEdicionBatalla(false)">💾 Aplicar</button>
-            <button style="background:#2ed573; flex:1; font-size:12px;" onclick="guardarEdicionBatalla(true)">🔄 Aplicar y Recalcular</button>
-            <button style="background:#ff4757; flex:1; font-size:12px;" onclick="cerrarEdicionBatalla()">❌ Cancelar</button>
+            <button style="background:#eccc68; color:#2f3542; flex:1;" onclick="guardarEdicionBatalla(false)">💾 Aplicar</button>
+            <button style="background:#2ed573; flex:1;" onclick="guardarEdicionBatalla(true)">🔄 Recalcular</button>
+            <button style="background:#ff4757; flex:1;" onclick="cerrarEdicionBatalla()">❌ Cancelar</button>
         </div>`;
     
     cargarMcsParaEdicion(); verTorneo(torneoAbiertoId, torneoAbiertoNombre);
@@ -248,7 +247,7 @@ async function guardarEdicionBatalla(recalcular = true) {
 async function abrirAnalisisBatalla(idBatalla) {
     document.getElementById('overlayAnalisis').style.display = 'block';
     document.getElementById('modalAnalisis').style.display = 'block';
-    document.getElementById('contenidoAnalisis').innerHTML = '<h3 style="text-align:center; color:#eccc68; margin-top: 40px;">⏳ Viajando en el tiempo para extraer datos...</h3>';
+    document.getElementById('contenidoAnalisis').innerHTML = '<h3 style="text-align:center; color:#eccc68; padding: 40px;">⏳ Viajando en el tiempo...</h3>';
 
     try {
         const { data: bTarget } = await supabase.from('batallas').select('*, torneos(nombre, franquicia)').eq('id', idBatalla).single();
@@ -259,7 +258,7 @@ async function abrirAnalisisBatalla(idBatalla) {
         
         document.getElementById('analisisTitulo').innerText = `${bTarget.torneos.franquicia} - ${bTarget.torneos.nombre} [${bTarget.fase}]`;
 
-        // EL SECRETO CRONOLÓGICO: Obtenemos torneos por fecha primero
+        // EL SECRETO CRONOLÓGICO
         const { data: torneosData } = await supabase.from('torneos').select('id, fecha_evento').order('fecha_evento', { ascending: true });
         const { data: batallasData } = await supabase.from('batallas').select('id, torneo_id, fase, mc1_id, mc2_id, cambio_mc1, cambio_mc2, resultado');
 
@@ -269,7 +268,7 @@ async function abrirAnalisisBatalla(idBatalla) {
             bts.sort((a, b) => {
                 if (a.resultado === 'bono' && b.resultado !== 'bono') return 1;
                 if (a.resultado !== 'bono' && b.resultado === 'bono') return -1;
-                return a.id - b.id; // Mantiene el orden interno del evento
+                return a.id - b.id; 
             });
             todasBatallasOrdenadas.push(...bts);
         }
@@ -337,69 +336,76 @@ async function abrirAnalisisBatalla(idBatalla) {
         let img2 = mc2.foto || 'https://via.placeholder.com/150/373752/FFFFFF?text=MC2';
         
         let difPos1 = snapshotPre.rank1 - snapshotPost.rank1; 
-        let flechaPos1 = difPos1 > 0 ? `<span style="color:#2ed573; font-size: 11px;">(Subió ${difPos1}) ⬆️</span>` : (difPos1 < 0 ? `<span style="color:#ff4757; font-size: 11px;">(Bajó ${Math.abs(difPos1)}) ⬇️</span>` : `<span style="color:#aaa; font-size: 11px;">(Se mantuvo) ➖</span>`);
+        let flechaPos1 = difPos1 > 0 ? `<span style="color:#2ed573; font-size: 12px;">(Subió ${difPos1}) ⬆️</span>` : (difPos1 < 0 ? `<span style="color:#ff4757; font-size: 12px;">(Bajó ${Math.abs(difPos1)}) ⬇️</span>` : `<span style="color:#aaa; font-size: 12px;">(Se mantuvo) ➖</span>`);
         
         let difPos2 = snapshotPre.rank2 - snapshotPost.rank2;
-        let flechaPos2 = difPos2 > 0 ? `<span style="color:#2ed573; font-size: 11px;">(Subió ${difPos2}) ⬆️</span>` : (difPos2 < 0 ? `<span style="color:#ff4757; font-size: 11px;">(Bajó ${Math.abs(difPos2)}) ⬇️</span>` : `<span style="color:#aaa; font-size: 11px;">(Se mantuvo) ➖</span>`);
+        let flechaPos2 = difPos2 > 0 ? `<span style="color:#2ed573; font-size: 12px;">(Subió ${difPos2}) ⬆️</span>` : (difPos2 < 0 ? `<span style="color:#ff4757; font-size: 12px;">(Bajó ${Math.abs(difPos2)}) ⬇️</span>` : `<span style="color:#aaa; font-size: 12px;">(Se mantuvo) ➖</span>`);
 
         let html = `
-        <div style="display: flex; justify-content: space-around; align-items: center; margin-bottom: 0px; background: #2f3542; padding: 15px 15px 15px 15px; border-radius: 8px 8px 0 0;">
-            <div style="text-align: center; flex: 1;">
-                <img src="${img1}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 50%; border: 3px solid #1e90ff;">
-                <h3 style="margin: 8px 0 0 0; color: #1e90ff; font-size: 18px;">${mc1.aka}</h3>
+        <div id="tarjetaCaptura" style="background: #1e1e2f; padding: 20px; color: white; font-family: Arial, sans-serif;">
+            
+            <div style="text-align: center; margin-bottom: 15px;">
+                <h3 style="margin:0; color:#aaa; font-size: 12px; text-transform: uppercase; letter-spacing: 2px;">HEAD TO HEAD</h3>
+                <h2 style="margin:5px 0 0 0; color:#fff;">${bTarget.torneos.franquicia} ${bTarget.torneos.nombre.replace(bTarget.torneos.franquicia,'')}</h2>
+                <div style="color:#eccc68; font-size: 14px; font-weight: bold; margin-top: 5px;">[ ${bTarget.fase} ]</div>
             </div>
-            <div style="font-size: 24px; font-weight: bold; color: #ff4757; flex: 0.5; text-align: center;">VS</div>
-            <div style="text-align: center; flex: 1;">
-                <img src="${img2}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 50%; border: 3px solid #ff4757;">
-                <h3 style="margin: 8px 0 0 0; color: #ff4757; font-size: 18px;">${mc2.aka}</h3>
+
+            <div style="display: flex; justify-content: space-around; align-items: center; margin-bottom: 0px; background: #2f3542; padding: 20px 15px; border-radius: 8px 8px 0 0;">
+                <div style="text-align: center; flex: 1;">
+                    <img src="${img1}" style="width: 90px; height: 90px; object-fit: cover; border-radius: 50%; border: 3px solid #1e90ff;">
+                    <h3 style="margin: 10px 0 0 0; color: #1e90ff; font-size: 20px;">${mc1.aka}</h3>
+                </div>
+                <div style="font-size: 30px; font-weight: bold; color: #ff4757; flex: 0.5; text-align: center; text-shadow: 0px 2px 5px rgba(0,0,0,0.5);">VS</div>
+                <div style="text-align: center; flex: 1;">
+                    <img src="${img2}" style="width: 90px; height: 90px; object-fit: cover; border-radius: 50%; border: 3px solid #ff4757;">
+                    <h3 style="margin: 10px 0 0 0; color: #ff4757; font-size: 20px;">${mc2.aka}</h3>
+                </div>
             </div>
+
+            <table style="width: 100%; border-collapse: collapse; text-align: center; font-size: 15px; background: #2a2a40;">
+                <tr style="background: #373752; color: white;">
+                    <th style="padding: 12px; width: 33%; color: #1e90ff;">Esquina Azul</th>
+                    <th style="padding: 12px; width: 34%; color: #eccc68; text-transform: uppercase; font-size: 12px; letter-spacing: 1px;">Métricas</th>
+                    <th style="padding: 12px; width: 33%; color: #ff4757;">Esquina Roja</th>
+                </tr>
+                
+                <tr style="border-bottom: 1px solid #373752;">
+                    <td style="padding: 12px; font-size: 18px; font-weight: bold; color: #fff;">${bTarget.elo_previo_mc1}</td>
+                    <td style="padding: 12px; font-weight: bold; color: #aaa; background: rgba(0,0,0,0.2);">Elo Previo</td>
+                    <td style="padding: 12px; font-size: 18px; font-weight: bold; color: #fff;">${bTarget.elo_previo_mc2}</td>
+                </tr>
+                
+                <tr style="border-bottom: 1px solid #373752;">
+                    <td style="padding: 12px; font-size: 16px; font-weight: bold; color: #fff;">#${snapshotPre.rank1}</td>
+                    <td style="padding: 12px; font-weight: bold; color: #aaa; background: rgba(0,0,0,0.2);">Ranking Previo</td>
+                    <td style="padding: 12px; font-size: 16px; font-weight: bold; color: #fff;">#${snapshotPre.rank2}</td>
+                </tr>
+
+                <tr style="border-bottom: 1px solid #373752; background: rgba(46, 213, 115, 0.05);">
+                    <td style="padding: 12px; font-size: 16px; color: #fff; font-weight: bold;">${bTarget.elo_previo_mc1 + bTarget.cambio_mc1} <br><span style="font-size: 13px; color: ${bTarget.cambio_mc1 > 0 ? '#2ed573' : '#ff4757'}">(${bTarget.cambio_mc1 > 0 ? '+'+bTarget.cambio_mc1 : bTarget.cambio_mc1})</span></td>
+                    <td style="padding: 12px; font-weight: bold; color: #2ed573; background: rgba(0,0,0,0.2);">Elo Post Batalla</td>
+                    <td style="padding: 12px; font-size: 16px; color: #fff; font-weight: bold;">${bTarget.elo_previo_mc2 + bTarget.cambio_mc2} <br><span style="font-size: 13px; color: ${bTarget.cambio_mc2 > 0 ? '#2ed573' : '#ff4757'}">(${bTarget.cambio_mc2 > 0 ? '+'+bTarget.cambio_mc2 : bTarget.cambio_mc2})</span></td>
+                </tr>
+
+                <tr style="border-bottom: 1px solid #373752;">
+                    <td style="padding: 12px; font-size: 16px; font-weight: bold; color: #fff;">#${snapshotPost.rank1}<br>${flechaPos1}</td>
+                    <td style="padding: 12px; font-weight: bold; color: #aaa; background: rgba(0,0,0,0.2);">Ranking al Finalizar</td>
+                    <td style="padding: 12px; font-size: 16px; font-weight: bold; color: #fff;">#${snapshotPost.rank2}<br>${flechaPos2}</td>
+                </tr>
+
+                <tr style="border-bottom: 1px solid #373752; border-top: 2px dashed #373752;">
+                    <td style="padding: 12px; font-size: 15px; color: #1e90ff; font-weight: bold;">${snapshotPre.max1} pts</td>
+                    <td style="padding: 12px; font-weight: bold; color: #1e90ff; background: rgba(0,0,0,0.2);">Pico Máx. Histórico</td>
+                    <td style="padding: 12px; font-size: 15px; color: #1e90ff; font-weight: bold;">${snapshotPre.max2} pts</td>
+                </tr>
+
+                <tr>
+                    <td style="padding: 12px; font-size: 15px; color: #eccc68; font-weight: bold;">#${snapshotPre.bestRank1}</td>
+                    <td style="padding: 12px; font-weight: bold; color: #eccc68; background: rgba(0,0,0,0.2);">Mejor Rango Histórico</td>
+                    <td style="padding: 12px; font-size: 15px; color: #eccc68; font-weight: bold;">#${snapshotPre.bestRank2}</td>
+                </tr>
+            </table>
         </div>
-
-        <table style="width: 100%; border-collapse: collapse; text-align: center; font-size: 14px; background: #1e1e2f;">
-            <tr style="background: #373752; color: white;">
-                <th style="padding: 12px; width: 33%; color: #1e90ff; font-size: 14px;">Izquierda</th>
-                <th style="padding: 12px; width: 34%; color: #eccc68; text-transform: uppercase; font-size: 12px; letter-spacing: 1px;">Métricas</th>
-                <th style="padding: 12px; width: 33%; color: #ff4757; font-size: 14px;">Derecha</th>
-            </tr>
-            
-            <tr style="border-bottom: 1px solid #373752;">
-                <td style="padding: 12px; font-size: 16px; font-weight: bold;">${bTarget.elo_previo_mc1}</td>
-                <td style="padding: 12px; font-weight: bold; color: #aaa; background: rgba(255,255,255,0.02);">Puntos Previos</td>
-                <td style="padding: 12px; font-size: 16px; font-weight: bold;">${bTarget.elo_previo_mc2}</td>
-            </tr>
-            
-            <tr style="border-bottom: 1px solid #373752;">
-                <td style="padding: 12px; font-size: 15px; font-weight: bold;">Rank #${snapshotPre.rank1}</td>
-                <td style="padding: 12px; font-weight: bold; color: #aaa; background: rgba(255,255,255,0.02);">Posición Global Previa</td>
-                <td style="padding: 12px; font-size: 15px; font-weight: bold;">Rank #${snapshotPre.rank2}</td>
-            </tr>
-
-            <tr style="border-bottom: 1px solid #373752; background: rgba(46, 213, 115, 0.05);">
-                <td style="padding: 12px; font-size: 15px;">${bTarget.elo_previo_mc1 + bTarget.cambio_mc1} <br><span style="font-size: 11px; color: ${bTarget.cambio_mc1 > 0 ? '#2ed573' : '#ff4757'}">(${bTarget.cambio_mc1 > 0 ? '+'+bTarget.cambio_mc1 : bTarget.cambio_mc1})</span></td>
-                <td style="padding: 12px; font-weight: bold; color: #2ed573; background: rgba(255,255,255,0.02);">Puntos Post Batalla</td>
-                <td style="padding: 12px; font-size: 15px;">${bTarget.elo_previo_mc2 + bTarget.cambio_mc2} <br><span style="font-size: 11px; color: ${bTarget.cambio_mc2 > 0 ? '#2ed573' : '#ff4757'}">(${bTarget.cambio_mc2 > 0 ? '+'+bTarget.cambio_mc2 : bTarget.cambio_mc2})</span></td>
-            </tr>
-
-            <tr style="border-bottom: 1px solid #373752;">
-                <td style="padding: 12px; font-size: 15px; font-weight: bold;">Rank #${snapshotPost.rank1}<br>${flechaPos1}</td>
-                <td style="padding: 12px; font-weight: bold; color: #aaa; background: rgba(255,255,255,0.02);">Posición tras la Ronda</td>
-                <td style="padding: 12px; font-size: 15px; font-weight: bold;">Rank #${snapshotPost.rank2}<br>${flechaPos2}</td>
-            </tr>
-
-            <tr style="border-bottom: 1px solid #373752; border-top: 2px dashed #373752;">
-                <td style="padding: 12px; font-size: 14px; color: #1e90ff;">${snapshotPre.max1} pts</td>
-                <td style="padding: 12px; font-weight: bold; color: #1e90ff; background: rgba(255,255,255,0.02);">Pico Máx. de Elo</td>
-                <td style="padding: 12px; font-size: 14px; color: #1e90ff;">${snapshotPre.max2} pts</td>
-            </tr>
-
-            <tr>
-                <td style="padding: 12px; font-size: 14px; color: #eccc68; font-weight: bold;">Rank #${snapshotPre.bestRank1}</td>
-                <td style="padding: 12px; font-weight: bold; color: #eccc68; background: rgba(255,255,255,0.02);">Mejor Pos. Histórica</td>
-                <td style="padding: 12px; font-size: 14px; color: #eccc68; font-weight: bold;">Rank #${snapshotPre.bestRank2}</td>
-            </tr>
-
-        </table>
-        <div style="font-size: 11px; color: #57606f; text-align: center; margin-top: 15px;">*Toda la información es exacta hasta el milisegundo previo de la batalla.</div>
         `;
         document.getElementById('contenidoAnalisis').innerHTML = html;
 
@@ -412,6 +418,19 @@ async function abrirAnalisisBatalla(idBatalla) {
 function cerrarAnalisisBatalla() {
     document.getElementById('overlayAnalisis').style.display = 'none';
     document.getElementById('modalAnalisis').style.display = 'none';
+}
+
+window.descargarCaraACara = function() {
+    let tarjeta = document.getElementById('tarjetaCaptura');
+    if (!tarjeta) return;
+    
+    html2canvas(tarjeta, { backgroundColor: '#1e1e2f', scale: 2 }).then(canvas => {
+        let enlace = document.createElement('a');
+        let titulo = document.getElementById('analisisTitulo').innerText.replace(/[^a-zA-Z0-9]/g, '_');
+        enlace.download = `HeadToHead_${titulo}.png`;
+        enlace.href = canvas.toDataURL('image/png');
+        enlace.click();
+    });
 }
 
 async function cargarFranquiciasPanel() {
@@ -463,7 +482,7 @@ function cerrarEdicionTorneo() { document.getElementById('panelEdicion').style.d
 
 window.verTorneo = verTorneo; window.eliminarTorneo = eliminarTorneo; window.repararEloGlobal = repararEloGlobal; window.cerrarDetalle = cerrarDetalle; window.agregarFranquicia = agregarFranquicia; window.borrarFranquicia = borrarFranquicia; window.abrirEdicionTorneo = abrirEdicionTorneo; window.guardarEdicionTorneo = guardarEdicionTorneo; window.cerrarEdicionTorneo = cerrarEdicionTorneo; window.abrirEdicionBatalla = abrirEdicionBatalla; window.cerrarEdicionBatalla = cerrarEdicionBatalla; window.guardarEdicionBatalla = guardarEdicionBatalla; 
 window.aplicarFiltroMuseo = aplicarFiltroMuseo;
-window.abrirAnalisisBatalla = abrirAnalisisBatalla; window.cerrarAnalisisBatalla = cerrarAnalisisBatalla;
+window.abrirAnalisisBatalla = abrirAnalisisBatalla; window.cerrarAnalisisBatalla = cerrarAnalisisBatalla; window.descargarCaraACara = descargarCaraACara;
 
 configurarSesion();
 cargarMcsParaEdicion();
