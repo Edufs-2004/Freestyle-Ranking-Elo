@@ -243,7 +243,7 @@ async function guardarEdicionBatalla(recalcular = true) {
 }
 
 // ============================================================================
-// NUEVO MOTOR: TALE OF THE TAPE (DISEÑO CENTRALIZADO Y MEJOR POSICIÓN HISTÓRICA)
+// MOTOR CORREGIDO: TALE OF THE TAPE (CRONOLOGÍA EXACTA Y DISEÑO SEGURO)
 // ============================================================================
 async function abrirAnalisisBatalla(idBatalla) {
     document.getElementById('overlayAnalisis').style.display = 'block';
@@ -259,16 +259,28 @@ async function abrirAnalisisBatalla(idBatalla) {
         
         document.getElementById('analisisTitulo').innerText = `${bTarget.torneos.franquicia} - ${bTarget.torneos.nombre} [${bTarget.fase}]`;
 
-        const { data: todasBatallas } = await supabase.from('batallas').select('id, torneo_id, fase, mc1_id, mc2_id, cambio_mc1, cambio_mc2, resultado').order('id', {ascending: true});
+        // EL SECRETO CRONOLÓGICO: Obtenemos torneos por fecha primero
+        const { data: torneosData } = await supabase.from('torneos').select('id, fecha_evento').order('fecha_evento', { ascending: true });
+        const { data: batallasData } = await supabase.from('batallas').select('id, torneo_id, fase, mc1_id, mc2_id, cambio_mc1, cambio_mc2, resultado');
+
+        let todasBatallasOrdenadas = [];
+        for (let t of torneosData) {
+            let bts = batallasData.filter(b => b.torneo_id === t.id);
+            bts.sort((a, b) => {
+                if (a.resultado === 'bono' && b.resultado !== 'bono') return 1;
+                if (a.resultado !== 'bono' && b.resultado === 'bono') return -1;
+                return a.id - b.id; // Mantiene el orden interno del evento
+            });
+            todasBatallasOrdenadas.push(...bts);
+        }
 
         let ledger = {};
-        // Inicializamos a todos con un rank altísimo (99999) para que la primera vez que batallen se actualice a su rank real
         listaMcsGlobal.forEach(m => ledger[m.id] = { elo: 1500, maxElo: 1500, bestRank: 99999, batallas: 0 });
 
         let snapshotPre = null; let snapshotPost = null; let objetivoEncontrado = false;
 
-        for (let i = 0; i < todasBatallas.length; i++) {
-            let b = todasBatallas[i];
+        for (let i = 0; i < todasBatallasOrdenadas.length; i++) {
+            let b = todasBatallasOrdenadas[i];
 
             if (b.id === idBatalla) {
                 objetivoEncontrado = true;
@@ -286,7 +298,7 @@ async function abrirAnalisisBatalla(idBatalla) {
             let huboCambio = false;
             if (ledger[b.mc1_id]) {
                 ledger[b.mc1_id].elo += b.cambio_mc1;
-                ledger[b.mc1_id].batallas += 1;
+                if (b.resultado !== 'bono') ledger[b.mc1_id].batallas += 1;
                 if (ledger[b.mc1_id].elo > ledger[b.mc1_id].maxElo) ledger[b.mc1_id].maxElo = ledger[b.mc1_id].elo;
                 huboCambio = true;
             }
@@ -297,7 +309,6 @@ async function abrirAnalisisBatalla(idBatalla) {
                 huboCambio = true;
             }
 
-            // Calculamos si alguien alcanzó su mejor posición histórica después de esta batalla
             if (huboCambio) {
                 let tablaRankTemp = Object.keys(ledger).map(id => ({id: parseInt(id), elo: ledger[id].elo, bts: ledger[id].batallas})).sort((x,y) => y.elo - x.elo);
                 tablaRankTemp.forEach((r, index) => {
@@ -309,7 +320,7 @@ async function abrirAnalisisBatalla(idBatalla) {
             }
 
             if (objetivoEncontrado && !snapshotPost) {
-                let sigBat = todasBatallas[i+1];
+                let sigBat = todasBatallasOrdenadas[i+1];
                 let finDeFase = !sigBat || sigBat.torneo_id !== bTarget.torneo_id || sigBat.fase !== bTarget.fase;
                 if (finDeFase) {
                     let tablaRankPost = Object.keys(ledger).map(id => ({id: parseInt(id), elo: ledger[id].elo})).sort((x,y) => y.elo - x.elo);
@@ -331,23 +342,24 @@ async function abrirAnalisisBatalla(idBatalla) {
         let difPos2 = snapshotPre.rank2 - snapshotPost.rank2;
         let flechaPos2 = difPos2 > 0 ? `<span style="color:#2ed573; font-size: 11px;">(Subió ${difPos2}) ⬆️</span>` : (difPos2 < 0 ? `<span style="color:#ff4757; font-size: 11px;">(Bajó ${Math.abs(difPos2)}) ⬇️</span>` : `<span style="color:#aaa; font-size: 11px;">(Se mantuvo) ➖</span>`);
 
-        // ESTRUCTURA VISUAL MEJORADA (MÉTRICAS AL CENTRO)
         let html = `
-        <div style="display: flex; justify-content: space-around; align-items: center; margin-bottom: 0px; background: #2f3542; padding: 15px 15px 5px 15px; border-radius: 8px 8px 0 0;">
+        <div style="display: flex; justify-content: space-around; align-items: center; margin-bottom: 0px; background: #2f3542; padding: 15px 15px 15px 15px; border-radius: 8px 8px 0 0;">
             <div style="text-align: center; flex: 1;">
                 <img src="${img1}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 50%; border: 3px solid #1e90ff;">
+                <h3 style="margin: 8px 0 0 0; color: #1e90ff; font-size: 18px;">${mc1.aka}</h3>
             </div>
             <div style="font-size: 24px; font-weight: bold; color: #ff4757; flex: 0.5; text-align: center;">VS</div>
             <div style="text-align: center; flex: 1;">
                 <img src="${img2}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 50%; border: 3px solid #ff4757;">
+                <h3 style="margin: 8px 0 0 0; color: #ff4757; font-size: 18px;">${mc2.aka}</h3>
             </div>
         </div>
 
         <table style="width: 100%; border-collapse: collapse; text-align: center; font-size: 14px; background: #1e1e2f;">
             <tr style="background: #373752; color: white;">
-                <th style="padding: 12px; width: 33%; color: #1e90ff; font-size: 16px;">${mc1.aka}</th>
+                <th style="padding: 12px; width: 33%; color: #1e90ff; font-size: 14px;">Izquierda</th>
                 <th style="padding: 12px; width: 34%; color: #eccc68; text-transform: uppercase; font-size: 12px; letter-spacing: 1px;">Métricas</th>
-                <th style="padding: 12px; width: 33%; color: #ff4757; font-size: 16px;">${mc2.aka}</th>
+                <th style="padding: 12px; width: 33%; color: #ff4757; font-size: 14px;">Derecha</th>
             </tr>
             
             <tr style="border-bottom: 1px solid #373752;">
