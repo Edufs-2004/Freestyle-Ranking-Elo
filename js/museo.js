@@ -242,7 +242,7 @@ async function guardarEdicionBatalla(recalcular = true) {
 }
 
 // ============================================================================
-// MOTOR CORREGIDO: TALE OF THE TAPE (CRONOLOGÍA EXACTA Y DISEÑO SEGURO)
+// MOTOR CORREGIDO: TALE OF THE TAPE (A PRUEBA DE BALAS CON BOTÓN INYECTADO)
 // ============================================================================
 async function abrirAnalisisBatalla(idBatalla) {
     document.getElementById('overlayAnalisis').style.display = 'block';
@@ -258,7 +258,6 @@ async function abrirAnalisisBatalla(idBatalla) {
         
         document.getElementById('analisisTitulo').innerText = `${bTarget.torneos.franquicia} - ${bTarget.torneos.nombre} [${bTarget.fase}]`;
 
-        // EL SECRETO CRONOLÓGICO
         const { data: torneosData } = await supabase.from('torneos').select('id, fecha_evento').order('fecha_evento', { ascending: true });
         const { data: batallasData } = await supabase.from('batallas').select('id, torneo_id, fase, mc1_id, mc2_id, cambio_mc1, cambio_mc2, resultado');
 
@@ -343,7 +342,6 @@ async function abrirAnalisisBatalla(idBatalla) {
 
         let html = `
         <div id="tarjetaCaptura" style="background: #1e1e2f; padding: 20px; color: white; font-family: Arial, sans-serif;">
-            
             <div style="text-align: center; margin-bottom: 15px;">
                 <h3 style="margin:0; color:#aaa; font-size: 12px; text-transform: uppercase; letter-spacing: 2px;">HEAD TO HEAD</h3>
                 <h2 style="margin:5px 0 0 0; color:#fff;">${bTarget.torneos.franquicia} ${bTarget.torneos.nombre.replace(bTarget.torneos.franquicia,'')}</h2>
@@ -401,10 +399,14 @@ async function abrirAnalisisBatalla(idBatalla) {
 
                 <tr>
                     <td style="padding: 12px; font-size: 15px; color: #eccc68; font-weight: bold;">#${snapshotPre.bestRank1}</td>
-                    <td style="padding: 12px; font-weight: bold; color: #eccc68; background: rgba(0,0,0,0.2);">Mejor Rango Histórico</td>
+                    <td style="padding: 12px; font-weight: bold; color: #eccc68; background: rgba(0,0,0,0.2);">Mejor Ranking Histórico</td>
                     <td style="padding: 12px; font-size: 15px; color: #eccc68; font-weight: bold;">#${snapshotPre.bestRank2}</td>
                 </tr>
             </table>
+        </div>
+        
+        <div style="padding: 15px;">
+            <button onclick="descargarCaraACara(this)" style="width: 100%; background: #1e90ff; color: white; padding: 12px; font-size: 16px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">📸 Descargar Imagen para Redes</button>
         </div>
         `;
         document.getElementById('contenidoAnalisis').innerHTML = html;
@@ -420,17 +422,36 @@ function cerrarAnalisisBatalla() {
     document.getElementById('modalAnalisis').style.display = 'none';
 }
 
-window.descargarCaraACara = function() {
+// LA NUEVA FUNCIÓN A PRUEBA DE BALAS PARA TOMAR LA FOTO 📸
+window.descargarCaraACara = function(boton) {
     let tarjeta = document.getElementById('tarjetaCaptura');
     if (!tarjeta) return;
     
-    html2canvas(tarjeta, { backgroundColor: '#1e1e2f', scale: 2 }).then(canvas => {
-        let enlace = document.createElement('a');
-        let titulo = document.getElementById('analisisTitulo').innerText.replace(/[^a-zA-Z0-9]/g, '_');
-        enlace.download = `HeadToHead_${titulo}.png`;
-        enlace.href = canvas.toDataURL('image/png');
-        enlace.click();
-    });
+    let textoOriginal = boton.innerText;
+    boton.innerText = "⏳ Preparando imagen...";
+    boton.disabled = true;
+
+    const capturar = () => {
+        html2canvas(tarjeta, { backgroundColor: '#1e1e2f', scale: 2 }).then(canvas => {
+            let enlace = document.createElement('a');
+            let titulo = document.getElementById('analisisTitulo').innerText.replace(/[^a-zA-Z0-9]/g, '_');
+            enlace.download = `HeadToHead_${titulo}.png`;
+            enlace.href = canvas.toDataURL('image/png');
+            enlace.click();
+            boton.innerText = textoOriginal;
+            boton.disabled = false;
+        });
+    };
+
+    // Si el HTML del usuario no tiene la librería, el JS la instala por arte de magia
+    if (typeof html2canvas === 'undefined') {
+        let script = document.createElement('script');
+        script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+        script.onload = capturar;
+        document.head.appendChild(script);
+    } else {
+        capturar();
+    }
 }
 
 async function cargarFranquiciasPanel() {
