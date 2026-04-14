@@ -23,9 +23,12 @@
 
         .nav-admin { width: 100%; background: rgba(11, 12, 16, 0.9); border-bottom: 2px solid var(--neon-cyan); padding: 15px 0; position: sticky; top: 0; z-index: 100; box-shadow: 0 0 15px rgba(0, 210, 211, 0.2); }
         .nav-content { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; }
-        .logo { font-family: 'Rajdhani', sans-serif; font-size: 22px; font-weight: 700; color: white; text-transform: uppercase; letter-spacing: 2px; text-decoration: none; }
-        .logo span { color: var(--neon-cyan); }
-        .logo .badge { background: var(--neon-red); color: white; font-size: 10px; padding: 3px 6px; border-radius: 4px; vertical-align: top; margin-left: 5px;}
+        
+        .logo { text-decoration: none; display: flex; align-items: center; gap: 15px; }
+        .logo img { height: 40px; filter: drop-shadow(0 0 5px rgba(0, 210, 211, 0.3)); transition: 0.3s; }
+        .logo img:hover { filter: drop-shadow(0 0 10px rgba(0, 210, 211, 0.6)); transform: scale(1.05); }
+        .logo .badge { background: var(--neon-red); color: white; font-size: 10px; padding: 3px 6px; border-radius: 4px; font-family: 'Rajdhani', sans-serif; font-weight: bold; letter-spacing: 1px;}
+
         .nav-links a { color: var(--text-muted); text-decoration: none; margin-left: 20px; font-weight: 600; font-size: 14px; transition: 0.3s; }
         .nav-links a:hover, .nav-links a.active { color: var(--neon-cyan); }
 
@@ -60,7 +63,6 @@
         .btn-del-card { background: rgba(255, 71, 87, 0.1); color: var(--neon-red); border: 1px solid var(--neon-red); padding: 8px; font-size: 12px; margin: 0;}
         .btn-del-card:hover { background: var(--neon-red); color: white; }
 
-        /* MODALES Y TABLA HISTORIAL */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); z-index: 999; }
         .modal-box { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1e1e2f; padding: 30px; border-radius: 12px; border: 1px solid var(--neon-gold); z-index: 1000; width: 90%; max-width: 400px; box-shadow: 0 0 30px rgba(236, 204, 104, 0.2); }
 
@@ -80,7 +82,11 @@
 
     <nav class="nav-admin">
         <div class="nav-content">
-            <a href="admin.html" class="logo">FREESTYLE POWER RANKING ELO <span class="badge">ADMIN</span></a>
+            <a href="admin.html" class="logo">
+                <img src="logo-fpr.png" alt="FPR Logo">
+                <span style="color: white; font-weight: 700; font-family: 'Rajdhani', sans-serif; font-size: 18px;">FREESTYLE POWER RANKING ELO</span>
+                <span class="badge">ADMIN</span>
+            </a>
             <div class="nav-links">
                 <a href="admin.html">Crear Torneo</a>
                 <a href="museo.html">Museo Histórico</a>
@@ -114,6 +120,15 @@
         
         <div id="areaCapturaFicha" style="background: #1e1e2f; padding: 20px; overflow-y: auto; flex: 1;">
             
+            <div id="headerFichaExport" style="display: none; justify-content: flex-start; align-items: center; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 15px;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <img src="logo-fpr.png" alt="FPR Logo" style="height: 55px; filter: drop-shadow(0 0 5px rgba(0,210,211,0.5));">
+                    <div style="font-family: 'Rajdhani', sans-serif; font-size: 20px; font-weight: bold; color: white; line-height: 1.1; text-align: left;">
+                        FREESTYLE POWER<br><span style="color: #00d2d3;">RANKING ELO</span>
+                    </div>
+                </div>
+            </div>
+
             <div id="controlesFiltroFicha" style="display: flex; gap: 10px; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 12px; border: 1px dashed #373752; margin-bottom: 20px; flex-wrap: wrap; align-items: flex-end;">
                 <div style="flex:1; min-width: 120px;"><label>Universo</label><select id="modalModoPerfil"><option value="historico">Global</option><option value="aislado">Aislado</option></select></div>
                 <div style="flex:1; min-width: 120px;"><label>Franquicia</label><select id="modalFranqPerfil"></select></div>
@@ -172,7 +187,6 @@
                 </div>
             </div>
             
-            <div id="marcaAgua" style="display: none; text-align: center; margin-top: 15px; font-family: 'Rajdhani'; color: var(--neon-cyan); letter-spacing: 2px; font-weight: bold;">FREESTYLE POWER RANKING ELO</div>
         </div>
 
         <div style="padding: 15px; background: rgba(0,0,0,0.8); border-top: 1px solid var(--glass-border);">
@@ -203,6 +217,6 @@
 
     <div class="footer">FREESTYLE POWER RANKING ELO V3.0 © 2026 | Área Administrativa</div>
 
-    <script type="module" src="js/roster.js?v=4.0"></script> 
+    <script type="module" src="js/roster.js?v=4.2"></script> 
 </body>
 </html>

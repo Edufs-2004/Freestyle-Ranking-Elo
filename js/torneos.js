@@ -13,7 +13,7 @@ const RUTA_TORNEO = {
     'F':  { sig: 'FIN', slot: null }, '3P': { sig: 'FIN', slot: null } 
 };
 
-let evento = { id: null, pozo: 0, nombre: "", franquicia: "", formatoStr: "", fecha: "" };
+let evento = { id: null, pozo: 0, nombre: "", franquicia: "", formatoStr: "", fecha: "", logo: "" };
 Object.keys(RUTA_TORNEO).forEach(fase => { evento[fase] = { mc1: null, mc2: null, ganador: null, perdedor: null, omitido: false }; });
 
 let mcsDisponibles = []; let mcsSeleccionados = []; let limiteMcsActual = 16; let batallasLigaPreparadas = []; 
@@ -75,8 +75,12 @@ function dibujarChips() {
 }
 
 function irACruces() {
-    evento.nombre = document.getElementById('nombreTorneo').value.trim(); evento.franquicia = document.getElementById('franquiciaTorneo').value;
-    evento.formatoStr = document.getElementById('formatoTorneo').options[document.getElementById('formatoTorneo').selectedIndex].text; evento.fecha = document.getElementById('fechaTorneo').value;
+    evento.nombre = document.getElementById('nombreTorneo').value.trim(); 
+    evento.franquicia = document.getElementById('franquiciaTorneo').value;
+    evento.logo = document.getElementById('logoTorneo').value.trim(); // <-- CAPTURA DEL LOGO
+    evento.formatoStr = document.getElementById('formatoTorneo').options[document.getElementById('formatoTorneo').selectedIndex].text; 
+    evento.fecha = document.getElementById('fechaTorneo').value;
+    
     let isLiga = document.getElementById('formatoTorneo').value === 'liga';
     
     if (!evento.nombre) return alert("Ponle un nombre al evento."); if (!evento.fecha) return alert("Selecciona la fecha.");
@@ -169,24 +173,16 @@ function generarHTMLBatalla(faseId, tituloFase, faseArranque, esLiga = false) {
     </div>`;
 }
 
-// ===============================================
-// NUEVA FUNCIÓN PARA ANULAR EL BRONCE (UI/UX)
-// ===============================================
 function omitirTercero() {
     if(!confirm("¿Omitir la batalla por el bronce?\n\nLos dos perdedores de las Semifinales empatarán y se repartirán el premio de consolación en partes iguales.")) return;
-    
     evento['3P'].omitido = true;
-    
     let caja = document.getElementById('caja_3P');
-    caja.style.opacity = '0.3';
-    caja.style.pointerEvents = 'none';
+    caja.style.opacity = '0.3'; caja.style.pointerEvents = 'none';
     document.getElementById('btnOmitir3P').style.display = 'none';
-    
     verificarCierreTorneo();
 }
 
 function verificarCierreTorneo() {
-    // El torneo se puede cerrar si ya hay ganador de la Final Y (ya se jugó el 3er Puesto O se omitió)
     if (evento.F.ganador && (evento['3P'].ganador || evento['3P'].omitido)) {
         document.getElementById('resumen_final').style.display = 'block';
         document.getElementById('c_camp').innerText = evento.F.ganador.aka;
@@ -199,8 +195,6 @@ function verificarCierreTorneo() {
             document.getElementById('c_tercero').innerText = 'Empate (Ambos Semifinalistas)';
             document.getElementById('c_tercero').style.color = '#aaa';
         }
-        
-        // Hacemos scroll suave hacia el resumen final
         document.getElementById('resumen_final').scrollIntoView({ behavior: 'smooth' });
     }
 }
@@ -211,7 +205,7 @@ async function iniciarTorneo() {
     if (isLiga) {
         if (batallasLigaPreparadas.length === 0) return alert("Añade al menos una batalla.");
         evento.pozo = 0; document.getElementById('mensajeConsola').innerHTML = "Creando Jornada...";
-        const { data: torneoDB, error } = await supabase.from('torneos').insert([{ nombre: evento.nombre, franquicia: evento.franquicia, formato: evento.formatoStr, fecha_evento: evento.fecha, estado: 'En Curso', elo_medio_calculado: 1500, pozo_total: 0 }]).select();
+        const { data: torneoDB, error } = await supabase.from('torneos').insert([{ nombre: evento.nombre, franquicia: evento.franquicia, formato: evento.formatoStr, fecha_evento: evento.fecha, estado: 'En Curso', elo_medio_calculado: 1500, pozo_total: 0, logo: evento.logo }]).select();
         if (error) return alert("Error al guardar."); evento.id = torneoDB[0].id;
 
         let idsUnicos = [...new Set(batallasLigaPreparadas.flatMap(b => [b.mc1.id, b.mc2.id]))];
@@ -243,7 +237,7 @@ async function iniciarTorneo() {
         
         document.getElementById('mensajeConsola').innerHTML = "Registrando...";
 
-        const { data: torneoDB, error } = await supabase.from('torneos').insert([{ nombre: evento.nombre, franquicia: evento.franquicia, formato: evento.formatoStr, fecha_evento: evento.fecha, estado: 'En Curso', elo_medio_calculado: Math.round(eloPromedio), pozo_total: evento.pozo }]).select();
+        const { data: torneoDB, error } = await supabase.from('torneos').insert([{ nombre: evento.nombre, franquicia: evento.franquicia, formato: evento.formatoStr, fecha_evento: evento.fecha, estado: 'En Curso', elo_medio_calculado: Math.round(eloPromedio), pozo_total: evento.pozo, logo: evento.logo }]).select();
         if (error) return alert("Error al guardar."); evento.id = torneoDB[0].id;
 
         await supabase.from('inscripciones').insert(idsAValidar.map(id => ({ torneo_id: evento.id, competidor_id: id })));
@@ -263,7 +257,6 @@ async function iniciarTorneo() {
             contenedor.innerHTML = htmlAcumulado;
         });
         
-        // AÑADIMOS EL BOTÓN DE OMITIR JUSTO DEBAJO DEL BRACKET DEL 3ER PUESTO
         document.getElementById('bracketTercero').innerHTML = generarHTMLBatalla('3P', 'Batalla por el Bronce', 'ZZZ', false) + 
         `<button id="btnOmitir3P" onclick="omitirTercero()" style="background-color: #57606f; margin-top: 10px; width: 100%; padding: 12px; border: none; color: white; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.3s;">🚫 Omitir 3er Puesto (Empate de Semis)</button>`;
 
@@ -330,7 +323,6 @@ async function procesarBatallaAuto(faseStr, esLiga = false) {
 
     btn.disabled = true; btn.style.backgroundColor = "#2ed573"; btn.innerText = "✅ Registrado";
     
-    // Ocultar botón de omitir si decides registrarla
     if (faseStr === '3P') {
         let btnOmitir = document.getElementById('btnOmitir3P');
         if (btnOmitir) btnOmitir.style.display = 'none';

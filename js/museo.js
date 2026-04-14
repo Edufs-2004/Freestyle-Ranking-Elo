@@ -42,8 +42,8 @@ function renderizarTablaTorneos(listaTorneos) {
     let html = '';
     listaTorneos.forEach(t => {
         let colorEstado = t.estado === 'Finalizado' ? '#2ed573' : '#ffa502';
+        let logoParam = t.logo ? t.logo : ''; 
         
-        // BOTONES ACTUALIZADOS A FLEXBOX CON DISEÑO PREMIUM
         html += `<tr>
             <td>${t.fecha_evento || 'Sin fecha'}</td>
             <td style="color: #eccc68;"><strong>${t.franquicia || '-'}</strong></td>
@@ -52,7 +52,7 @@ function renderizarTablaTorneos(listaTorneos) {
             <td>
                 <div class="action-group">
                     <button class="btn-ver" onclick="verTorneo(${t.id}, '${t.nombre}')" title="Ver Torneo">👁️ Ver</button> 
-                    <button class="btn-editar" onclick="abrirEdicionTorneo(${t.id}, '${t.nombre}', '${t.franquicia}', '${t.fecha_evento}')" title="Editar Evento">✏️ Edit</button> 
+                    <button class="btn-editar" onclick="abrirEdicionTorneo(${t.id}, '${t.nombre}', '${t.franquicia}', '${t.fecha_evento}', '${logoParam}')" title="Editar Evento">✏️ Edit</button> 
                     <button class="btn-borrar" onclick="eliminarTorneo(${t.id}, '${t.nombre}')" title="Eliminar">🗑️ Borrar</button>
                 </div>
             </td>
@@ -205,7 +205,6 @@ async function verTorneo(idTorneo, nombre) {
         let mc1Final = ganoIzquierda ? `<span class="ganador-text">👑 ${n1}</span>` : n1; let mc2Final = !ganoIzquierda ? `<span class="ganador-text">${n2} 👑</span>` : n2;
         let textoRes = b.resultado.replace('_', ' ').toUpperCase();
         
-        // BOTONES DE LA BATALLA ALINEADOS EN GRUPO
         htmlVisual += `
         <div class="batalla-item">
             <div style="flex: 1; text-align: right; padding-right: 15px; font-size: 16px;">${mc1Final}</div>
@@ -259,20 +258,26 @@ async function guardarEdicionBatalla(recalcular = true) {
     cargarMcsParaEdicion(); verTorneo(torneoAbiertoId, torneoAbiertoNombre);
 }
 
-// TALE OF THE TAPE
+// ====================================================================
+// HEAD TO HEAD: CÓDIGO SEGURO CONTRA CRASHES + LOGO FPR INTEGRADO
+// ====================================================================
 async function abrirAnalisisBatalla(idBatalla) {
     document.getElementById('overlayAnalisis').style.display = 'block';
     document.getElementById('modalAnalisis').style.display = 'block';
     document.getElementById('contenidoAnalisis').innerHTML = '<h3 style="text-align:center; color:#eccc68; padding: 40px;">⏳ Viajando en el tiempo...</h3>';
 
     try {
-        const { data: bTarget } = await supabase.from('batallas').select('*, torneos(nombre, franquicia)').eq('id', idBatalla).single();
-        if (!bTarget) throw new Error("Batalla no encontrada");
+        const { data: bTarget, error: errTarget } = await supabase.from('batallas').select('*, torneos(nombre, franquicia, logo)').eq('id', idBatalla).single();
+        if (errTarget || !bTarget) throw new Error("Batalla no encontrada en la base de datos.");
         
         let mc1 = listaMcsGlobal.find(m => m.id === bTarget.mc1_id);
         let mc2 = listaMcsGlobal.find(m => m.id === bTarget.mc2_id);
         
-        document.getElementById('analisisTitulo').innerText = `${bTarget.torneos.franquicia} - ${bTarget.torneos.nombre} [${bTarget.fase}]`;
+        let nombreTorneo = bTarget.torneos ? bTarget.torneos.nombre : 'Torneo Desconocido';
+        let franquiciaTorneo = bTarget.torneos ? bTarget.torneos.franquicia : '';
+        let logoTorneo = (bTarget.torneos && bTarget.torneos.logo) ? bTarget.torneos.logo : null;
+
+        document.getElementById('analisisTitulo').innerText = `${franquiciaTorneo} - ${nombreTorneo} [${bTarget.fase}]`;
 
         const { data: torneosData } = await supabase.from('torneos').select('id, fecha_evento').order('fecha_evento', { ascending: true });
         const { data: batallasData } = await supabase.from('batallas').select('id, torneo_id, fase, mc1_id, mc2_id, cambio_mc1, cambio_mc2, resultado');
@@ -347,21 +352,37 @@ async function abrirAnalisisBatalla(idBatalla) {
             }
         }
 
+        // ESCUDO DE SEGURIDAD POR SI NO SE ENCUENTRAN DATOS HISTÓRICOS
+        if (!snapshotPre) snapshotPre = { rank1: '-', rank2: '-', max1: 1500, max2: 1500, bestRank1: '-', bestRank2: '-' };
+        if (!snapshotPost) snapshotPost = { rank1: '-', rank2: '-' };
+
         let img1 = mc1.foto || 'https://via.placeholder.com/150/373752/FFFFFF?text=MC1';
         let img2 = mc2.foto || 'https://via.placeholder.com/150/373752/FFFFFF?text=MC2';
         
-        let difPos1 = snapshotPre.rank1 - snapshotPost.rank1; 
+        let difPos1 = (snapshotPre.rank1 !== '-' && snapshotPost.rank1 !== '-') ? snapshotPre.rank1 - snapshotPost.rank1 : 0; 
         let flechaPos1 = difPos1 > 0 ? `<span style="color:#2ed573; font-size: 12px;">(Subió ${difPos1}) ⬆️</span>` : (difPos1 < 0 ? `<span style="color:#ff4757; font-size: 12px;">(Bajó ${Math.abs(difPos1)}) ⬇️</span>` : `<span style="color:#a4b0be; font-size: 12px;">(Se mantuvo) ➖</span>`);
         
-        let difPos2 = snapshotPre.rank2 - snapshotPost.rank2;
+        let difPos2 = (snapshotPre.rank2 !== '-' && snapshotPost.rank2 !== '-') ? snapshotPre.rank2 - snapshotPost.rank2 : 0;
         let flechaPos2 = difPos2 > 0 ? `<span style="color:#2ed573; font-size: 12px;">(Subió ${difPos2}) ⬆️</span>` : (difPos2 < 0 ? `<span style="color:#ff4757; font-size: 12px;">(Bajó ${Math.abs(difPos2)}) ⬇️</span>` : `<span style="color:#a4b0be; font-size: 12px;">(Se mantuvo) ➖</span>`);
+
+        let logoEventoHtml = logoTorneo ? `<img src="${logoTorneo}" style="height: 50px; max-width: 150px; object-fit: contain;">` : `<div></div>`;
 
         let html = `
         <div id="tarjetaCaptura" style="background: #1e1e2f; padding: 20px; color: white; font-family: 'Montserrat', sans-serif;">
             
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 10px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <img src="logo-fpr.png" alt="FPR Logo" style="height: 50px; filter: drop-shadow(0 0 5px rgba(0,210,211,0.5));">
+                    <div style="font-family: 'Rajdhani', sans-serif; font-size: 18px; font-weight: bold; color: white; line-height: 1.1; text-align: left;">
+                        FREESTYLE POWER<br><span style="color: #00d2d3;">RANKING ELO</span>
+                    </div>
+                </div>
+                ${logoEventoHtml}
+            </div>
+
             <div style="text-align: center; margin-bottom: 15px;">
                 <h3 style="margin:0; color:#a4b0be; font-size: 12px; text-transform: uppercase; letter-spacing: 2px;">HEAD TO HEAD</h3>
-                <h2 style="margin:5px 0 0 0; color:#fff; font-family: 'Rajdhani', sans-serif; font-size: 26px;">${bTarget.torneos.franquicia} ${bTarget.torneos.nombre.replace(bTarget.torneos.franquicia,'')}</h2>
+                <h2 style="margin:5px 0 0 0; color:#fff; font-family: 'Rajdhani', sans-serif; font-size: 26px;">${franquiciaTorneo} ${nombreTorneo.replace(franquiciaTorneo,'')}</h2>
                 <div style="color:#eccc68; font-size: 14px; font-weight: bold; margin-top: 5px;">[ ${bTarget.fase} ]</div>
             </div>
 
@@ -430,7 +451,7 @@ async function abrirAnalisisBatalla(idBatalla) {
 
     } catch (e) {
         console.error(e);
-        document.getElementById('contenidoAnalisis').innerHTML = `<h3 style="text-align:center; color:#ff4757;">Error al procesar el análisis.</h3>`;
+        document.getElementById('contenidoAnalisis').innerHTML = `<h3 style="text-align:center; color:#ff4757;">Error al procesar el análisis. Verifica que la columna 'logo' exista.</h3>`;
     }
 }
 
@@ -448,7 +469,7 @@ window.descargarCaraACara = function(boton) {
     boton.disabled = true;
 
     const capturar = () => {
-        html2canvas(tarjeta, { backgroundColor: '#1e1e2f', scale: 2 }).then(canvas => {
+        html2canvas(tarjeta, { backgroundColor: '#1e1e2f', scale: 2, useCORS: true }).then(canvas => {
             let enlace = document.createElement('a');
             let titulo = document.getElementById('analisisTitulo').innerText.replace(/[^a-zA-Z0-9]/g, '_');
             enlace.download = `HeadToHead_${titulo}.png`;
@@ -498,17 +519,25 @@ async function borrarFranquicia(id) {
     await supabase.from('franquicias').delete().eq('id', id); cargarFranquiciasPanel();
 }
 
-async function abrirEdicionTorneo(id, nombre, franquicia, fecha) {
+async function abrirEdicionTorneo(id, nombre, franquicia, fecha, logo) {
     torneoEditandoId = id; fechaOriginalEdicion = fecha;
-    document.getElementById('editNomTorneo').value = nombre; document.getElementById('editFechaTorneo').value = fecha;
+    document.getElementById('editNomTorneo').value = nombre; 
+    document.getElementById('editFechaTorneo').value = fecha;
+    document.getElementById('editLogoTorneo').value = logo || '';
     setTimeout(() => { document.getElementById('editFranqTorneo').value = franquicia; }, 100);
     document.getElementById('panelLista').style.display = 'none'; document.getElementById('panelEdicion').style.display = 'block';
 }
 
 async function guardarEdicionTorneo() {
-    let n = document.getElementById('editNomTorneo').value.trim(); let f = document.getElementById('editFranqTorneo').value; let d = document.getElementById('editFechaTorneo').value;
-    if(!n || !f || !d) return alert("Completa todos los campos");
-    const {error} = await supabase.from('torneos').update({nombre: n, franquicia: f, fecha_evento: d}).eq('id', torneoEditandoId);
+    let n = document.getElementById('editNomTorneo').value.trim(); 
+    let f = document.getElementById('editFranqTorneo').value; 
+    let d = document.getElementById('editFechaTorneo').value;
+    let l = document.getElementById('editLogoTorneo').value.trim();
+    
+    if(!n || !f || !d) return alert("Completa todos los campos obligatorios");
+    
+    const {error} = await supabase.from('torneos').update({nombre: n, franquicia: f, fecha_evento: d, logo: l}).eq('id', torneoEditandoId);
+    
     if(error) return alert("Error al actualizar");
     cerrarEdicionTorneo();
     if (d !== fechaOriginalEdicion) { alert("Has cambiado la fecha. Recalculando línea temporal..."); await repararEloGlobal(true); } else { alert("Actualizado correctamente."); }

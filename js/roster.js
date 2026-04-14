@@ -154,6 +154,7 @@ window.aplicarFiltroModal = function() {
             return okF && okD && okH;
         });
 
+        // 1. CÁLCULO DE RANKING GLOBAL
         let rankingTemp = {};
         listaMcs.forEach(mc => { rankingTemp[mc.id] = { id: mc.id, elo_actual: 1500, batallas_totales: 0 }; });
 
@@ -329,10 +330,7 @@ window.aplicarFiltroModal = function() {
 
             let oponenteObj = esMC1 ? listaMcs.find(m => m.id == b.mc2_id) : listaMcs.find(m => m.id == b.mc1_id);
             let nombreOpo = oponenteObj ? oponenteObj.aka : 'Desconocido';
-            let eloOpo = (esMC1 ? b.calc_previo_mc2 : b.calc_previo_mc1) || 1500;
-            // ELO DEL OPONENTE DEVUELTO
-            let celdaOponente = `<strong>${nombreOpo}</strong> <span style="color:#a4b0be; font-size:11px; margin-left:5px;">(${eloOpo})</span>`; 
-
+            let celdaOponente = `<strong>${nombreOpo}</strong>`; 
             let eloPrevioNuestroMC = (esMC1 ? b.calc_previo_mc1 : b.calc_previo_mc2) || 1500; 
 
             let textoRes = ''; let claseRes = '';
@@ -392,17 +390,18 @@ window.aplicarFiltroModal = function() {
     }
 }
 
+// 📸 MAGIA DE EXPORTAR: Oculta tabla e inputs, muestra logo y captura.
 window.descargarFichaAdmin = function(boton) {
     document.getElementById('controlesFiltroFicha').style.display = 'none';
     document.getElementById('historialAdminWrap').style.display = 'none'; 
-    document.getElementById('marcaAgua').style.display = 'block';
+    document.getElementById('headerFichaExport').style.display = 'flex'; 
     
     let tarjeta = document.getElementById('areaCapturaFicha');
     let textoOriginal = boton.innerText;
     boton.innerText = "⏳ Generando Imagen Profesional...";
     boton.disabled = true;
 
-    html2canvas(tarjeta, { backgroundColor: '#1e1e2f', scale: 2 }).then(canvas => {
+    html2canvas(tarjeta, { backgroundColor: '#1e1e2f', scale: 2, useCORS: true }).then(canvas => {
         let enlace = document.createElement('a');
         let titulo = document.getElementById('modalAkaMC').innerText.replace(/[^a-zA-Z0-9]/g, '_');
         enlace.download = `Ficha_Tecnica_${titulo}.png`;
@@ -411,7 +410,7 @@ window.descargarFichaAdmin = function(boton) {
         
         document.getElementById('controlesFiltroFicha').style.display = 'flex';
         document.getElementById('historialAdminWrap').style.display = 'block'; 
-        document.getElementById('marcaAgua').style.display = 'none';
+        document.getElementById('headerFichaExport').style.display = 'none'; 
         boton.innerText = textoOriginal;
         boton.disabled = false;
     });

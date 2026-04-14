@@ -71,8 +71,9 @@ function aplicarFiltroPerfil() {
             return okF && okD && okH;
         });
 
+        // 1. CÁLCULO DE RANKING EN ESTE UNIVERSO
         let rankingTemp = {};
-        listaMCs.forEach(mc => { rankingTemp[mc.id] = { id: mc.id, elo_actual: 1500, batallas_totales: 0 }; });
+        listaMCs.forEach(m => rankingTemp[m.id] = { id: m.id, elo_actual: 1500, batallas_totales: 0 }); 
 
         if (modo === 'aislado') {
             let mapTorneos = new Map(); let ordenTorneos = [];
@@ -98,9 +99,10 @@ function aplicarFiltroPerfil() {
                 let sizeReal = uniqueIds.size; let pozoLocal = 0;
                 if (!isLiga && sizeReal >= 4) {
                     let sumaElo = 0;
-                    uniqueIds.forEach(id => { sumaElo += (rankingTemp[id] ? rankingTemp[id].elo_actual : 1500); });
+                    uniqueIds.forEach(id => { sumaElo += rankingTemp[id].elo_actual; });
                     pozoLocal = Math.round((sumaElo / sizeReal) * (sizeReal * 0.003)); 
                 }
+
                 let formatoOficial = sizeReal > 16 ? 32 : (sizeReal > 8 ? 16 : (sizeReal > 4 ? 8 : 4));
 
                 for (let b of batallasT) {
@@ -118,7 +120,7 @@ function aplicarFiltroPerfil() {
                             bono = b.cambio_mc1; 
                         } 
                         
-                        // MAGIA AQUÍ: Guardamos el Elo simulado real
+                        // Guardamos el Elo simulado real
                         b.sim_previo_mc1 = rankingTemp[b.mc1_id].elo_actual;
                         b.sim_previo_mc2 = 1500;
                         b.sim_cambio_mc1 = bono;
@@ -130,17 +132,19 @@ function aplicarFiltroPerfil() {
                         let R1 = rankingTemp[b.mc1_id].elo_actual; let R2 = rankingTemp[b.mc2_id] ? rankingTemp[b.mc2_id].elo_actual : 1500;
                         let E1 = 1 / (1 + Math.pow(10, (R2 - R1) / 400)); let E2 = 1 / (1 + Math.pow(10, (R1 - R2) / 400));
                         let S1 = 0, S2 = 0; let bono1 = false, bono2 = false;
-                        if (b.resultado === "victoria_total") { S1 = 1.0; S2 = 0.0; bono1 = true; } else if (b.resultado === "victoria") { S1 = 1.0; S2 = 0.0; } else if (b.resultado === "victoria_replica") { S1 = 0.75; S2 = 0.25; } else if (b.resultado === "derrota_replica") { S1 = 0.25; S2 = 0.75; } else if (b.resultado === "derrota") { S1 = 0.0; S2 = 1.0; } else if (b.resultado === "derrota_total") { S1 = 0.0; S2 = 1.0; bono2 = true; }
+                        if (b.resultado === "victoria_total") { S1 = 1.0; S2 = 0.0; bono1=true;} else if (b.resultado === "victoria") { S1 = 1.0; S2 = 0.0;}
+                        else if (b.resultado === "victoria_replica") { S1 = 0.75; S2 = 0.25;} else if (b.resultado === "derrota_replica") { S1 = 0.25; S2 = 0.75;}
+                        else if (b.resultado === "derrota") { S1 = 0.0; S2 = 1.0;} else if (b.resultado === "derrota_total") { S1 = 0.0; S2 = 1.0; bono2=true;}
                         let c1 = Math.round(K * (S1 - E1) * (bono1 ? 1.2 : 1)); let c2 = Math.round(K * (S2 - E2) * (bono2 ? 1.2 : 1));
                         
-                        // MAGIA AQUÍ: Guardamos el Elo simulado real
+                        // Guardamos el Elo simulado real
                         b.sim_previo_mc1 = R1;
                         b.sim_previo_mc2 = R2;
                         b.sim_cambio_mc1 = c1;
                         b.sim_cambio_mc2 = c2;
 
                         rankingTemp[b.mc1_id].elo_actual = R1 + c1; rankingTemp[b.mc1_id].batallas_totales += 1;
-                        if (rankingTemp[b.mc2_id]) { rankingTemp[b.mc2_id].elo_actual = R2 + c2; rankingTemp[b.mc2_id].batallas_totales += 1; }
+                        if(rankingTemp[b.mc2_id]) { rankingTemp[b.mc2_id].elo_actual = R2 + c2; rankingTemp[b.mc2_id].batallas_totales += 1; }
                     }
                 }
             }
@@ -151,15 +155,16 @@ function aplicarFiltroPerfil() {
             });
         }
 
+        // Posición Rank Global filtrada
         let rankingOrdenado = Object.values(rankingTemp).filter(m => m.batallas_totales > 0).sort((a,b) => b.elo_actual - a.elo_actual);
         let posGlobal = rankingOrdenado.findIndex(m => m.id == mcActualID);
         document.getElementById('statRank').innerText = posGlobal !== -1 ? `#${posGlobal + 1}` : '-';
 
+        // 2. EXTRACCIÓN DE BATALLAS DEL MC
         let dataDelMC = []; 
         if (modo === 'aislado') {
             batallasValidas.forEach(b => {
                 if (b.mc1_id == mcActualID || b.mc2_id == mcActualID) {
-                    // Extraemos la simulación real que acabamos de hacer
                     dataDelMC.push({ 
                         ...b, 
                         calc_previo_mc1: b.sim_previo_mc1, 
@@ -204,17 +209,16 @@ function aplicarFiltroPerfil() {
             if (eloAcumulado < minElo) minElo = eloAcumulado;
 
             if (b.resultado !== 'bono') {
-                let etiquetaFase = b.fase;
-                if (!etiquetaFase) etiquetaFase = 'B';
-                else {
-                    if (etiquetaFase.startsWith('D') && etiquetaFase.length <= 3) etiquetaFase = '16v';
-                    else if (etiquetaFase.startsWith('O') && etiquetaFase.length === 2) etiquetaFase = 'Oct';
-                    else if (etiquetaFase.startsWith('C') && etiquetaFase.length === 2) etiquetaFase = 'Cua';
-                    else if (etiquetaFase.startsWith('S') && etiquetaFase.length === 2) etiquetaFase = 'Sem';
-                    else if (etiquetaFase === 'F') etiquetaFase = 'Fin';
-                    else if (etiquetaFase === '3P') etiquetaFase = '3P';
-                }
+                let etiquetaFase = b.fase || 'B';
+                if (etiquetaFase.startsWith('D') && etiquetaFase.length <= 3) etiquetaFase = '16v';
+                else if (etiquetaFase.startsWith('O') && etiquetaFase.length === 2) etiquetaFase = 'Oct';
+                else if (etiquetaFase.startsWith('C') && etiquetaFase.length === 2) etiquetaFase = 'Cua';
+                else if (etiquetaFase.startsWith('S') && etiquetaFase.length === 2) etiquetaFase = 'Sem';
+                else if (etiquetaFase === 'F') etiquetaFase = 'Fin';
+                else if (etiquetaFase === '3P') etiquetaFase = '3P';
+                
                 labels.push(etiquetaFase); datosElo.push(eloPostBatalla);
+                
                 let gano = false;
                 if (esMC1) { if (['victoria', 'victoria_replica', 'victoria_total'].includes(b.resultado)) gano = true; } 
                 else { if (['derrota', 'derrota_replica', 'derrota_total'].includes(b.resultado)) gano = true; }
@@ -225,10 +229,10 @@ function aplicarFiltroPerfil() {
         });
 
         document.getElementById('statPeakElo').innerText = maxElo;
-        let cantBatallas = dataDelMC.filter(b => b.resultado !== 'bono').length;
-        document.getElementById('statBatallas').innerText = cantBatallas;
+        document.getElementById('statBatallas').innerText = dataDelMC.filter(b => b.resultado !== 'bono').length;
         document.getElementById('statWinRate').innerText = (victorias + derrotas > 0) ? Math.round((victorias / (victorias + derrotas)) * 100) + '%' : '0%';
         
+        // 3. TABLA CON LAS FILAS DE BONO EN VERDE
         dataReversa.forEach(b => {
             let esMC1 = b.mc1_id == mcActualID;
             let cambio = (esMC1 ? b.calc_cambio_mc1 : b.calc_cambio_mc2) || 0;
@@ -238,21 +242,20 @@ function aplicarFiltroPerfil() {
             let nombreTorneo = b.torneos ? `<span style="color:#00d2d3">${b.torneos.franquicia}</span> ${b.torneos.nombre.replace(b.torneos.franquicia,'')}` : 'Torneo Eliminado';
 
             if (b.resultado === 'bono') {
-                let estiloBono = "background: rgba(46, 213, 115, 0.15) !important; border-top: 1px solid rgba(46, 213, 115, 0.3) !important; border-bottom: 1px solid rgba(46, 213, 115, 0.3) !important;";
                 htmlTabla += `<tr class="fila-bono">
-                    <td style="${estiloBono} font-size: 14px; border-top-left-radius: 6px; border-bottom-left-radius: 6px;">${fechaTorneo}</td>
-                    <td style="${estiloBono} font-size: 14px; font-weight: bold; color:white;">${nombreTorneo}</td>
-                    <td colspan="4" style="${estiloBono} text-align:center; color: var(--neon-green); font-weight:bold; text-transform: uppercase; letter-spacing: 1px;">✨ ${b.fase || 'Bono'}</td>
-                    <td style="${estiloBono} font-size: 14px; color:${colorCambio}; font-weight:bold; border-top-right-radius: 6px; border-bottom-right-radius: 6px;">${cambioTxt}</td></tr>`;
+                    <td style="border-top-left-radius: 6px; border-bottom-left-radius: 6px;"><span style="font-size:11px; color:#a4b0be;">${fechaTorneo}</span></td>
+                    <td style="font-size:13px; font-weight:bold;">${nombreTorneo}</td>
+                    <td colspan="4" style="text-align:center; color: var(--neon-green); font-weight:bold; text-transform: uppercase; letter-spacing: 1px;">✨ ${b.fase || 'Bono'}</td>
+                    <td style="color:${colorCambio}; font-weight:bold; border-top-right-radius: 6px; border-bottom-right-radius: 6px;">${cambioTxt}</td></tr>`;
                 return;
             }
 
             let oponenteObj = esMC1 ? listaMCs.find(m => m.id == b.mc2_id) : listaMCs.find(m => m.id == b.mc1_id);
             let nombreOpo = oponenteObj ? oponenteObj.aka : 'Desconocido';
             let eloOpo = (esMC1 ? b.calc_previo_mc2 : b.calc_previo_mc1) || 1500;
-            // ELO DEL OPONENTE DEVUELTO
+            // ELO DEL OPONENTE
             let celdaOponente = `<strong>${nombreOpo}</strong> <span style="color:#a4b0be; font-size:11px; margin-left:5px;">(${eloOpo})</span>`; 
-            
+
             let eloPrevioNuestroMC = (esMC1 ? b.calc_previo_mc1 : b.calc_previo_mc2) || 1500; 
 
             let textoRes = ''; let claseRes = '';
@@ -279,7 +282,7 @@ function aplicarFiltroPerfil() {
 
         document.getElementById('cuerpoHistorial').innerHTML = htmlTabla || '<tr><td colspan="7" style="text-align:center; padding:30px; color:#a4b0be;">Sin batallas en el registro.</td></tr>';
 
-        // LÓGICA DE CHART.JS PARA PINTAR LÍNEAS DE BONO EN VERDE NEÓN
+        // 4. GRÁFICO ACTUALIZADO: Las líneas de bono se pintan de verde
         if (typeof Chart !== 'undefined') {
             if (miGrafico) miGrafico.destroy();
             let canvas = document.getElementById('eloChart');
@@ -287,23 +290,46 @@ function aplicarFiltroPerfil() {
                 let ctx = canvas.getContext('2d');
                 miGrafico = new Chart(ctx, {
                     type: 'line',
-                    data: { 
-                        labels: labels, 
+                    data: {
+                        labels: labels,
                         datasets: [{ 
-                            label: 'Elo', 
+                            label: 'Elo Pts', 
                             data: datosElo, 
                             borderColor: '#00d2d3', 
                             backgroundColor: 'rgba(0, 210, 211, 0.1)', 
-                            borderWidth: 2, 
-                            pointRadius: 3, 
-                            pointBackgroundColor: (ctx) => { return labels[ctx.dataIndex] && labels[ctx.dataIndex].includes('Bono') ? '#2ed573' : '#1e1e2f'; },
-                            pointBorderColor: (ctx) => { return labels[ctx.dataIndex] && labels[ctx.dataIndex].includes('Bono') ? '#2ed573' : '#00d2d3'; },
-                            segment: { borderColor: (ctx) => { return labels[ctx.p1DataIndex] && labels[ctx.p1DataIndex].includes('Bono') ? '#2ed573' : '#00d2d3'; } },
+                            borderWidth: 3, 
+                            pointRadius: 4, 
+                            
+                            // El punto se pinta verde si la etiqueta dice "Bono"
+                            pointBackgroundColor: (ctx) => {
+                                return labels[ctx.dataIndex] && labels[ctx.dataIndex].includes('Bono') ? '#2ed573' : '#1e1e2f';
+                            },
+                            pointBorderColor: (ctx) => {
+                                return labels[ctx.dataIndex] && labels[ctx.dataIndex].includes('Bono') ? '#2ed573' : '#00d2d3';
+                            },
+                            
+                            // El segmento de línea se pinta verde cuando conecta hacia un "Bono"
+                            segment: {
+                                borderColor: (ctx) => {
+                                    return labels[ctx.p1DataIndex] && labels[ctx.p1DataIndex].includes('Bono') ? '#2ed573' : '#00d2d3';
+                                }
+                            },
+
+                            pointHoverRadius: 6,
+                            pointHoverBackgroundColor: '#eccc68',
                             fill: true, 
                             tension: 0.3 
-                        }] 
+                        }]
                     },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#a4b0be', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } }, y: { ticks: { color: '#00d2d3', font: { size: 11, weight: 'bold' } }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
+                    options: { 
+                        responsive: true, 
+                        maintainAspectRatio: false, 
+                        plugins: { legend: { display: false } }, 
+                        scales: { 
+                            x: { ticks: { color: '#a4b0be', font: { family: 'Montserrat', size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' } }, 
+                            y: { ticks: { color: '#00d2d3', font: { family: 'Rajdhani', size: 14, weight: 'bold' } }, grid: { color: 'rgba(255,255,255,0.05)' } } 
+                        } 
+                    }
                 });
             }
         }

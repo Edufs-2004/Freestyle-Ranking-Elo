@@ -25,16 +25,18 @@
 
         body { font-family: 'Montserrat', sans-serif; background: radial-gradient(circle at top center, #1a1a2e 0%, var(--bg-color) 100%); color: var(--text-main); margin: 0; min-height: 100vh; }
 
-        /* NAVEGACIÓN ADMIN */
+        /* NAVEGACIÓN ADMIN CON LOGO FPR */
         .nav-admin { width: 100%; background: rgba(11, 12, 16, 0.9); border-bottom: 2px solid var(--neon-cyan); padding: 15px 0; position: sticky; top: 0; z-index: 100; box-shadow: 0 0 15px rgba(0, 210, 211, 0.2); }
         .nav-content { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; }
-        .logo { font-family: 'Rajdhani', sans-serif; font-size: 22px; font-weight: 700; color: white; text-transform: uppercase; letter-spacing: 2px; text-decoration: none; }
-        .logo span { color: var(--neon-cyan); }
-        .logo .badge { background: var(--neon-red); color: white; font-size: 10px; padding: 3px 6px; border-radius: 4px; vertical-align: top; margin-left: 5px;}
+        
+        .logo { text-decoration: none; display: flex; align-items: center; gap: 15px; }
+        .logo img { height: 45px; filter: drop-shadow(0 0 5px rgba(0, 210, 211, 0.3)); transition: 0.3s; }
+        .logo img:hover { filter: drop-shadow(0 0 10px rgba(0, 210, 211, 0.6)); transform: scale(1.05); }
+        .logo .badge { background: var(--neon-red); color: white; font-size: 11px; padding: 4px 8px; border-radius: 4px; font-family: 'Rajdhani', sans-serif; font-weight: bold; letter-spacing: 1px;}
+
         .nav-links a { color: var(--text-muted); text-decoration: none; margin-left: 20px; font-weight: 600; font-size: 14px; transition: 0.3s; }
         .nav-links a:hover, .nav-links a.active { color: var(--neon-cyan); }
 
-        /* LAYOUT Y PANELES */
         .container { max-width: 1200px; margin: 40px auto; padding: 0 20px; }
         .layout-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 30px; align-items: start; }
         @media (max-width: 900px) { .layout-grid { grid-template-columns: 1fr; } }
@@ -42,7 +44,6 @@
         .panel { background: var(--glass-bg); backdrop-filter: blur(12px); border: 1px solid var(--glass-border); border-radius: 12px; padding: 30px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4); margin-bottom: 20px; }
         h2 { font-family: 'Rajdhani', sans-serif; font-size: 28px; margin-top: 0; color: var(--neon-cyan); text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;}
 
-        /* FORMULARIOS Y BOTONES GENERALES */
         .filters-grid { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; align-items: flex-end;}
         .filters-grid > div { flex: 1; min-width: 120px; }
         label { display: block; font-size: 11px; color: var(--text-muted); margin-bottom: 5px; text-transform: uppercase; font-weight: bold; letter-spacing: 1px;}
@@ -57,7 +58,6 @@
         .btn-success { background: var(--neon-green); color: var(--bg-color); width: 100%; margin-top: 10px;}
         .btn-secondary { background: #57606f; color: white; width: auto;}
 
-        /* TABLA PRINCIPAL */
         .table-wrapper { overflow-x: auto; }
         table { width: 100%; border-collapse: separate; border-spacing: 0 8px; }
         th { padding: 15px; text-align: left; color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 2px; border-bottom: 1px solid var(--glass-border); }
@@ -66,47 +66,22 @@
         tr td:last-child { border-right: 1px solid rgba(255, 255, 255, 0.03); border-top-right-radius: 8px; border-bottom-right-radius: 8px; }
         tbody tr:hover td { background: rgba(255, 255, 255, 0.05); }
 
-        /* ==========================================
-           REDISEÑO DE BOTONES DE ACCIÓN (Tabla y Batallas)
-           ========================================== */
         .action-group { display: flex; gap: 8px; align-items: center; justify-content: flex-start; }
-        .btn-ver, .btn-editar, .btn-borrar { 
-            background: rgba(0,0,0,0.5) !important; 
-            border: 1px solid !important; 
-            padding: 6px 12px !important; 
-            border-radius: 6px !important; 
-            font-size: 11px !important; 
-            font-weight: bold; 
-            cursor: pointer; 
-            transition: 0.3s;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            font-family: 'Montserrat', sans-serif;
-            text-transform: uppercase;
-            width: auto;
-            margin: 0;
-        }
-        
+        .btn-ver, .btn-editar, .btn-borrar { background: rgba(0,0,0,0.5) !important; border: 1px solid !important; padding: 6px 12px !important; border-radius: 6px !important; font-size: 11px !important; font-weight: bold; cursor: pointer; transition: 0.3s; display: flex; align-items: center; gap: 5px; font-family: 'Montserrat', sans-serif; text-transform: uppercase; width: auto; margin: 0; }
         .btn-ver { border-color: var(--neon-cyan) !important; color: var(--neon-cyan) !important; }
         .btn-ver:hover { background: var(--neon-cyan) !important; color: var(--bg-color) !important; box-shadow: 0 0 10px rgba(0, 210, 211, 0.5); }
-        
         .btn-editar { border-color: var(--neon-gold) !important; color: var(--neon-gold) !important; }
         .btn-editar:hover { background: var(--neon-gold) !important; color: #000 !important; box-shadow: 0 0 10px rgba(236, 204, 104, 0.5); }
-        
         .btn-borrar { border-color: var(--neon-red) !important; color: var(--neon-red) !important; }
         .btn-borrar:hover { background: var(--neon-red) !important; color: white !important; box-shadow: 0 0 10px rgba(255, 71, 87, 0.5); }
 
-        /* DISEÑO DE LA BATALLA INDIVIDUAL EN DETALLE */
         .batalla-item { display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.4); border: 1px solid var(--glass-border); border-left: 4px solid var(--neon-cyan); padding: 15px; margin-bottom: 12px; border-radius: 8px; transition: 0.3s;}
         .batalla-item:hover { background: rgba(0, 210, 211, 0.05); transform: scale(1.01); }
         .batalla-fase { font-size: 11px; color: var(--text-muted); background: rgba(0,0,0,0.6); padding: 5px 10px; border-radius: 6px; text-align: center; border: 1px solid var(--glass-border); min-width: 100px; text-transform: uppercase; font-weight: bold;}
         .ganador-text { color: var(--neon-gold); font-weight: bold; text-shadow: 0 0 8px rgba(236, 204, 104, 0.4); }
 
-        /* PANEL FRANQUICIAS */
         #listaFranq li { background: rgba(0,0,0,0.4); border: 1px solid var(--glass-border); border-radius: 6px; margin-bottom: 8px; padding: 10px; display: flex; justify-content: space-between; align-items: center; color: white; border-left: 4px solid var(--neon-cyan);}
         
-        /* MODALES */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); z-index: 999; }
         .modal-box { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1e1e2f; padding: 30px; border-radius: 12px; border: 1px solid var(--neon-cyan); z-index: 1000; width: 90%; max-width: 450px; box-shadow: 0 0 30px rgba(0, 210, 211, 0.3); }
 
@@ -117,7 +92,10 @@
 
     <nav class="nav-admin">
         <div class="nav-content">
-            <a href="admin.html" class="logo">FREESTYLE POWER RANKING ELO <span class="badge">ADMIN</span></a>
+            <a href="admin.html" class="logo">
+                <img src="logo-fpr.png" alt="FPR Logo">
+                <span class="badge">ADMIN</span>
+            </a>
             <div class="nav-links">
                 <a href="admin.html">Crear Torneo</a>
                 <a href="museo.html" class="active">Museo Histórico</a>
@@ -178,7 +156,7 @@
                 <div class="panel" id="panelDetalle" style="display: none;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 1px solid var(--glass-border); padding-bottom: 15px;">
                         <h2 id="detalleTitulo" style="color: var(--neon-cyan); margin: 0; border: none;"></h2>
-                        <button class="btn-secondary" onclick="cerrarDetalle()">⬅️ Volver al Libro</button>
+                        <button class="btn-secondary" onclick="cerrarDetalle()" style="width:auto;">⬅️ Volver al Libro</button>
                     </div>
                     <div id="contenedorBatallas"></div>
                 </div>
@@ -187,6 +165,10 @@
                     <h2 style="color:var(--neon-gold);">✏️ Configuración de Evento</h2>
                     <label>Nombre del Evento</label> <input type="text" id="editNomTorneo" style="margin-bottom: 15px;">
                     <label>Franquicia</label> <select id="editFranqTorneo" style="margin-bottom: 15px;"></select>
+                    
+                    <label>Logo del Evento (URL - Opcional)</label> 
+                    <input type="text" id="editLogoTorneo" style="margin-bottom: 15px;" placeholder="https://tudominio.com/logo.png">
+                    
                     <label>Fecha Original</label> <input type="date" id="editFechaTorneo">
                     <div style="display:flex; gap:15px; margin-top:25px;">
                         <button class="btn-success" style="flex:2;" onclick="guardarEdicionTorneo()">💾 Guardar y Reparar</button>
@@ -219,6 +201,6 @@
     </div>
 
     <div class="footer">FREESTYLE POWER RANKING ELO V3.0 © 2026 | Área Administrativa</div>
-    <script type="module" src="js/museo.js?v=11.0"></script>
+    <script type="module" src="js/museo.js?v=12.0"></script>
 </body>
 </html>
