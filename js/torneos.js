@@ -13,7 +13,7 @@ const RUTA_TORNEO = {
     'F':  { sig: 'FIN', slot: null }, '3P': { sig: 'FIN', slot: null } 
 };
 
-let evento = { id: null, pozo: 0, nombre: "", franquicia: "", formatoStr: "", fecha: "", logo: "" };
+let evento = { id: null, pozo: 0, nombre: "", franquicia: "", formatoStr: "", fecha: "" };
 Object.keys(RUTA_TORNEO).forEach(fase => { evento[fase] = { mc1: null, mc2: null, ganador: null, perdedor: null, omitido: false }; });
 
 let mcsDisponibles = []; let mcsSeleccionados = []; let limiteMcsActual = 16; let batallasLigaPreparadas = []; 
@@ -77,7 +77,6 @@ function dibujarChips() {
 function irACruces() {
     evento.nombre = document.getElementById('nombreTorneo').value.trim(); 
     evento.franquicia = document.getElementById('franquiciaTorneo').value;
-    evento.logo = document.getElementById('logoTorneo').value.trim(); // <-- CAPTURA DEL LOGO
     evento.formatoStr = document.getElementById('formatoTorneo').options[document.getElementById('formatoTorneo').selectedIndex].text; 
     evento.fecha = document.getElementById('fechaTorneo').value;
     
@@ -205,7 +204,7 @@ async function iniciarTorneo() {
     if (isLiga) {
         if (batallasLigaPreparadas.length === 0) return alert("Añade al menos una batalla.");
         evento.pozo = 0; document.getElementById('mensajeConsola').innerHTML = "Creando Jornada...";
-        const { data: torneoDB, error } = await supabase.from('torneos').insert([{ nombre: evento.nombre, franquicia: evento.franquicia, formato: evento.formatoStr, fecha_evento: evento.fecha, estado: 'En Curso', elo_medio_calculado: 1500, pozo_total: 0, logo: evento.logo }]).select();
+        const { data: torneoDB, error } = await supabase.from('torneos').insert([{ nombre: evento.nombre, franquicia: evento.franquicia, formato: evento.formatoStr, fecha_evento: evento.fecha, estado: 'En Curso', elo_medio_calculado: 1500, pozo_total: 0, logo: null }]).select();
         if (error) return alert("Error al guardar."); evento.id = torneoDB[0].id;
 
         let idsUnicos = [...new Set(batallasLigaPreparadas.flatMap(b => [b.mc1.id, b.mc2.id]))];
@@ -237,7 +236,7 @@ async function iniciarTorneo() {
         
         document.getElementById('mensajeConsola').innerHTML = "Registrando...";
 
-        const { data: torneoDB, error } = await supabase.from('torneos').insert([{ nombre: evento.nombre, franquicia: evento.franquicia, formato: evento.formatoStr, fecha_evento: evento.fecha, estado: 'En Curso', elo_medio_calculado: Math.round(eloPromedio), pozo_total: evento.pozo, logo: evento.logo }]).select();
+        const { data: torneoDB, error } = await supabase.from('torneos').insert([{ nombre: evento.nombre, franquicia: evento.franquicia, formato: evento.formatoStr, fecha_evento: evento.fecha, estado: 'En Curso', elo_medio_calculado: Math.round(eloPromedio), pozo_total: evento.pozo, logo: null }]).select();
         if (error) return alert("Error al guardar."); evento.id = torneoDB[0].id;
 
         await supabase.from('inscripciones').insert(idsAValidar.map(id => ({ torneo_id: evento.id, competidor_id: id })));
