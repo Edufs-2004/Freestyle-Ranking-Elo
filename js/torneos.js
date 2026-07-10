@@ -21,7 +21,7 @@ let mcsDisponibles = []; let mcsSeleccionados = []; let limiteMcsActual = 16; le
 async function cargarBD() {
     const { data, error } = await supabase.from('competidores').select('*').order('aka', { ascending: true });
     if (error) console.error("Error cargando competidores:", error);
-    mcsDisponibles = data || []; // Blindaje contra respuestas nulas
+    mcsDisponibles = data || []; 
 }
 
 function cambiarFormato() {
@@ -44,10 +44,8 @@ function filtrarBuscador() {
         return;
     }
 
-    // Blindaje de seguridad en caso de que la lista no se haya cargado
     if (!mcsDisponibles) mcsDisponibles = [];
 
-    // Buscador Inteligente protegido contra nombres nulos/vacíos en la BD
     let resultados = mcsDisponibles.filter(mc => {
         let akaSafe = mc.aka ? String(mc.aka).toLowerCase() : "";
         return akaSafe.includes(texto) && !mcsSeleccionados.find(sel => sel.id === mc.id);
@@ -67,7 +65,6 @@ function filtrarBuscador() {
         return akaSafe === texto;
     });
 
-    // Añadir nuevo competidor si no existe en la base de datos
     if (!coincidenciaExacta && textoOriginal.length > 0) {
         html += `<div class="sugerencia-item" style="background: rgba(46, 213, 115, 0.15); color: #2ed573; font-weight: bold; border-left: 3px solid #2ed573;" onclick="crearYAgregarMC('${textoOriginal}')">➕ Crear perfil para "${textoOriginal}"</div>`;
     }
@@ -250,8 +247,13 @@ async function iniciarTorneo() {
     if (isLiga) {
         if (batallasLigaPreparadas.length === 0) return alert("Añade al menos una batalla.");
         evento.pozo = 0; document.getElementById('mensajeConsola').innerHTML = "Creando Jornada...";
-        const { data: torneoDB, error } = await supabase.from('torneos').insert([{ nombre: evento.nombre, franquicia: evento.franquicia, formato: evento.formatoStr, fecha_evento: evento.fecha, estado: 'En Curso', elo_medio_calculado: 1500, pozo_total: 0, logo: null }]).select();
-        if (error) return alert("Error al guardar."); evento.id = torneoDB[0].id;
+        
+        const { data: torneoDB, error } = await supabase.from('torneos').insert([{ 
+            nombre: evento.nombre, franquicia: evento.franquicia, formato: evento.formatoStr, fecha_evento: evento.fecha, estado: 'En Curso', elo_medio_calculado: 1500, pozo_total: 0 
+        }]).select();
+        
+        if (error) { console.error(error); return alert("Error al guardar el torneo en la base de datos."); }
+        evento.id = torneoDB[0].id;
 
         let idsUnicos = [...new Set(batallasLigaPreparadas.flatMap(b => [b.mc1.id, b.mc2.id]))];
         await supabase.from('inscripciones').insert(idsUnicos.map(id => ({ torneo_id: evento.id, competidor_id: id })));
@@ -282,8 +284,12 @@ async function iniciarTorneo() {
         
         document.getElementById('mensajeConsola').innerHTML = "Registrando...";
 
-        const { data: torneoDB, error } = await supabase.from('torneos').insert([{ nombre: evento.nombre, franquicia: evento.franquicia, formato: evento.formatoStr, fecha_evento: evento.fecha, estado: 'En Curso', elo_medio_calculado: Math.round(eloPromedio), pozo_total: evento.pozo, logo: null }]).select();
-        if (error) return alert("Error al guardar."); evento.id = torneoDB[0].id;
+        const { data: torneoDB, error } = await supabase.from('torneos').insert([{ 
+            nombre: evento.nombre, franquicia: evento.franquicia, formato: evento.formatoStr, fecha_evento: evento.fecha, estado: 'En Curso', elo_medio_calculado: Math.round(eloPromedio), pozo_total: evento.pozo 
+        }]).select();
+        
+        if (error) { console.error(error); return alert("Error al guardar el torneo en la base de datos."); }
+        evento.id = torneoDB[0].id;
 
         await supabase.from('inscripciones').insert(idsAValidar.map(id => ({ torneo_id: evento.id, competidor_id: id })));
 
