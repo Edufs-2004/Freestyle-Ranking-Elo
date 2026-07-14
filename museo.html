@@ -106,6 +106,7 @@
         </div>
     </nav>
 
+    <!-- MODALES -->
     <div class="modal-overlay" id="overlayEditBat"></div>
     <div class="modal-box" id="modalEditBat" style="border-color: var(--neon-gold);">
         <h2 style="color: var(--neon-gold); font-size: 24px; margin-top: 0; border-bottom: none;">⚙️ Editor Quirúrgico</h2>
@@ -158,6 +159,7 @@
                 <div class="panel" id="panelLista">
                     <h2>🏛️ Libro Mayor de Eventos</h2>
                     <div class="filters-grid">
+                        <div><label>Universo</label><select id="modoAnalisisMuseo"><option value="historico">Línea Temporal (Global)</option><option value="aislado">Aislado (Reset 1500)</option></select></div>
                         <div><label>Franquicia</label><select id="filtroFranqMuseo"></select></div>
                         <div><label>Desde</label><input type="date" id="filtroDesdeMuseo"></div>
                         <div><label>Hasta</label><input type="date" id="filtroHastaMuseo"></div>
@@ -219,6 +221,6 @@
     </div>
 
     <div class="footer">FREESTYLE POWER RANKING ELO V3.0 © 2026 | Área Administrativa</div>
-    <script type="module" src="js/museo.js?v=13.0"></script>
+    <script type="module" src="js/museo.js?v=14.0"></script>
 </body>
 </html>

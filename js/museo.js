@@ -51,7 +51,7 @@ function renderizarTablaTorneos(listaTorneos) {
             <td>
                 <div class="action-group">
                     <button class="btn-ver" onclick="verTorneo(${t.id}, '${t.nombre}')" title="Ver Torneo">👁️ Ver</button> 
-                    <button class="btn-editar" onclick="abrirEdicionTorneo(${t.id}, '${t.nombre}', '${t.franquicia}', '${t.fecha_evento}')" title="Editar Evento">✏️ Edit</button> 
+                    <button class="btn-editar" onclick="abrirEdicionTorneo(${t.id})" title="Editar Evento">✏️ Edit</button> 
                     <button class="btn-borrar" onclick="eliminarTorneo(${t.id}, '${t.nombre}')" title="Eliminar">🗑️ Borrar</button>
                 </div>
             </td>
@@ -258,7 +258,7 @@ async function guardarEdicionBatalla(recalcular = true) {
 }
 
 // ====================================================================
-// HEAD TO HEAD: AHORA EXTRAE EL LOGO DESDE LA "FRANQUICIA" DIRECTAMENTE
+// HEAD TO HEAD: AHORA SOPORTA CÁLCULO DE "UNIVERSO AISLADO" EN TIEMPO REAL
 // ====================================================================
 async function abrirAnalisisBatalla(idBatalla) {
     document.getElementById('overlayAnalisis').style.display = 'block';
@@ -266,7 +266,7 @@ async function abrirAnalisisBatalla(idBatalla) {
     document.getElementById('contenidoAnalisis').innerHTML = '<h3 style="text-align:center; color:#eccc68; padding: 40px;">⏳ Viajando en el tiempo...</h3>';
 
     try {
-        const { data: bTarget, error: errTarget } = await supabase.from('batallas').select('*, torneos(nombre, franquicia)').eq('id', idBatalla).single();
+        const { data: bTarget, error: errTarget } = await supabase.from('batallas').select('*, torneos(nombre, franquicia, fecha_evento)').eq('id', idBatalla).single();
         if (errTarget || !bTarget) throw new Error("Batalla no encontrada.");
         
         let mc1 = listaMcsGlobal.find(m => m.id === bTarget.mc1_id);
@@ -275,17 +275,36 @@ async function abrirAnalisisBatalla(idBatalla) {
         let nombreTorneo = bTarget.torneos ? bTarget.torneos.nombre : 'Torneo Desconocido';
         let franquiciaTorneo = bTarget.torneos ? bTarget.torneos.franquicia : '';
 
-        // MAGIA DE LOGOS: Buscar en el array global de franquicias
         let franqObj = franquiciasGlobal.find(f => f.nombre === franquiciaTorneo);
         let logoFranquicia = (franqObj && franqObj.logo) ? franqObj.logo : null;
 
-        document.getElementById('analisisTitulo').innerText = `${franquiciaTorneo} - ${nombreTorneo} [${bTarget.fase}]`;
+        // 🟢 DETECTAR MODO AISLADO Y OBTENER LOS FILTROS ACTUALES
+        let selectModo = document.getElementById('modoAnalisisMuseo');
+        let modoAislado = selectModo && selectModo.value === 'aislado';
+        let fFranq = document.getElementById('filtroFranqMuseo').value;
+        let dDesde = document.getElementById('filtroDesdeMuseo').value;
+        let dHasta = document.getElementById('filtroHastaMuseo').value;
 
-        const { data: torneosData } = await supabase.from('torneos').select('id, fecha_evento').order('fecha_evento', { ascending: true });
+        let badgeUniverso = modoAislado ? `<span style="background:var(--neon-red); color:white; padding: 3px 6px; border-radius: 4px; font-size: 10px; vertical-align: middle; margin-left: 10px; letter-spacing:1px;">UNIVERSO AISLADO</span>` : '';
+        document.getElementById('analisisTitulo').innerHTML = `${franquiciaTorneo} - ${nombreTorneo} [${bTarget.fase}] ${badgeUniverso}`;
+
+        const { data: torneosData } = await supabase.from('torneos').select('id, fecha_evento, franquicia').order('fecha_evento', { ascending: true });
         const { data: batallasData } = await supabase.from('batallas').select('id, torneo_id, fase, mc1_id, mc2_id, cambio_mc1, cambio_mc2, resultado');
 
+        // 🟢 FILTRAR TORNEOS A PROCESAR SI ESTÁ AISLADO
+        let torneosAProcesar = torneosData;
+        if (modoAislado) {
+            let franquiciasPermitidas = fFranq ? obtenerFranquiciasValidas(fFranq) : ['TODAS'];
+            torneosAProcesar = torneosData.filter(t => {
+                let okF = (!fFranq || fFranq === 'TODAS') ? true : franquiciasPermitidas.includes(t.franquicia);
+                let okD = (!dDesde) ? true : t.fecha_evento >= dDesde;
+                let okH = (!dHasta) ? true : t.fecha_evento <= dHasta;
+                return okF && okD && okH;
+            });
+        }
+
         let todasBatallasOrdenadas = [];
-        for (let t of torneosData) {
+        for (let t of torneosAProcesar) {
             let bts = batallasData.filter(b => b.torneo_id === t.id);
             bts.sort((a, b) => {
                 if (a.resultado === 'bono' && b.resultado !== 'bono') return 1;
@@ -299,13 +318,48 @@ async function abrirAnalisisBatalla(idBatalla) {
         listaMcsGlobal.forEach(m => ledger[m.id] = { elo: 1500, maxElo: 1500, bestRank: 99999, batallas: 0 });
 
         let snapshotPre = null; let snapshotPost = null; let objetivoEncontrado = false;
+        
+        // El objeto de la batalla que usaremos para pintar la ficha
+        let objBatalla = {
+            elo_previo_mc1: bTarget.elo_previo_mc1,
+            elo_previo_mc2: bTarget.elo_previo_mc2,
+            cambio_mc1: bTarget.cambio_mc1,
+            cambio_mc2: bTarget.cambio_mc2
+        };
 
         for (let i = 0; i < todasBatallasOrdenadas.length; i++) {
             let b = todasBatallasOrdenadas[i];
 
+            let cambio1 = b.cambio_mc1;
+            let cambio2 = b.cambio_mc2;
+            let eloPrev1 = ledger[b.mc1_id] ? ledger[b.mc1_id].elo : 1500;
+            let eloPrev2 = ledger[b.mc2_id] ? ledger[b.mc2_id].elo : 1500;
+
+            // 🟢 SI ESTÁ AISLADO: IGNORAR BASE DE DATOS Y CALCULAR EN TIEMPO REAL
+            if (modoAislado) {
+                if (b.resultado === 'bono') {
+                    cambio1 = 0; cambio2 = 0; // Se ignoran los pozos de torneo para aislar solo 1v1
+                } else {
+                    let R1 = eloPrev1; let R2 = eloPrev2;
+                    let E1 = 1 / (1 + Math.pow(10, (R2 - R1) / 400));
+                    let E2 = 1 / (1 + Math.pow(10, (R1 - R2) / 400));
+                    let S1 = 0, S2 = 0, bono1 = false, bono2 = false;
+                    
+                    if (b.resultado === "victoria_total") { S1 = 1.0; S2 = 0.0; bono1 = true; }
+                    else if (b.resultado === "victoria") { S1 = 1.0; S2 = 0.0; }
+                    else if (b.resultado === "victoria_replica") { S1 = 0.75; S2 = 0.25; }
+                    else if (b.resultado === "derrota_replica") { S1 = 0.25; S2 = 0.75; }
+                    else if (b.resultado === "derrota") { S1 = 0.0; S2 = 1.0; }
+                    else if (b.resultado === "derrota_total") { S1 = 0.0; S2 = 1.0; bono2 = true; }
+
+                    cambio1 = Math.round(K * (S1 - E1) * (bono1 ? 1.2 : 1));
+                    cambio2 = Math.round(K * (S2 - E2) * (bono2 ? 1.2 : 1));
+                }
+            }
+
             if (b.id === idBatalla) {
                 objetivoEncontrado = true;
-                let tablaRank = Object.keys(ledger).map(id => ({id: parseInt(id), elo: ledger[id].elo})).sort((x,y) => y.elo - x.elo);
+                let tablaRank = Object.keys(ledger).map(id => ({id: parseInt(id), elo: ledger[id].elo, bts: ledger[id].batallas})).sort((x,y) => y.elo - x.elo);
                 snapshotPre = {
                     rank1: tablaRank.findIndex(r => r.id === mc1.id) + 1,
                     rank2: tablaRank.findIndex(r => r.id === mc2.id) + 1,
@@ -314,17 +368,24 @@ async function abrirAnalisisBatalla(idBatalla) {
                     bestRank1: ledger[mc1.id].bestRank === 99999 ? '-' : ledger[mc1.id].bestRank,
                     bestRank2: ledger[mc2.id].bestRank === 99999 ? '-' : ledger[mc2.id].bestRank
                 };
+                
+                if (modoAislado) {
+                    objBatalla.elo_previo_mc1 = eloPrev1;
+                    objBatalla.elo_previo_mc2 = eloPrev2;
+                    objBatalla.cambio_mc1 = cambio1;
+                    objBatalla.cambio_mc2 = cambio2;
+                }
             }
 
             let huboCambio = false;
             if (ledger[b.mc1_id]) {
-                ledger[b.mc1_id].elo += b.cambio_mc1;
+                ledger[b.mc1_id].elo += cambio1;
                 if (b.resultado !== 'bono') ledger[b.mc1_id].batallas += 1;
                 if (ledger[b.mc1_id].elo > ledger[b.mc1_id].maxElo) ledger[b.mc1_id].maxElo = ledger[b.mc1_id].elo;
                 huboCambio = true;
             }
             if (b.resultado !== 'bono' && ledger[b.mc2_id]) {
-                ledger[b.mc2_id].elo += b.cambio_mc2;
+                ledger[b.mc2_id].elo += cambio2;
                 ledger[b.mc2_id].batallas += 1;
                 if (ledger[b.mc2_id].elo > ledger[b.mc2_id].maxElo) ledger[b.mc2_id].maxElo = ledger[b.mc2_id].elo;
                 huboCambio = true;
@@ -366,14 +427,14 @@ async function abrirAnalisisBatalla(idBatalla) {
         let difPos2 = (snapshotPre.rank2 !== '-' && snapshotPost.rank2 !== '-') ? snapshotPre.rank2 - snapshotPost.rank2 : 0;
         let flechaPos2 = difPos2 > 0 ? `<span style="color:#2ed573; font-size: 12px;">(Subió ${difPos2}) ⬆️</span>` : (difPos2 < 0 ? `<span style="color:#ff4757; font-size: 12px;">(Bajó ${Math.abs(difPos2)}) ⬇️</span>` : `<span style="color:#a4b0be; font-size: 12px;">(Se mantuvo) ➖</span>`);
 
-        let logoEventoHtml = logoFranquicia ? `<img src="${logoFranquicia}" style="height: 50px; max-width: 150px; object-fit: contain;">` : `<div></div>`;
+        let logoEventoHtml = logoFranquicia ? `<img src="${logoFranquicia}" crossorigin="anonymous" style="height: 50px; max-width: 150px; object-fit: contain;">` : `<div></div>`;
 
         let html = `
         <div id="tarjetaCaptura" style="background: #1e1e2f; padding: 20px; color: white; font-family: 'Montserrat', sans-serif;">
             
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 10px;">
                 <div style="display: flex; align-items: center; gap: 10px;">
-                    <img src="logo-fpr.png" alt="FPR Logo" style="height: 50px; filter: drop-shadow(0 0 5px rgba(0,210,211,0.5));">
+                    <img src="logo-fpr.png" alt="FPR Logo" crossorigin="anonymous" style="height: 50px; filter: drop-shadow(0 0 5px rgba(0,210,211,0.5));">
                     <div style="font-family: 'Rajdhani', sans-serif; font-size: 18px; font-weight: bold; color: white; line-height: 1.1; text-align: left;">
                         FREESTYLE POWER<br><span style="color: #00d2d3;">RANKING ELO</span>
                     </div>
@@ -389,12 +450,12 @@ async function abrirAnalisisBatalla(idBatalla) {
 
             <div style="display: flex; justify-content: space-around; align-items: center; margin-bottom: 0px; background: #2a2a40; padding: 20px 15px; border-radius: 8px 8px 0 0; border: 1px solid rgba(255,255,255,0.05); border-bottom: none;">
                 <div style="text-align: center; flex: 1;">
-                    <img src="${img1}" style="width: 90px; height: 90px; object-fit: cover; border-radius: 50%; border: 3px solid #1e90ff;">
+                    <img src="${img1}" crossorigin="anonymous" style="width: 90px; height: 90px; object-fit: cover; border-radius: 50%; border: 3px solid #1e90ff;">
                     <h3 style="margin: 10px 0 0 0; color: #1e90ff; font-size: 20px; font-family: 'Rajdhani', sans-serif;">${mc1.aka}</h3>
                 </div>
                 <div style="font-size: 30px; font-weight: bold; color: #ff4757; flex: 0.5; text-align: center; text-shadow: 0px 2px 5px rgba(0,0,0,0.5);">VS</div>
                 <div style="text-align: center; flex: 1;">
-                    <img src="${img2}" style="width: 90px; height: 90px; object-fit: cover; border-radius: 50%; border: 3px solid #ff4757;">
+                    <img src="${img2}" crossorigin="anonymous" style="width: 90px; height: 90px; object-fit: cover; border-radius: 50%; border: 3px solid #ff4757;">
                     <h3 style="margin: 10px 0 0 0; color: #ff4757; font-size: 20px; font-family: 'Rajdhani', sans-serif;">${mc2.aka}</h3>
                 </div>
             </div>
@@ -407,9 +468,9 @@ async function abrirAnalisisBatalla(idBatalla) {
                 </tr>
                 
                 <tr style="border-bottom: 1px solid #373752;">
-                    <td style="padding: 12px; font-size: 18px; font-weight: bold; color: #fff; border: none;">${bTarget.elo_previo_mc1}</td>
+                    <td style="padding: 12px; font-size: 18px; font-weight: bold; color: #fff; border: none;">${objBatalla.elo_previo_mc1}</td>
                     <td style="padding: 12px; font-weight: bold; color: #a4b0be; background: rgba(0,0,0,0.2); border: none;">Elo Previo</td>
-                    <td style="padding: 12px; font-size: 18px; font-weight: bold; color: #fff; border: none;">${bTarget.elo_previo_mc2}</td>
+                    <td style="padding: 12px; font-size: 18px; font-weight: bold; color: #fff; border: none;">${objBatalla.elo_previo_mc2}</td>
                 </tr>
                 
                 <tr style="border-bottom: 1px solid #373752;">
@@ -419,9 +480,9 @@ async function abrirAnalisisBatalla(idBatalla) {
                 </tr>
 
                 <tr style="border-bottom: 1px solid #373752; background: rgba(46, 213, 115, 0.05);">
-                    <td style="padding: 12px; font-size: 16px; color: #fff; font-weight: bold; border: none;">${bTarget.elo_previo_mc1 + bTarget.cambio_mc1} <br><span style="font-size: 13px; color: ${bTarget.cambio_mc1 > 0 ? '#2ed573' : '#ff4757'}">(${bTarget.cambio_mc1 > 0 ? '+'+bTarget.cambio_mc1 : bTarget.cambio_mc1})</span></td>
+                    <td style="padding: 12px; font-size: 16px; color: #fff; font-weight: bold; border: none;">${objBatalla.elo_previo_mc1 + objBatalla.cambio_mc1} <br><span style="font-size: 13px; color: ${objBatalla.cambio_mc1 > 0 ? '#2ed573' : '#ff4757'}">(${objBatalla.cambio_mc1 > 0 ? '+'+objBatalla.cambio_mc1 : objBatalla.cambio_mc1})</span></td>
                     <td style="padding: 12px; font-weight: bold; color: #2ed573; background: rgba(0,0,0,0.2); border: none;">Elo Post Batalla</td>
-                    <td style="padding: 12px; font-size: 16px; color: #fff; font-weight: bold; border: none;">${bTarget.elo_previo_mc2 + bTarget.cambio_mc2} <br><span style="font-size: 13px; color: ${bTarget.cambio_mc2 > 0 ? '#2ed573' : '#ff4757'}">(${bTarget.cambio_mc2 > 0 ? '+'+bTarget.cambio_mc2 : bTarget.cambio_mc2})</span></td>
+                    <td style="padding: 12px; font-size: 16px; color: #fff; font-weight: bold; border: none;">${objBatalla.elo_previo_mc2 + objBatalla.cambio_mc2} <br><span style="font-size: 13px; color: ${objBatalla.cambio_mc2 > 0 ? '#2ed573' : '#ff4757'}">(${objBatalla.cambio_mc2 > 0 ? '+'+objBatalla.cambio_mc2 : objBatalla.cambio_mc2})</span></td>
                 </tr>
 
                 <tr style="border-bottom: 1px solid #373752;">
@@ -452,7 +513,7 @@ async function abrirAnalisisBatalla(idBatalla) {
 
     } catch (e) {
         console.error(e);
-        document.getElementById('contenidoAnalisis').innerHTML = `<h3 style="text-align:center; color:#ff4757;">Error al procesar el análisis. Verifica que la columna 'logo' exista en la tabla franquicias.</h3>`;
+        document.getElementById('contenidoAnalisis').innerHTML = `<h3 style="text-align:center; color:#ff4757;">Error al procesar el análisis. Verifica tu base de datos.</h3>`;
     }
 }
 
@@ -491,12 +552,11 @@ window.descargarCaraACara = function(boton) {
     }
 }
 
-// ====================================================================
-// GESTOR DE FRANQUICIAS: AHORA INCLUYE LOGO Y EDICIÓN
-// ====================================================================
 async function cargarFranquiciasPanel() {
-    const { data } = await supabase.from('franquicias').select('*').order('nombre');
-    franquiciasGlobal = data || []; // GUARDAR EN GLOBAL PARA QUE EL HEAD-TO-HEAD LAS LEA
+    const { data, error } = await supabase.from('franquicias').select('*').order('nombre');
+    if (error) { console.error("Error al cargar franquicias:", error); return; }
+    
+    franquiciasGlobal = data || []; 
     
     let selectPadre = document.getElementById('nuevaFranqPadre'); let principales = data.filter(f => !f.padre);
     let htmlPadres = '<option value="">Ninguna (Carpeta Principal)</option>';
@@ -504,21 +564,21 @@ async function cargarFranquiciasPanel() {
 
     let html = '';
     principales.forEach(p => {
-        let logoStr = p.logo || '';
+        let miniatura = p.logo ? `<img src="${p.logo}" style="height:18px; width:18px; object-fit:contain; background:#fff; border-radius:50%; margin-right:5px;">` : '📂 ';
         html += `<li style="display:flex; justify-content:space-between; margin-bottom:5px; background:rgba(0,0,0,0.5); padding:10px; border-radius:6px; border-left: 4px solid #1e90ff;">
-            <strong>📂 ${p.nombre}</strong> 
+            <div style="display:flex; align-items:center;">${miniatura} <strong>${p.nombre}</strong></div>
             <div style="display:flex; gap:5px;">
-                <button class="action-btn" onclick="abrirEdicionFranq(${p.id}, '${p.nombre}', '${logoStr}', '')" style="padding: 5px; background:var(--neon-gold); color:#000; border:none; border-radius:3px; font-weight:bold; cursor:pointer;">✏️</button>
+                <button class="action-btn" onclick="abrirEdicionFranq(${p.id})" style="padding: 5px; background:var(--neon-gold); color:#000; border:none; border-radius:3px; font-weight:bold; cursor:pointer;">✏️</button>
                 <button class="action-btn" onclick="borrarFranquicia(${p.id})" style="padding: 5px; background:var(--neon-red); color:#fff; border:none; border-radius:3px; font-weight:bold; cursor:pointer;">✖</button>
             </div>
         </li>`;
         let hijos = data.filter(f => f.padre === p.nombre);
         hijos.forEach(h => { 
-            let logoHijoStr = h.logo || '';
+            let miniaturaHijo = h.logo ? `<img src="${h.logo}" style="height:16px; width:16px; object-fit:contain; background:#fff; border-radius:50%; margin-right:5px;">` : '↳ ';
             html += `<li style="display:flex; justify-content:space-between; margin-bottom:5px; margin-left:20px; background:rgba(0,0,0,0.3); padding:10px; border-radius:6px; border-left: 2px solid #eccc68;">
-                ↳ ${h.nombre} 
+                <div style="display:flex; align-items:center; font-size:13px;">${miniaturaHijo} ${h.nombre}</div>
                 <div style="display:flex; gap:5px;">
-                    <button class="action-btn" onclick="abrirEdicionFranq(${h.id}, '${h.nombre}', '${logoHijoStr}', '${p.nombre}')" style="padding: 5px; background:var(--neon-gold); color:#000; border:none; border-radius:3px; font-weight:bold; cursor:pointer;">✏️</button>
+                    <button class="action-btn" onclick="abrirEdicionFranq(${h.id})" style="padding: 5px; background:var(--neon-gold); color:#000; border:none; border-radius:3px; font-weight:bold; cursor:pointer;">✏️</button>
                     <button class="action-btn" onclick="borrarFranquicia(${h.id})" style="padding: 5px; background:var(--neon-red); color:#fff; border:none; border-radius:3px; font-weight:bold; cursor:pointer;">✖</button>
                 </div>
             </li>`; 
@@ -539,7 +599,9 @@ async function agregarFranquicia() {
     let obj = { nombre: nom, logo: logo }; 
     if (padre !== "") obj.padre = padre;
     
-    await supabase.from('franquicias').insert([obj]); 
+    const { error } = await supabase.from('franquicias').insert([obj]); 
+    if (error) { alert("Error de Base de Datos: Asegúrate de que la columna 'logo' exista."); return; }
+
     document.getElementById('nuevaFranq').value = ''; 
     document.getElementById('nuevaFranqLogo').value = ''; 
     cargarFranquiciasPanel();
@@ -550,17 +612,20 @@ async function borrarFranquicia(id) {
     await supabase.from('franquicias').delete().eq('id', id); cargarFranquiciasPanel();
 }
 
-window.abrirEdicionFranq = function(id, nombre, logo, padre) {
-    document.getElementById('editFranqId').value = id;
-    document.getElementById('editFranqNombre').value = nombre;
-    document.getElementById('editFranqLogo').value = logo;
+window.abrirEdicionFranq = function(id) {
+    let franq = franquiciasGlobal.find(f => f.id === id);
+    if (!franq) return;
+
+    document.getElementById('editFranqId').value = franq.id;
+    document.getElementById('editFranqNombre').value = franq.nombre;
+    document.getElementById('editFranqLogo').value = franq.logo || '';
     
     let selectPadre = document.getElementById('editFranqPadre');
     let principales = franquiciasGlobal.filter(f => !f.padre && f.id !== id);
     let htmlPadres = '<option value="">Ninguna (Carpeta Principal)</option>';
     principales.forEach(p => htmlPadres += `<option value="${p.nombre}">${p.nombre}</option>`); 
     selectPadre.innerHTML = htmlPadres;
-    selectPadre.value = padre;
+    selectPadre.value = franq.padre || '';
 
     document.getElementById('overlayEditFranq').style.display = 'block';
     document.getElementById('modalEditFranq').style.display = 'block';
@@ -580,17 +645,21 @@ window.guardarEdicionFranq = async function() {
     if (!nombre) return alert("El nombre no puede estar vacío.");
 
     let obj = { nombre: nombre, logo: logo, padre: padre === "" ? null : padre };
-    await supabase.from('franquicias').update(obj).eq('id', id);
+    const { error } = await supabase.from('franquicias').update(obj).eq('id', id);
     
+    if (error) { alert("Error al guardar: Asegúrate de que la columna 'logo' existe en Supabase."); return; }
+
     cerrarEdicionFranq();
     cargarFranquiciasPanel();
 }
 
-async function abrirEdicionTorneo(id, nombre, franquicia, fecha) {
-    torneoEditandoId = id; fechaOriginalEdicion = fecha;
-    document.getElementById('editNomTorneo').value = nombre; 
-    document.getElementById('editFechaTorneo').value = fecha;
-    setTimeout(() => { document.getElementById('editFranqTorneo').value = franquicia; }, 100);
+window.abrirEdicionTorneo = function(id) {
+    let t = torneosGlobal.find(x => x.id === id);
+    if(!t) return;
+    torneoEditandoId = t.id; fechaOriginalEdicion = t.fecha_evento;
+    document.getElementById('editNomTorneo').value = t.nombre;
+    document.getElementById('editFechaTorneo').value = t.fecha_evento;
+    setTimeout(() => { document.getElementById('editFranqTorneo').value = t.franquicia; }, 100);
     document.getElementById('panelLista').style.display = 'none'; document.getElementById('panelEdicion').style.display = 'block';
 }
 
