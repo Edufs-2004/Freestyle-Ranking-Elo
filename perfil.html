@@ -47,6 +47,17 @@
         .sugerencia-item { padding: 15px 20px; cursor: pointer; border-bottom: 1px solid #373752; display: flex; justify-content: space-between; transition: 0.2s; font-weight: bold;}
         .sugerencia-item:hover { background: rgba(0, 210, 211, 0.1); color: var(--neon-cyan); }
 
+        .competidores-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 0 0 15px; color: var(--text-muted); font-size: 13px; }
+        .competidores-heading strong { color: var(--neon-cyan); }
+        .competidores-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 16px; margin-bottom: 30px; }
+        .competidor-card { background: rgba(0,0,0,0.4); border: 1px solid var(--glass-border); border-radius: 12px; padding: 18px; text-align: center; transition: 0.2s; cursor: pointer; color: var(--text-main); font: inherit; }
+        .competidor-card:hover, .competidor-card:focus-visible { transform: translateY(-4px); border-color: var(--neon-cyan); box-shadow: 0 10px 20px rgba(0, 210, 211, 0.12); outline: none; }
+        .competidor-foto { width: 84px; height: 84px; object-fit: cover; border-radius: 50%; border: 3px solid var(--neon-cyan); margin-bottom: 8px; }
+        .competidor-nombre { font-family: 'Rajdhani', sans-serif; font-size: 21px; margin: 0 0 4px; color: white; text-transform: uppercase; overflow-wrap: anywhere; }
+        .competidor-bandera { font-size: 17px; margin-bottom: 8px; }
+        .competidor-elo { color: var(--neon-gold); font-weight: bold; font-size: 13px; }
+        .competidores-vacio { grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 24px; background: rgba(0,0,0,0.25); border-radius: 10px; }
+
         #zonaPerfil { display: none; }
         
         /* FILTROS */
@@ -113,9 +124,12 @@
     <div class="container">
         
         <div class="search-container">
-            <input type="text" id="buscadorMCs" class="search-input" placeholder="🔍 Ingresa el A.K.A del competidor..." onkeyup="filtrarBuscador()" autocomplete="off">
+            <input type="text" id="buscadorMCs" class="search-input" placeholder="🔍 Ingresa el A.K.A del competidor..." oninput="filtrarBuscador()" autocomplete="off" aria-label="Buscar competidor">
             <div id="sugerenciasMCs" class="sugerencias-box"></div>
         </div>
+
+        <div class="competidores-heading"><span>COMPETIDORES</span><strong id="contadorCompetidores">Cargando...</strong></div>
+        <div id="competidoresGridPerfil" class="competidores-grid" aria-live="polite"></div>
 
         <div id="zonaPerfil">
             

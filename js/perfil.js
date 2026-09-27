@@ -5,8 +5,14 @@ const K = 32;
 let listaMCs = []; let miGrafico = null; let batallasUniverso = []; let mcActualID = null;
 
 async function inicializar() {
-    const { data: mcs } = await supabase.from('competidores').select('*').order('aka', { ascending: true });
+    const { data: mcs, error: errorMcs } = await supabase.from('competidores').select('*').order('aka', { ascending: true });
+    if (errorMcs) {
+        console.error('Error al cargar competidores:', errorMcs);
+        renderizarCompetidores([], '', 'No se pudieron cargar los competidores. Intenta recargar la página.');
+        return;
+    }
     listaMCs = mcs || [];
+    renderizarCompetidores(listaMCs);
     
     const { data: bts } = await supabase.from('batallas').select(`*, torneos(nombre, franquicia, fecha_evento)`);
     batallasUniverso = (bts || []).sort((a,b) => {
@@ -25,25 +31,110 @@ async function inicializar() {
     }
 }
 
-function filtrarBuscador() {
-    let texto = document.getElementById('buscadorMCs').value.toLowerCase();
-    let cajaSugerencias = document.getElementById('sugerenciasMCs');
-    if (texto.length < 1) return cajaSugerencias.style.display = 'none';
+function renderizarCompetidores(lista, texto = '', mensajeVacio = '') {
+    const grid = document.getElementById('competidoresGridPerfil');
+    const contador = document.getElementById('contadorCompetidores');
+    if (!grid || !contador) return;
 
-    let resultados = listaMCs.filter(mc => mc.aka.toLowerCase().includes(texto));
-    let html = '';
-    if (resultados.length === 0) html += `<div class="sugerencia-item" style="color: #888; cursor: default;">No se encontraron competidores</div>`;
-    else resultados.forEach(mc => { html += `<div class="sugerencia-item" onclick="cargarPerfil(${mc.id})"><span>${mc.aka}</span><span style="color: #00d2d3;">${mc.elo_actual} pts</span></div>`; });
-    
-    cajaSugerencias.innerHTML = html; cajaSugerencias.style.display = 'block';
+    contador.textContent = `${lista.length} de ${listaMCs.length} competidores`;
+    grid.replaceChildren();
+
+    if (lista.length === 0) {
+        const vacio = document.createElement('div');
+        vacio.className = 'competidores-vacio';
+        vacio.textContent = mensajeVacio || (texto ? 'No se encontraron competidores con ese A.K.A.' : 'Aún no hay competidores registrados.');
+        grid.appendChild(vacio);
+        return;
+    }
+
+    const fragmento = document.createDocumentFragment();
+    lista.forEach(mc => {
+        const tarjeta = document.createElement('button');
+        tarjeta.type = 'button';
+        tarjeta.className = 'competidor-card';
+        tarjeta.setAttribute('aria-label', `Ver perfil de ${mc.aka || 'competidor'}`);
+
+        const foto = document.createElement('img');
+        foto.className = 'competidor-foto';
+        foto.src = mc.foto || 'https://via.placeholder.com/150/1e1e2f/00d2d3?text=MC';
+        foto.alt = mc.aka ? `Foto de ${mc.aka}` : 'Foto del competidor';
+        foto.onerror = () => { foto.src = 'https://via.placeholder.com/150/1e1e2f/00d2d3?text=MC'; };
+
+        const nombre = document.createElement('h3');
+        nombre.className = 'competidor-nombre';
+        nombre.textContent = mc.aka || 'Sin A.K.A.';
+
+        const bandera = document.createElement('div');
+        bandera.className = 'competidor-bandera';
+        bandera.textContent = mc.nacionalidad || '🌍';
+
+        const elo = document.createElement('div');
+        elo.className = 'competidor-elo';
+        elo.textContent = `🏆 ${mc.elo_actual ?? 1500} pts`;
+
+        tarjeta.append(foto, nombre, bandera, elo);
+        tarjeta.addEventListener('click', () => cargarPerfil(mc.id));
+        fragmento.appendChild(tarjeta);
+    });
+    grid.appendChild(fragmento);
+}
+
+function filtrarBuscador() {
+    let texto = document.getElementById('buscadorMCs').value.trim().toLocaleLowerCase();
+    let cajaSugerencias = document.getElementById('sugerenciasMCs');
+    let resultados = texto
+        ? listaMCs.filter(mc => String(mc.aka || '').toLocaleLowerCase().includes(texto))
+        : listaMCs;
+    renderizarCompetidores(resultados, texto);
+
+    cajaSugerencias.replaceChildren();
+    if (!texto) {
+        cajaSugerencias.style.display = 'none';
+        return;
+    }
+
+    if (resultados.length === 0) {
+        const vacio = document.createElement('div');
+        vacio.className = 'sugerencia-item';
+        vacio.style.color = '#888';
+        vacio.style.cursor = 'default';
+        vacio.textContent = 'No se encontraron competidores';
+        cajaSugerencias.appendChild(vacio);
+    } else {
+        resultados.slice(0, 8).forEach(mc => {
+            const sugerencia = document.createElement('div');
+            sugerencia.className = 'sugerencia-item';
+            sugerencia.setAttribute('role', 'button');
+            sugerencia.tabIndex = 0;
+
+            const nombre = document.createElement('span');
+            nombre.textContent = mc.aka || 'Sin A.K.A.';
+            const elo = document.createElement('span');
+            elo.style.color = '#00d2d3';
+            elo.textContent = `${mc.elo_actual ?? 1500} pts`;
+            sugerencia.append(nombre, elo);
+            sugerencia.addEventListener('click', () => cargarPerfil(mc.id));
+            sugerencia.addEventListener('keydown', event => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    cargarPerfil(mc.id);
+                }
+            });
+            cajaSugerencias.appendChild(sugerencia);
+        });
+    }
+    cajaSugerencias.style.display = 'block';
 }
 
 function cargarPerfil(idMC) {
-    mcActualID = idMC;
     let mcPrincipal = listaMCs.find(m => m.id == idMC);
-    document.getElementById('buscadorMCs').value = ''; document.getElementById('sugerenciasMCs').style.display = 'none';
+    if (!mcPrincipal) return;
+    mcActualID = idMC;
+    document.getElementById('buscadorMCs').value = '';
+    document.getElementById('sugerenciasMCs').style.display = 'none';
+    renderizarCompetidores(listaMCs);
     
-    document.getElementById('nombreMC').innerText = mcPrincipal.aka;
+    document.getElementById('nombreMC').innerText = mcPrincipal.aka || 'Sin A.K.A.';
     document.getElementById('banderaMC').innerText = mcPrincipal.nacionalidad || '🌍';
     document.getElementById('imgAtleta').src = mcPrincipal.foto || 'https://via.placeholder.com/150/1e1e2f/00d2d3?text=MC';
     document.getElementById('statEloActual').innerText = mcPrincipal.elo_actual;
