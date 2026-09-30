@@ -318,7 +318,7 @@ async function abrirAnalisisBatalla(idBatalla) {
         let ledger = {};
         listaMcsGlobal.forEach(m => ledger[m.id] = { elo: 1500, maxElo: 1500, bestRank: 99999, batallas: 0 });
 
-        let snapshotPre = null; let snapshotPost = null; let objetivoEncontrado = false;
+        let snapshotPre = null; let snapshotPost = null;
         
         // El objeto de la batalla que usaremos para pintar la ficha
         let objBatalla = {
@@ -359,7 +359,6 @@ async function abrirAnalisisBatalla(idBatalla) {
             }
 
             if (b.id === idBatalla) {
-                objetivoEncontrado = true;
                 let tablaRank = construirRankingHistorico(listaMcsGlobal, ledger);
                 snapshotPre = {
                     rank1: posicionRankingHistorico(tablaRank, mc1.id),
@@ -402,17 +401,13 @@ async function abrirAnalisisBatalla(idBatalla) {
                 });
             }
 
-            if (objetivoEncontrado && !snapshotPost) {
-                let sigBat = todasBatallasOrdenadas[i+1];
-                let finDeFase = !sigBat || sigBat.torneo_id !== bTarget.torneo_id || sigBat.fase !== bTarget.fase;
-                if (finDeFase) {
-                    let tablaRankPost = construirRankingHistorico(listaMcsGlobal, ledger);
-                    snapshotPost = {
-                        rank1: posicionRankingHistorico(tablaRankPost, mc1.id),
-                        rank2: posicionRankingHistorico(tablaRankPost, mc2.id)
-                    };
-                    break;
-                }
+            if (b.id === idBatalla) {
+                let tablaRankPost = construirRankingHistorico(listaMcsGlobal, ledger);
+                snapshotPost = {
+                    rank1: posicionRankingHistorico(tablaRankPost, mc1.id),
+                    rank2: posicionRankingHistorico(tablaRankPost, mc2.id)
+                };
+                break;
             }
         }
 
@@ -496,7 +491,7 @@ async function abrirAnalisisBatalla(idBatalla) {
 
                 <tr style="border-bottom: 1px solid #373752;">
                     <td style="padding: 12px; font-size: 16px; font-weight: bold; color: #fff; border: none;">${etiquetaRanking(snapshotPost.rank1)}<br>${flechaPos1}</td>
-                    <td style="padding: 12px; font-weight: bold; color: #a4b0be; background: rgba(0,0,0,0.2); border: none;">Ranking al Finalizar</td>
+                    <td style="padding: 12px; font-weight: bold; color: #a4b0be; background: rgba(0,0,0,0.2); border: none;">Ranking Post-Batalla</td>
                     <td style="padding: 12px; font-size: 16px; font-weight: bold; color: #fff; border: none;">${etiquetaRanking(snapshotPost.rank2)}<br>${flechaPos2}</td>
                 </tr>
 

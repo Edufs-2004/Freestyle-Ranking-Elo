@@ -9,17 +9,17 @@ La ficha pública de análisis de batalla se genera desde el Museo (`abrirAnalis
 1. **Posiciones infladas por perfiles sin actividad:** el ledger inicializa todos los competidores en 1500 y las tablas de ranking previo/posterior los ordenan a todos. El leaderboard visible excluye a quienes no han disputado una batalla normal, por lo que las posiciones de la ficha no coinciden con el leaderboard. El mismo problema afecta al cálculo de mejor posición histórica.
 2. **Sin ranking antes del debut:** un competidor con cero batallas puede recibir un puesto artificial aunque su Elo previo sea 1500. La posición debe ser `-` hasta que tenga al menos una batalla normal anterior; no debe inferirse solo por el valor Elo, porque un atleta activo puede volver a 1500.
 3. **Empates no deterministas:** las listas internas ordenan solo por Elo. Un segundo criterio estable, A.K.A. y luego ID, evita que la posición cambie entre ejecuciones.
-4. **Dos momentos distintos en una misma ficha:** “Ranking Previo” se toma justo antes de la batalla objetivo, mientras “Ranking al Finalizar” se toma al cierre de la fase. La variación mostrada puede incluir otras batallas de esa fase. Debe conservarse el significado actual o acordarse una métrica estrictamente posterior a la batalla antes de cambiar esa etiqueta/cálculo.
+4. **Comparación temporal del ranking:** la tarjeta compara el ranking inmediatamente antes y después de la batalla seleccionada. El ranking posterior ya no incluye las demás batallas de la fase y se etiqueta “Ranking Post-Batalla”.
 5. **Historial potencialmente incompleto:** las lecturas del análisis no verifican todos los errores y no implementan paginación. Si PostgREST limita el número de filas, la ficha puede calcular posiciones con un universo parcial sin avisar.
 6. **Orden histórico implícito:** los torneos se ordenan por fecha, y las batallas por ID dentro del torneo; fechas nulas o torneos en la misma fecha pueden dejar ambiguo el orden cronológico entre torneos.
 7. **Cifras con fuentes diferentes:** en el modo histórico se muestran los cambios Elo guardados, mientras el ledger vuelve a sumar cambios para construir rangos. Una reparación/recalculo incompleto puede hacer que el Elo mostrado y la posición reconstruida no correspondan al mismo estado. Conviene diagnosticar diferencias, no corregirlas automáticamente al abrir una ficha.
 
 ## Fases
 
-**Estado:** fase 1 implementada y probada; fases 2 a 5 quedan como hoja de ruta.
+**Estado:** fases 1 y 2 implementadas; fases 3 a 5 quedan como hoja de ruta.
 
 1. **Corrección acotada de ranking:** incluir únicamente participantes con batallas normales anteriores en posiciones previa, posterior y mejor histórica; mostrar `-` antes del debut; ordenar empates por A.K.A. e ID. Mantener igual la fase y las reglas de Elo. Implementada en la ficha del Museo.
-2. **Contrato de momentos:** decidir y documentar si el movimiento compara pre-batalla contra post-batalla, o pre-batalla contra cierre de fase. Añadir pruebas para fases con varias batallas y no mezclar ambos conceptos en una misma etiqueta.
+2. **Contrato de momentos:** comparar pre-batalla contra post-batalla inmediata. Capturar el ranking antes de modificar el ledger y justo después de aplicar la batalla objetivo; no esperar al cierre de fase.
 3. **Integridad de lecturas y orden:** revisar errores de Supabase, paginar torneos/batallas, no renderizar fichas parciales, y fijar un orden cronológico total con política explícita para fechas nulas y eventos simultáneos.
 4. **Consistencia entre superficies:** comparar ficha del Museo, historial del perfil y modal de roster; acordar cuáles muestran Elo, posición y métricas históricas. Reutilizar el helper de posiciones solo donde el contrato sea idéntico, sin introducir el filtro Actual en fichas oficiales.
 5. **Regresión y optimización:** probar debutantes, Elo 1500 con actividad, empates, bonos, varias batallas por fase, registros tardíos, universo aislado y errores de lectura. Optimizar/compartir simulación solo tras fijar resultados de referencia.
