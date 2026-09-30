@@ -4,15 +4,40 @@ const K = 32;
 let listaMCsGlobal = [];
 
 async function inicializar() {
-    const { data } = await supabase.from('competidores').select('*').order('elo_actual', { ascending: false });
+    const { data, error } = await supabase.from('competidores').select('*').order('elo_actual', { ascending: false });
+    if (error) {
+        console.error('Error al cargar competidores:', error);
+        document.getElementById('cuerpoRanking').innerHTML = "<tr><td colspan='4' style='text-align:center; padding:40px;'>No se pudo cargar el leaderboard.</td></tr>";
+        return;
+    }
+
     listaMCsGlobal = data || [];
+    const { data: batallas, error: errorBatallas } = await supabase
+        .from('batallas')
+        .select('mc1_id, mc2_id, resultado')
+        .neq('resultado', 'bono');
+    if (errorBatallas) {
+        console.error('Error al cargar batallas:', errorBatallas);
+        document.getElementById('cuerpoRanking').innerHTML = "<tr><td colspan='4' style='text-align:center; padding:40px;'>No se pudo verificar el historial de batallas.</td></tr>";
+        return;
+    }
+
+    const batallasPorCompetidor = new Map();
+    (batallas || []).forEach(batalla => {
+        new Set([batalla.mc1_id, batalla.mc2_id].filter(id => id !== null)).forEach(id => {
+            batallasPorCompetidor.set(id, (batallasPorCompetidor.get(id) || 0) + 1);
+        });
+    });
+    listaMCsGlobal.forEach(mc => {
+        mc.batallas_totales = batallasPorCompetidor.get(mc.id) || 0;
+    });
     cargarRankingNormal();
 }
 
 function cargarRankingNormal() {
     document.getElementById('tituloTabla').innerText = "Clasificación Histórica Global";
     let htmlTabla = '';
-    listaMCsGlobal.forEach((mc, index) => {
+    listaMCsGlobal.filter(mc => mc.batallas_totales > 0).forEach((mc, index) => {
         let bandera = mc.nacionalidad ? mc.nacionalidad + " " : "🌍 ";
         htmlTabla += `<tr onclick="window.location.href='perfil.html?id=${mc.id}'" title="Ver Perfil de Atleta">
             <td><strong>#${index + 1}</strong></td>
