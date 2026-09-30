@@ -41,8 +41,12 @@
 
         /* BUSCADOR */
         .search-container { position: relative; margin-bottom: 30px; max-width: 600px; margin-left: auto; margin-right: auto;}
+        .search-container.perfil-activo { position: sticky; top: 72px; z-index: 90; padding: 10px; background: rgba(11, 12, 16, 0.94); border: 1px solid var(--glass-border); border-radius: 12px; backdrop-filter: blur(10px); }
         .search-input { width: 100%; padding: 15px 20px; background: rgba(0, 0, 0, 0.5); border: 1px solid var(--neon-cyan); color: white; border-radius: 30px; font-family: 'Montserrat', sans-serif; font-size: 16px; box-shadow: 0 0 15px rgba(0, 210, 211, 0.2); outline: none; transition: 0.3s; box-sizing: border-box;}
+        .perfil-activo .search-input { padding: 10px 16px; font-size: 14px; }
         .search-input:focus { box-shadow: 0 0 25px rgba(0, 210, 211, 0.5); }
+        .btn-volver-lista { margin-top: 8px; padding: 8px 12px; background: transparent; border: 1px solid var(--glass-border); border-radius: 6px; color: var(--text-muted); font: inherit; font-size: 12px; cursor: pointer; }
+        .btn-volver-lista:hover, .btn-volver-lista:focus-visible { color: var(--neon-cyan); border-color: var(--neon-cyan); outline: none; }
         .sugerencias-box { position: absolute; top: 100%; left: 0; right: 0; background: #1e1e2f; border: 1px solid var(--neon-cyan); border-radius: 12px; margin-top: 5px; max-height: 250px; overflow-y: auto; z-index: 10; display: none; box-shadow: 0 10px 30px rgba(0,0,0,0.8);}
         .sugerencia-item { padding: 15px 20px; cursor: pointer; border-bottom: 1px solid #373752; display: flex; justify-content: space-between; transition: 0.2s; font-weight: bold;}
         .sugerencia-item:hover { background: rgba(0, 210, 211, 0.1); color: var(--neon-cyan); }
@@ -58,7 +62,7 @@
         .competidor-elo { color: var(--neon-gold); font-weight: bold; font-size: 13px; }
         .competidores-vacio { grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 24px; background: rgba(0,0,0,0.25); border-radius: 10px; }
 
-        #zonaPerfil { display: none; }
+        #zonaPerfil { display: none; scroll-margin-top: 155px; }
         
         /* FILTROS */
         .profile-filters { display: flex; gap: 10px; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 12px; border: 1px dashed #373752; margin-bottom: 20px; flex-wrap: wrap; align-items: flex-end;}
@@ -126,10 +130,13 @@
         <div class="search-container">
             <input type="text" id="buscadorMCs" class="search-input" placeholder="🔍 Ingresa el A.K.A del competidor..." oninput="filtrarBuscador()" autocomplete="off" aria-label="Buscar competidor">
             <div id="sugerenciasMCs" class="sugerencias-box"></div>
+            <button id="btnVolverLista" class="btn-volver-lista" type="button" onclick="volverALista()" hidden>← Volver a todos los competidores</button>
         </div>
 
-        <div class="competidores-heading"><span>COMPETIDORES</span><strong id="contadorCompetidores">Cargando...</strong></div>
-        <div id="competidoresGridPerfil" class="competidores-grid" aria-live="polite"></div>
+        <section id="selectorCompetidor" aria-label="Seleccionar competidor">
+            <div class="competidores-heading"><span>COMPETIDORES</span><strong id="contadorCompetidores">Cargando...</strong></div>
+            <div id="competidoresGridPerfil" class="competidores-grid" aria-live="polite"></div>
+        </section>
 
         <div id="zonaPerfil">
             

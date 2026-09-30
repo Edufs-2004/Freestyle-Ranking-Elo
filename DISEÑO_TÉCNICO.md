@@ -19,7 +19,7 @@ Este documento describe la implementación presente y contrasta sus dependencias
 
 1. El módulo compartido conecta el cliente a Supabase y centraliza la carga de franquicias.
 2. La página pública consulta competidores y batallas. El leaderboard calcula universos filtrados en cliente; los filtros relacionan las batallas con `torneos` para aplicar franquicia y fecha.
-3. El perfil se selecciona mediante `perfil.html?id=<competidor>`. El leaderboard y la búsqueda pública navegan a esa misma página. Allí se presentan datos, métricas, gráfico e historial, sin controles de edición.
+3. El perfil se selecciona mediante `perfil.html?id=<competidor>`. El leaderboard y la búsqueda pública navegan a esa misma página. Al abrir una ficha, la grilla completa se oculta, la búsqueda queda compacta para cambiar de competidor y una acción permite volver al listado. La ficha incluye datos, métricas, gráfico e historial, sin controles de edición. El modal de ficha con acciones de exportación continúa siendo exclusivo de `roster.html`.
 4. El área administrativa registra torneos, batallas, bonos y cambios de competidores. Los registros de Elo previo y cambio de puntos en cada batalla permiten reconstruir la historia; el museo ofrece un recálculo global.
 
 ## 3. Modelo relacional existente
@@ -38,7 +38,7 @@ La aplicación trata `batallas.resultado = 'bono'` como una fila de premio y no 
 
 ### Ficha pública desde leaderboard o búsqueda
 
-La ruta está implementada. Las filas de `index.html` enlazan a `perfil.html?id=...`; las tarjetas y sugerencias de búsqueda en `perfil.html` llaman a `cargarPerfil(id)`. La página pública renderiza datos del competidor, Elo, posición, pico, total de batallas, porcentaje de victorias, gráfico e historial. No importa `roster.js` ni incluye controles de edición/borrado. Las acciones de edición están en el área administrativa de `roster.html`.
+La ruta está implementada. Las filas de `index.html` enlazan a `perfil.html?id=...`; las tarjetas y sugerencias de búsqueda en `perfil.html` llaman a `cargarPerfil(id)`. Al seleccionar, la página oculta la lista, conserva una búsqueda compacta y ofrece volver al listado; no abre un modal. La vista pública renderiza datos del competidor, Elo, posición, pico, total de batallas, porcentaje de victorias, gráfico e historial. No importa `roster.js` ni incluye controles de edición/borrado. El modal y las acciones administrativas están en `roster.html`.
 
 ### Leaderboard con al menos una batalla
 

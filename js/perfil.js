@@ -130,6 +130,11 @@ function cargarPerfil(idMC) {
     let mcPrincipal = listaMCs.find(m => m.id == idMC);
     if (!mcPrincipal) return;
     mcActualID = idMC;
+    let contenedorBuscador = document.querySelector('.search-container');
+    contenedorBuscador.classList.add('perfil-activo');
+    contenedorBuscador.querySelector('.search-input').placeholder = '🔍 Buscar otro competidor...';
+    document.getElementById('btnVolverLista').hidden = false;
+    document.getElementById('selectorCompetidor').style.display = 'none';
     document.getElementById('buscadorMCs').value = '';
     document.getElementById('sugerenciasMCs').style.display = 'none';
     renderizarCompetidores(listaMCs);
@@ -143,6 +148,20 @@ function cargarPerfil(idMC) {
 
     document.getElementById('zonaPerfil').style.display = 'block';
     aplicarFiltroPerfil();
+    document.getElementById('zonaPerfil').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function volverALista() {
+    document.getElementById('zonaPerfil').style.display = 'none';
+    document.getElementById('selectorCompetidor').style.display = 'block';
+    document.getElementById('btnVolverLista').hidden = true;
+    document.querySelector('.search-container').classList.remove('perfil-activo');
+    document.getElementById('buscadorMCs').placeholder = '🔍 Ingresa el A.K.A del competidor...';
+    document.getElementById('buscadorMCs').value = '';
+    document.getElementById('sugerenciasMCs').style.display = 'none';
+    window.history.replaceState({}, '', 'perfil.html');
+    renderizarCompetidores(listaMCs);
+    document.getElementById('selectorCompetidor').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function aplicarFiltroPerfil() {
@@ -433,5 +452,6 @@ function aplicarFiltroPerfil() {
 window.filtrarBuscador = filtrarBuscador; 
 window.cargarPerfil = cargarPerfil; 
 window.aplicarFiltroPerfil = aplicarFiltroPerfil; 
+window.volverALista = volverALista;
 
 inicializar();
