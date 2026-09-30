@@ -98,6 +98,28 @@ export function calcularRankingActual(competidores, batallas, fechaCorte) {
             || String(a.id).localeCompare(String(b.id), 'en', { numeric: true }));
 }
 
+export function capturarRankingsActualesPorEvento(competidores, batallas, fechaCorte) {
+    const eventos = new Map();
+    batallas.forEach(batalla => {
+        const idEvento = batalla.torneo_id ?? `sin-torneo-${batalla.id}`;
+        if (!eventos.has(idEvento)) eventos.set(idEvento, { id: idEvento, fecha: batalla.fecha_actual || fechaEventoActual(batalla), batallas: [] });
+        eventos.get(idEvento).batallas.push(batalla);
+    });
+
+    const eventosOrdenados = [...eventos.values()].sort((eventoIzquierdo, eventoDerecho) =>
+        String(eventoIzquierdo.fecha || '').localeCompare(String(eventoDerecho.fecha || ''))
+        || String(eventoIzquierdo.id).localeCompare(String(eventoDerecho.id), 'en', { numeric: true }));
+    const batallasAcumuladas = [];
+
+    return eventosOrdenados.map(evento => {
+        batallasAcumuladas.push(...evento.batallas);
+        return {
+            eventoId: evento.id,
+            ranking: calcularRankingActual(competidores, batallasAcumuladas, fechaCorte)
+        };
+    });
+}
+
 export function contribucionActual(batalla, idCompetidor, fechaCorte) {
     const esMC1 = batalla.mc1_id == idCompetidor;
     if (!esMC1 && batalla.mc2_id != idCompetidor) return null;

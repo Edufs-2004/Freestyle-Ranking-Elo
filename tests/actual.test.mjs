@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cargarTodasLasFilas, calcularPesoActual, calcularRankingActual, fechaEventoActual } from '../js/actual.mjs';
+import { cargarTodasLasFilas, calcularPesoActual, calcularRankingActual, capturarRankingsActualesPorEvento, fechaEventoActual } from '../js/actual.mjs';
 
 test('aplica el peso lineal desde los 24 hasta los 34 meses', () => {
     const pesos = [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0];
@@ -62,4 +62,16 @@ test('excluye batallas con peso cero y desempata por AKA', () => {
         { mc1_id: 3, mc2_id: 3, resultado: 'victoria', cambio_mc1: 20, cambio_mc2: -20, fecha_actual: '2024-01-15' }
     ];
     assert.deepEqual(calcularRankingActual(competidores, batallas, '2026-11-15').map(mc => mc.aka), ['Alpha', 'Beta']);
+});
+
+test('ordena snapshots Actual por fecha y compara eventos consecutivos', () => {
+    const competidores = [{ id: 1, aka: 'Alpha' }, { id: 2, aka: 'Beta' }];
+    const batallas = [
+        { id: 20, torneo_id: 20, fecha_actual: '2025-02-01', mc1_id: 1, mc2_id: 2, resultado: 'victoria', cambio_mc1: -30, cambio_mc2: 30 },
+        { id: 10, torneo_id: 10, fecha_actual: '2025-01-01', mc1_id: 1, mc2_id: 2, resultado: 'victoria', cambio_mc1: 20, cambio_mc2: -20 }
+    ];
+    const snapshots = capturarRankingsActualesPorEvento(competidores, batallas, '2025-03-01');
+    assert.deepEqual(snapshots.map(snapshot => snapshot.eventoId), [10, 20]);
+    assert.deepEqual(snapshots[0].ranking.map(mc => mc.id), [1, 2]);
+    assert.deepEqual(snapshots[1].ranking.map(mc => mc.id), [2, 1]);
 });

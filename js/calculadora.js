@@ -1,8 +1,19 @@
 import { supabase, cargarFranquiciasSelect, obtenerFranquiciasValidas } from './supabase.js';
-import { cargarTodasLasFilas, calcularRankingActual, fechaEventoActual, filtrarBatallasActuales } from './actual.mjs';
+import { cargarTodasLasFilas, calcularRankingActual, capturarRankingsActualesPorEvento, fechaEventoActual, filtrarBatallasActuales } from './actual.mjs';
+import { capturarRankingsPorEvento } from './ranking-historico.mjs';
+import { crearMovimientosRanking, renderMovimientoRanking } from './movimiento-ranking.mjs';
 
 const K = 32;
 let listaMCsGlobal = [];
+let movimientosPosicion = new Map();
+
+function ordenarRankingTemporal(competidores) {
+    return competidores
+        .filter(competidor => competidor.batallas_totales > 0)
+        .sort((left, right) => right.elo_actual - left.elo_actual
+            || String(left.aka || '').localeCompare(String(right.aka || ''), 'es')
+            || String(left.id).localeCompare(String(right.id), 'en', { numeric: true }));
+}
 
 async function inicializar() {
     const { data, error } = await supabase.from('competidores').select('*').order('elo_actual', { ascending: false });
@@ -13,25 +24,32 @@ async function inicializar() {
     }
 
     listaMCsGlobal = data || [];
-    const { data: batallas, error: errorBatallas } = await supabase
-        .from('batallas')
-        .select('mc1_id, mc2_id, resultado')
-        .neq('resultado', 'bono');
-    if (errorBatallas) {
+    try {
+        const consultaBatallas = supabase.from('batallas')
+            .select('*, torneos(franquicia, fecha_evento, formato)')
+            .order('id', { ascending: true });
+        const batallas = await cargarTodasLasFilas(consultaBatallas);
+        const batallasPorCompetidor = new Map();
+        batallas.filter(batalla => batalla.resultado !== 'bono').forEach(batalla => {
+            new Set([batalla.mc1_id, batalla.mc2_id].filter(id => id !== null)).forEach(id => {
+                batallasPorCompetidor.set(id, (batallasPorCompetidor.get(id) || 0) + 1);
+            });
+        });
+        listaMCsGlobal.forEach(mc => {
+            mc.batallas_totales = batallasPorCompetidor.get(mc.id) || 0;
+        });
+        const snapshots = capturarRankingsPorEvento(listaMCsGlobal, batallas);
+        const rankingActual = [...listaMCsGlobal]
+            .filter(mc => mc.batallas_totales > 0)
+            .sort((left, right) => right.elo_actual - left.elo_actual
+                || String(left.aka || '').localeCompare(String(right.aka || ''), 'es')
+                || String(left.id).localeCompare(String(right.id), 'en', { numeric: true }));
+        movimientosPosicion = crearMovimientosRanking(snapshots.at(-2)?.ranking || [], rankingActual);
+    } catch (errorBatallas) {
         console.error('Error al cargar batallas:', errorBatallas);
         document.getElementById('cuerpoRanking').innerHTML = "<tr><td colspan='4' style='text-align:center; padding:40px;'>No se pudo verificar el historial de batallas.</td></tr>";
         return;
     }
-
-    const batallasPorCompetidor = new Map();
-    (batallas || []).forEach(batalla => {
-        new Set([batalla.mc1_id, batalla.mc2_id].filter(id => id !== null)).forEach(id => {
-            batallasPorCompetidor.set(id, (batallasPorCompetidor.get(id) || 0) + 1);
-        });
-    });
-    listaMCsGlobal.forEach(mc => {
-        mc.batallas_totales = batallasPorCompetidor.get(mc.id) || 0;
-    });
     cargarRankingNormal();
 }
 
@@ -39,10 +57,14 @@ function cargarRankingNormal() {
     document.getElementById('tituloTabla').innerText = "Clasificación Histórica Global";
     document.getElementById('encabezadoPuntos').innerText = 'Puntos Elo';
     let htmlTabla = '';
-    listaMCsGlobal.filter(mc => mc.batallas_totales > 0).forEach((mc, index) => {
+    const ranking = [...listaMCsGlobal].filter(mc => mc.batallas_totales > 0)
+        .sort((left, right) => right.elo_actual - left.elo_actual
+            || String(left.aka || '').localeCompare(String(right.aka || ''), 'es')
+            || String(left.id).localeCompare(String(right.id), 'en', { numeric: true }));
+    ranking.forEach((mc, index) => {
         let bandera = mc.nacionalidad ? mc.nacionalidad + " " : "🌍 ";
         htmlTabla += `<tr onclick="window.location.href='perfil.html?id=${mc.id}'" title="Ver Perfil de Atleta">
-            <td><strong>#${index + 1}</strong></td>
+            <td style="white-space:nowrap;"><strong>#${index + 1}</strong>${renderMovimientoRanking(movimientosPosicion.get(String(mc.id)))}</td>
             <td>${bandera}${mc.aka}</td>
             <td style="color: #00d2d3;"><strong>${mc.elo_actual}</strong></td>
             <td>${mc.batallas_totales}</td>
@@ -69,8 +91,17 @@ async function aplicarFiltros() {
     document.getElementById('tituloTabla').innerText = modo === 'aislado' ? `Universo Aislado (${franquicia})` : `Línea Temporal Filtrada (${franquicia})`;
     document.getElementById('cuerpoRanking').innerHTML = "<tr><td colspan='4' style='text-align: center; color: #eccc68; padding: 40px;'><strong>⏳ Procesando Algoritmos Temporales...</strong></td></tr>";
 
-    const { data: batallas, error } = await supabase.from('batallas').select(`*, torneos(franquicia, fecha_evento, formato)`);
-    if(error) return alert("Error al buscar el historial.");
+    let batallas;
+    try {
+        const consultaBatallas = supabase.from('batallas')
+            .select('*, torneos(franquicia, fecha_evento, formato)')
+            .order('id', { ascending: true });
+        batallas = await cargarTodasLasFilas(consultaBatallas);
+    } catch (error) {
+        console.error('Error al buscar el historial:', error);
+        document.getElementById('cuerpoRanking').innerHTML = "<tr><td colspan='4' style='text-align:center; padding:40px; color:#ff4757;'>No se pudo cargar el historial completo.</td></tr>";
+        return;
+    }
 
     let franquiciasPermitidas = obtenerFranquiciasValidas(franquicia);
     let batallasValidas = batallas.filter(b => {
@@ -85,6 +116,7 @@ async function aplicarFiltros() {
 
     let rankingTemp = {};
     listaMCsGlobal.forEach(mc => { rankingTemp[mc.id] = { id: mc.id, aka: mc.aka, nacionalidad: mc.nacionalidad, elo_actual: 1500, batallas_totales: 0 }; });
+    let snapshotsAislados = [];
 
     if (modo === 'aislado') {
         let mapTorneos = new Map(); let ordenTorneos = [];
@@ -149,6 +181,7 @@ async function aplicarFiltros() {
                     if (rankingTemp[b.mc2_id]) { rankingTemp[b.mc2_id].elo_actual = R2 + c2; rankingTemp[b.mc2_id].batallas_totales += 1; }
                 }
             }
+            snapshotsAislados.push({ eventoId: tId, ranking: ordenarRankingTemporal(Object.values(rankingTemp)) });
         }
     } else {
         batallasValidas.forEach(b => {
@@ -157,21 +190,23 @@ async function aplicarFiltros() {
         });
     }
 
-    let listaFinal = Object.values(rankingTemp).sort((a, b) => b.elo_actual - a.elo_actual);
+    let listaFinal = ordenarRankingTemporal(Object.values(rankingTemp));
+    const snapshotsHistoricos = modo === 'aislado'
+        ? snapshotsAislados
+        : capturarRankingsPorEvento(listaMCsGlobal, batallasValidas);
+    movimientosPosicion = crearMovimientosRanking(snapshotsHistoricos.at(-2)?.ranking || [], listaFinal);
     let htmlTabla = ''; let posicion = 1;
     
     listaFinal.forEach(mc => {
-        if(mc.batallas_totales > 0) { 
-            let bandera = mc.nacionalidad ? mc.nacionalidad + " " : "🌍 ";
-            let colorPuntos = modo === 'aislado' ? '#eccc68' : '#00d2d3'; 
-            htmlTabla += `<tr onclick="window.location.href='perfil.html?id=${mc.id}'" title="Ver Perfil de Atleta" style="cursor: pointer;">
-                <td><strong>#${posicion}</strong></td>
-                <td>${bandera}${mc.aka}</td>
-                <td style='color: ${colorPuntos};'><strong>${mc.elo_actual}</strong></td>
-                <td>${mc.batallas_totales}</td>
-            </tr>`;
-            posicion++;
-        }
+        let bandera = mc.nacionalidad ? mc.nacionalidad + " " : "🌍 ";
+        let colorPuntos = modo === 'aislado' ? '#eccc68' : '#00d2d3';
+        htmlTabla += `<tr onclick="window.location.href='perfil.html?id=${mc.id}'" title="Ver Perfil de Atleta" style="cursor: pointer;">
+            <td style="white-space:nowrap;"><strong>#${posicion}</strong>${renderMovimientoRanking(movimientosPosicion.get(String(mc.id)))}</td>
+            <td>${bandera}${mc.aka}</td>
+            <td style='color: ${colorPuntos};'><strong>${mc.elo_actual}</strong></td>
+            <td>${mc.batallas_totales}</td>
+        </tr>`;
+        posicion++;
     });
 
     if(htmlTabla === "") htmlTabla = "<tr><td colspan='4' style='text-align:center; padding: 40px; color: #a4b0be;'>No hay registros en esta línea de tiempo.</td></tr>";
@@ -194,6 +229,8 @@ async function aplicarFiltroActual(franquicia, desde, hasta) {
         const franquiciasPermitidas = obtenerFranquiciasValidas(franquicia);
         const universo = filtrarBatallasActuales(batallas, { franquicia, franquiciasPermitidas, desde, hasta });
         const ranking = calcularRankingActual(listaMCsGlobal, universo, fechaCorte);
+        const snapshots = capturarRankingsActualesPorEvento(listaMCsGlobal, universo, fechaCorte);
+        movimientosPosicion = crearMovimientosRanking(snapshots.at(-2)?.ranking || [], ranking);
 
         if (ranking.length === 0) {
             cuerpo.innerHTML = "<tr><td colspan='4' style='text-align:center; padding:40px; color:#a4b0be;'>No hay batallas elegibles para este corte y estos filtros.</td></tr>";
@@ -203,7 +240,7 @@ async function aplicarFiltroActual(franquicia, desde, hasta) {
         cuerpo.innerHTML = ranking.map((mc, index) => {
             const bandera = mc.nacionalidad ? `${mc.nacionalidad} ` : '🌍 ';
             return `<tr onclick="window.location.href='perfil.html?id=${mc.id}'" title="Ver Perfil de Atleta" style="cursor:pointer;">
-                <td><strong>#${index + 1}</strong></td>
+                <td style="white-space:nowrap;"><strong>#${index + 1}</strong>${renderMovimientoRanking(movimientosPosicion.get(String(mc.id)))}</td>
                 <td>${bandera}${mc.aka}</td>
                 <td style="color:#eccc68;"><strong>${Math.round(mc.puntaje_actual)}</strong></td>
                 <td>${mc.batallas_actuales}</td>

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { construirRankingHistorico, posicionRankingHistorico } from '../js/ranking-historico.mjs';
+import { capturarRankingsPorEvento, construirRankingHistorico, posicionRankingHistorico } from '../js/ranking-historico.mjs';
 
 test('excluye perfiles sin batallas aunque tengan elo inicial de 1500', () => {
     const competidores = [
@@ -38,4 +38,16 @@ test('resuelve empates de elo de forma estable por AKA', () => {
     const competidores = [{ id: 1, aka: 'Zeta' }, { id: 2, aka: 'alfa' }];
     const ledger = { 1: { elo: 1500, batallas: 1 }, 2: { elo: 1500, batallas: 1 } };
     assert.deepEqual(construirRankingHistorico(competidores, ledger).map(mc => mc.aka), ['alfa', 'Zeta']);
+});
+
+test('captura el ranking al cierre de cada evento con solo participantes activos', () => {
+    const competidores = [{ id: 1, aka: 'Alpha' }, { id: 2, aka: 'Beta' }, { id: 3, aka: 'Nuevo' }];
+    const batallas = [
+        { id: 1, torneo_id: 10, torneos: { fecha_evento: '2025-01-01' }, mc1_id: 1, mc2_id: 2, resultado: 'victoria', elo_previo_mc1: 1500, cambio_mc1: 10, elo_previo_mc2: 1500, cambio_mc2: -10 },
+        { id: 2, torneo_id: 11, torneos: { fecha_evento: '2025-02-01' }, mc1_id: 3, mc2_id: 1, resultado: 'victoria', elo_previo_mc1: 1500, cambio_mc1: 15, elo_previo_mc2: 1510, cambio_mc2: -15 }
+    ];
+    const snapshots = capturarRankingsPorEvento(competidores, batallas);
+    assert.equal(snapshots.length, 2);
+    assert.deepEqual(snapshots[0].ranking.map(mc => mc.id), [1, 2]);
+    assert.deepEqual(snapshots[1].ranking.map(mc => mc.id), [3, 1, 2]);
 });
