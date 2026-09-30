@@ -1,4 +1,5 @@
 import { supabase, cargarFranquiciasSelect, obtenerFranquiciasValidas } from './supabase.js';
+import { construirRankingHistorico, posicionRankingHistorico } from './ranking-historico.mjs';
 import { configurarSesion } from './auth.js';
 const K = 32;
 
@@ -359,10 +360,10 @@ async function abrirAnalisisBatalla(idBatalla) {
 
             if (b.id === idBatalla) {
                 objetivoEncontrado = true;
-                let tablaRank = Object.keys(ledger).map(id => ({id: parseInt(id), elo: ledger[id].elo, bts: ledger[id].batallas})).sort((x,y) => y.elo - x.elo);
+                let tablaRank = construirRankingHistorico(listaMcsGlobal, ledger);
                 snapshotPre = {
-                    rank1: tablaRank.findIndex(r => r.id === mc1.id) + 1,
-                    rank2: tablaRank.findIndex(r => r.id === mc2.id) + 1,
+                    rank1: posicionRankingHistorico(tablaRank, mc1.id),
+                    rank2: posicionRankingHistorico(tablaRank, mc2.id),
                     max1: ledger[mc1.id].maxElo,
                     max2: ledger[mc2.id].maxElo,
                     bestRank1: ledger[mc1.id].bestRank === 99999 ? '-' : ledger[mc1.id].bestRank,
@@ -392,10 +393,10 @@ async function abrirAnalisisBatalla(idBatalla) {
             }
 
             if (huboCambio) {
-                let tablaRankTemp = Object.keys(ledger).map(id => ({id: parseInt(id), elo: ledger[id].elo, bts: ledger[id].batallas})).sort((x,y) => y.elo - x.elo);
+                let tablaRankTemp = construirRankingHistorico(listaMcsGlobal, ledger);
                 tablaRankTemp.forEach((r, index) => {
                     let rnk = index + 1;
-                    if (r.bts > 0 && rnk < ledger[r.id].bestRank) {
+                    if (rnk < ledger[r.id].bestRank) {
                         ledger[r.id].bestRank = rnk;
                     }
                 });
@@ -405,10 +406,10 @@ async function abrirAnalisisBatalla(idBatalla) {
                 let sigBat = todasBatallasOrdenadas[i+1];
                 let finDeFase = !sigBat || sigBat.torneo_id !== bTarget.torneo_id || sigBat.fase !== bTarget.fase;
                 if (finDeFase) {
-                    let tablaRankPost = Object.keys(ledger).map(id => ({id: parseInt(id), elo: ledger[id].elo})).sort((x,y) => y.elo - x.elo);
+                    let tablaRankPost = construirRankingHistorico(listaMcsGlobal, ledger);
                     snapshotPost = {
-                        rank1: tablaRankPost.findIndex(r => r.id === mc1.id) + 1,
-                        rank2: tablaRankPost.findIndex(r => r.id === mc2.id) + 1
+                        rank1: posicionRankingHistorico(tablaRankPost, mc1.id),
+                        rank2: posicionRankingHistorico(tablaRankPost, mc2.id)
                     };
                     break;
                 }
@@ -421,11 +422,19 @@ async function abrirAnalisisBatalla(idBatalla) {
         let img1 = mc1.foto || 'https://via.placeholder.com/150/373752/FFFFFF?text=MC1';
         let img2 = mc2.foto || 'https://via.placeholder.com/150/373752/FFFFFF?text=MC2';
         
-        let difPos1 = (snapshotPre.rank1 !== '-' && snapshotPost.rank1 !== '-') ? snapshotPre.rank1 - snapshotPost.rank1 : 0; 
-        let flechaPos1 = difPos1 > 0 ? `<span style="color:#2ed573; font-size: 12px;">(Subió ${difPos1}) ⬆️</span>` : (difPos1 < 0 ? `<span style="color:#ff4757; font-size: 12px;">(Bajó ${Math.abs(difPos1)}) ⬇️</span>` : `<span style="color:#a4b0be; font-size: 12px;">(Se mantuvo) ➖</span>`);
-        
-        let difPos2 = (snapshotPre.rank2 !== '-' && snapshotPost.rank2 !== '-') ? snapshotPre.rank2 - snapshotPost.rank2 : 0;
-        let flechaPos2 = difPos2 > 0 ? `<span style="color:#2ed573; font-size: 12px;">(Subió ${difPos2}) ⬆️</span>` : (difPos2 < 0 ? `<span style="color:#ff4757; font-size: 12px;">(Bajó ${Math.abs(difPos2)}) ⬇️</span>` : `<span style="color:#a4b0be; font-size: 12px;">(Se mantuvo) ➖</span>`);
+        const indicadorCambioRanking = (rankPrevio, rankPosterior) => {
+            if (rankPrevio === '-' && rankPosterior !== '-') return `<span style="color:#2ed573; font-size:12px;">(Debutó) ✨</span>`;
+            if (rankPrevio === '-' || rankPosterior === '-') return `<span style="color:#a4b0be; font-size:12px;">(Sin referencia) ➖</span>`;
+            const diferencia = rankPrevio - rankPosterior;
+            return diferencia > 0
+                ? `<span style="color:#2ed573; font-size:12px;">(Subió ${diferencia}) ⬆️</span>`
+                : diferencia < 0
+                    ? `<span style="color:#ff4757; font-size:12px;">(Bajó ${Math.abs(diferencia)}) ⬇️</span>`
+                    : `<span style="color:#a4b0be; font-size:12px;">(Se mantuvo) ➖</span>`;
+        };
+        const flechaPos1 = indicadorCambioRanking(snapshotPre.rank1, snapshotPost.rank1);
+        const flechaPos2 = indicadorCambioRanking(snapshotPre.rank2, snapshotPost.rank2);
+        const etiquetaRanking = posicion => posicion === '-' ? '-' : `#${posicion}`;
 
         let logoEventoHtml = logoFranquicia ? `<img src="${logoFranquicia}" crossorigin="anonymous" style="height: 50px; max-width: 150px; object-fit: contain;">` : `<div></div>`;
 
@@ -474,9 +483,9 @@ async function abrirAnalisisBatalla(idBatalla) {
                 </tr>
                 
                 <tr style="border-bottom: 1px solid #373752;">
-                    <td style="padding: 12px; font-size: 16px; font-weight: bold; color: #fff; border: none;">#${snapshotPre.rank1}</td>
+                    <td style="padding: 12px; font-size: 16px; font-weight: bold; color: #fff; border: none;">${etiquetaRanking(snapshotPre.rank1)}</td>
                     <td style="padding: 12px; font-weight: bold; color: #a4b0be; background: rgba(0,0,0,0.2); border: none;">Ranking Previo</td>
-                    <td style="padding: 12px; font-size: 16px; font-weight: bold; color: #fff; border: none;">#${snapshotPre.rank2}</td>
+                    <td style="padding: 12px; font-size: 16px; font-weight: bold; color: #fff; border: none;">${etiquetaRanking(snapshotPre.rank2)}</td>
                 </tr>
 
                 <tr style="border-bottom: 1px solid #373752; background: rgba(46, 213, 115, 0.05);">
@@ -486,9 +495,9 @@ async function abrirAnalisisBatalla(idBatalla) {
                 </tr>
 
                 <tr style="border-bottom: 1px solid #373752;">
-                    <td style="padding: 12px; font-size: 16px; font-weight: bold; color: #fff; border: none;">#${snapshotPost.rank1}<br>${flechaPos1}</td>
+                    <td style="padding: 12px; font-size: 16px; font-weight: bold; color: #fff; border: none;">${etiquetaRanking(snapshotPost.rank1)}<br>${flechaPos1}</td>
                     <td style="padding: 12px; font-weight: bold; color: #a4b0be; background: rgba(0,0,0,0.2); border: none;">Ranking al Finalizar</td>
-                    <td style="padding: 12px; font-size: 16px; font-weight: bold; color: #fff; border: none;">#${snapshotPost.rank2}<br>${flechaPos2}</td>
+                    <td style="padding: 12px; font-size: 16px; font-weight: bold; color: #fff; border: none;">${etiquetaRanking(snapshotPost.rank2)}<br>${flechaPos2}</td>
                 </tr>
 
                 <tr style="border-bottom: 1px solid #373752; border-top: 2px dashed #373752;">
@@ -498,9 +507,9 @@ async function abrirAnalisisBatalla(idBatalla) {
                 </tr>
 
                 <tr>
-                    <td style="padding: 12px; font-size: 15px; color: #eccc68; font-weight: bold; border: none;">#${snapshotPre.bestRank1}</td>
+                    <td style="padding: 12px; font-size: 15px; color: #eccc68; font-weight: bold; border: none;">${etiquetaRanking(snapshotPre.bestRank1)}</td>
                     <td style="padding: 12px; font-weight: bold; color: #eccc68; background: rgba(0,0,0,0.2); border: none;">Mejor Ranking Histórico</td>
-                    <td style="padding: 12px; font-size: 15px; color: #eccc68; font-weight: bold; border: none;">#${snapshotPre.bestRank2}</td>
+                    <td style="padding: 12px; font-size: 15px; color: #eccc68; font-weight: bold; border: none;">${etiquetaRanking(snapshotPre.bestRank2)}</td>
                 </tr>
             </table>
         </div>
