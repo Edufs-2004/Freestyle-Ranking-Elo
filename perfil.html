@@ -141,7 +141,7 @@
         <div id="zonaPerfil">
             
             <div class="profile-filters">
-                <div><label>Universo</label><select id="modoAnalisisPerfil"><option value="historico">Línea Temporal (Global)</option><option value="aislado">Aislado (Reset 1500)</option></select></div>
+                <div><label>Universo</label><select id="modoAnalisisPerfil"><option value="historico">Línea Temporal (Global)</option><option value="aislado">Aislado (Reset 1500)</option><option value="actual">Actual (degradación por antigüedad)</option></select></div>
                 <div><label>Franquicia</label><select id="filtroFranqPerfil"></select></div>
                 <div><label>Desde</label><input type="date" id="filtroDesdePerfil"></div>
                 <div><label>Hasta</label><input type="date" id="filtroHastaPerfil"></div>
@@ -149,6 +149,7 @@
                     <button onclick="aplicarFiltroPerfil()" style="background:var(--neon-green); color:#000; border:none; padding:12px; border-radius:6px; font-weight:bold; cursor:pointer; width:100%; height: 40px; font-family:'Montserrat';">APLICAR</button>
                 </div>
             </div>
+            <p id="infoFiltroActual" hidden style="margin: 10px 0 18px; color: #eccc68; font-size: 13px;"></p>
 
             <div class="profile-header">
                 <div class="athlete-card">
@@ -161,14 +162,14 @@
                     
                     <div class="stat-main">
                         <div id="statEloActual" class="stat-value">1500</div>
-                        <div class="stat-label">Power Rating (Elo)</div>
+                        <div class="stat-label" id="statEloLabel">Power Rating (Elo)</div>
                     </div>
                 </div>
 
                 <div class="chart-section">
                     <div class="mini-stats-grid">
                         <div class="mini-stat"><div id="statRank" class="val" style="color: #a29bfe;">#0</div><div class="lbl">Posición (Rank)</div></div>
-                        <div class="mini-stat"><div id="statPeakElo" class="val" style="color: var(--neon-cyan);">0</div><div class="lbl">Pico Histórico</div></div>
+                        <div class="mini-stat"><div id="statPeakElo" class="val" style="color: var(--neon-cyan);">0</div><div class="lbl" id="statPeakLabel">Pico Histórico</div></div>
                         <div class="mini-stat"><div id="statBatallas" class="val">0</div><div class="lbl">Batallas Oficiales</div></div>
                         <div class="mini-stat"><div id="statWinRate" class="val" style="color: var(--neon-green);">0%</div><div class="lbl">Win Rate</div></div>
                     </div>
@@ -183,7 +184,7 @@
                 <div style="overflow-x: auto;">
                     <table>
                         <thead>
-                            <tr><th>Fecha</th><th>Evento</th><th>Fase</th><th>Oponente</th><th>Resultado</th><th>Elo Previo</th><th>+/-</th></tr>
+                            <tr><th>Fecha</th><th>Evento</th><th>Fase</th><th>Oponente</th><th>Resultado</th><th id="cambioPrevioLabel">Elo Previo</th><th id="cambioActualLabel">+/-</th></tr>
                         </thead>
                         <tbody id="cuerpoHistorial"></tbody>
                     </table>
@@ -195,6 +196,6 @@
 
     <div class="footer">FREESTYLE POWER RANKING ELO V3.0 © 2026</div>
 
-    <script type="module" src="js/perfil.js?v=7.2"></script> 
+    <script type="module" src="js/perfil.js?v=7.4"></script>
 </body>
 </html>

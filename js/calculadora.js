@@ -1,4 +1,5 @@
 import { supabase, cargarFranquiciasSelect, obtenerFranquiciasValidas } from './supabase.js';
+import { cargarTodasLasFilas, calcularRankingActual, fechaEventoActual, filtrarBatallasActuales } from './actual.mjs';
 
 const K = 32;
 let listaMCsGlobal = [];
@@ -36,6 +37,7 @@ async function inicializar() {
 
 function cargarRankingNormal() {
     document.getElementById('tituloTabla').innerText = "Clasificación Histórica Global";
+    document.getElementById('encabezadoPuntos').innerText = 'Puntos Elo';
     let htmlTabla = '';
     listaMCsGlobal.filter(mc => mc.batallas_totales > 0).forEach((mc, index) => {
         let bandera = mc.nacionalidad ? mc.nacionalidad + " " : "🌍 ";
@@ -54,6 +56,11 @@ async function aplicarFiltros() {
     let modo = document.getElementById('modoAnalisisCalc').value;
     let desde = document.getElementById('filtroDesde').value;
     let hasta = document.getElementById('filtroHasta').value;
+
+    if (modo === 'actual') {
+        return aplicarFiltroActual(franquicia, desde, hasta);
+    }
+    document.getElementById('encabezadoPuntos').innerText = 'Puntos Elo';
 
     if (franquicia === "TODAS" && !desde && !hasta && modo === 'historico') {
         return cargarRankingNormal();
@@ -169,6 +176,43 @@ async function aplicarFiltros() {
 
     if(htmlTabla === "") htmlTabla = "<tr><td colspan='4' style='text-align:center; padding: 40px; color: #a4b0be;'>No hay registros en esta línea de tiempo.</td></tr>";
     document.getElementById('cuerpoRanking').innerHTML = htmlTabla;
+}
+
+async function aplicarFiltroActual(franquicia, desde, hasta) {
+    const fechaCorte = hasta || new Date().toISOString().slice(0, 10);
+    const titulo = document.getElementById('tituloTabla');
+    const cuerpo = document.getElementById('cuerpoRanking');
+    document.getElementById('encabezadoPuntos').innerText = 'Puntaje Actual';
+    titulo.innerText = `Ranking Actual al ${fechaCorte}${franquicia === 'TODAS' ? '' : ` (${franquicia})`}`;
+    cuerpo.innerHTML = "<tr><td colspan='4' style='text-align:center; color:#eccc68; padding:40px;'>Cargando historial completo...</td></tr>";
+
+    try {
+        const consulta = supabase.from('batallas').select('*, torneos(franquicia, fecha_evento, formato)').order('id', { ascending: true });
+        const batallas = await cargarTodasLasFilas(consulta);
+        const sinFecha = batallas.filter(batalla => !fechaEventoActual(batalla)).length;
+        titulo.innerText += sinFecha ? ` · ${sinFecha} registros sin fecha excluidos` : '';
+        const franquiciasPermitidas = obtenerFranquiciasValidas(franquicia);
+        const universo = filtrarBatallasActuales(batallas, { franquicia, franquiciasPermitidas, desde, hasta });
+        const ranking = calcularRankingActual(listaMCsGlobal, universo, fechaCorte);
+
+        if (ranking.length === 0) {
+            cuerpo.innerHTML = "<tr><td colspan='4' style='text-align:center; padding:40px; color:#a4b0be;'>No hay batallas elegibles para este corte y estos filtros.</td></tr>";
+            return;
+        }
+
+        cuerpo.innerHTML = ranking.map((mc, index) => {
+            const bandera = mc.nacionalidad ? `${mc.nacionalidad} ` : '🌍 ';
+            return `<tr onclick="window.location.href='perfil.html?id=${mc.id}'" title="Ver Perfil de Atleta" style="cursor:pointer;">
+                <td><strong>#${index + 1}</strong></td>
+                <td>${bandera}${mc.aka}</td>
+                <td style="color:#eccc68;"><strong>${Math.round(mc.puntaje_actual)}</strong></td>
+                <td>${mc.batallas_actuales}</td>
+            </tr>`;
+        }).join('');
+    } catch (error) {
+        console.error('Error al cargar el historial del modo Actual:', error);
+        cuerpo.innerHTML = "<tr><td colspan='4' style='text-align:center; padding:40px; color:#ff4757;'>No se pudo cargar el historial completo. No se muestra un ranking parcial.</td></tr>";
+    }
 }
 
 window.aplicarFiltros = aplicarFiltros;

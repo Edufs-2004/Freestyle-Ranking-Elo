@@ -2,7 +2,7 @@
 
 ## Estado
 
-Propuesta funcional y técnica. Este filtro no está implementado todavía. El documento no modifica `calculadora.js`, `perfil.js`, el esquema SQL ni ninguno de los modos existentes.
+Implementación en curso. El filtro Actual es de solo lectura: no modifica el Elo oficial, el esquema SQL ni los cálculos de los modos Global y Aislado.
 
 ## Objetivo
 
@@ -44,7 +44,7 @@ Fórmula conceptual para una contribución con `m` meses completos de antigüeda
 
 El mes se considera completo al alcanzar el mismo día calendario de cada mes; si el mes no tiene ese día, se usa el último día de ese mes. Antes de cumplir el siguiente mes completo se conserva el peso del tramo anterior.
 
-> **Interpretación que requiere confirmación antes de programar:** «degradación del 10% con cada mes» podría entenderse como pérdida lineal de 10 puntos porcentuales (esta propuesta), o como conservar el 90% del saldo restante cada mes (degradación compuesta). La ventana explícita de dos años más diez meses sugiere el modelo lineal, que llega a cero al completar esos diez meses.
+> **Interpretación confirmada:** la degradación es lineal sobre el cambio Elo original de cada competencia, no compuesta sobre el saldo restante. Por ejemplo, una competencia que otorgó `+20` aporta `+20` hasta los 24 meses, `+18` al cumplir 25 meses, `+16` al cumplir 26, y así sucesivamente hasta aportar `0` al cumplir 34 meses. Una contribución negativa se acerca igualmente a cero: por ejemplo, `-20`, `-18`, `-16`, etc.
 
 ### Fuente de puntos
 
@@ -83,6 +83,20 @@ Redondear solo el resultado mostrado, una vez terminada la suma. El ranking se o
 6. Asegurar que las consultas recuperen todas las batallas de la ventana mediante paginación; no asumir que una única respuesta de PostgREST contiene el historial completo.
 7. Mostrar en el encabezado la fecha de corte efectiva para que el usuario entienda por qué el resultado puede cambiar con el tiempo.
 
+## Hoja de ruta de implementación
+
+La implementación se divide en fases pequeñas. Cada fase debe conservar los modos y datos oficiales existentes; no se cambia el Elo almacenado ni se amplía a herramientas administrativas.
+
+**Estado actual:** fases 1 a 4 implementadas. La fase 5 verificó las siete pruebas automatizadas, el cálculo del 90% en leaderboard y perfil, y el retorno a Global/Aislado. Queda pendiente confirmar visualmente el trazado del gráfico en un entorno que cargue Chart.js: el navegador de esta sesión bloqueó su CDN y el canvas quedó vacío también en Global, por lo que no es una regresión exclusiva de Actual.
+
+1. **Contrato y cálculo puro:** implementar fechas calendario, degradación lineal, filtro de universo y ranking a partir de `cambio_mc1`/`cambio_mc2`. Cubrir límites de 24 a 34 meses, meses cortos, fechas alternativas y bonos con pruebas automatizadas.
+2. **Leaderboard Actual:** agregar la opción sin reemplazar Global ni Aislado; aplicar franquicia, Desde y Hasta; descargar el historial paginado; presentar puntaje, batallas normales, fecha de corte y estados separados de error y conjunto vacío.
+3. **Perfil Actual:** ofrecer el modo Actual dentro de los filtros del perfil público; graficar el saldo de contribuciones ponderadas a la misma fecha de corte y mostrar en el historial cambio original, peso y cambio degradado. Mantener intactas las ramas Global y Aislado y la ficha/modal administrativa.
+4. **Integridad de la experiencia:** comprobar fallback de fecha, navegación a perfiles, filtros combinados, participantes sin batallas elegibles, empate determinista y ausencia de escrituras.
+5. **Verificación final de regresión:** probar Global y Aislado con los mismos casos antes/después y confirmar que mantienen sus resultados; ejecutar pruebas del cálculo Actual, revisar los estados de lectura/error/vacío y comprobar manualmente leaderboard, gráfica e historial del perfil en navegador.
+
+La fase 5 es una puerta de cierre: no se considera terminado el filtro hasta que los dos modos anteriores sigan funcionando y el nuevo modo cumpla su contrato de ponderación en leaderboard y perfil.
+
 ## Pruebas de aceptación
 
 - Con contribuciones de 24 meses o menos, cada cambio conserva el 100% de su valor.
@@ -99,7 +113,7 @@ Redondear solo el resultado mostrado, una vez terminada la suma. El ranking se o
 
 ## Riesgos y preguntas antes de implementar
 
-- Confirmar degradación lineal frente a compuesta. Esta propuesta implementa lineal, motivada por el límite de 10 meses hasta peso cero.
+- La degradación lineal del cambio original está confirmada: resta 10 puntos porcentuales del cambio original por cada mes completo posterior a los primeros 24 y llega a cero al cumplir 34 meses.
 - Confirmar si los bonos deben integrar el puntaje. La propuesta los incluye porque son cambios Elo registrados, pero los excluye del conteo de batallas.
 - Confirmar la regla de fecha nula. La propuesta usa `batallas.creado_en` solo como fallback, no `torneos.creado_en`.
 - El puntaje propuesto suma cambios históricos ponderados desde una base fija de 1500. Si el producto espera conservar el Elo inicial real de cada competidor, se debe definir ese dato antes de implementar; el esquema no contiene una columna de Elo inicial.

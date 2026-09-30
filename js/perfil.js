@@ -1,8 +1,9 @@
 import { supabase, cargarFranquiciasSelect, obtenerFranquiciasValidas } from './supabase.js';
+import { cargarTodasLasFilas, calcularRankingActual, contribucionActual, fechaEventoActual, filtrarBatallasActuales } from './actual.mjs';
 
 const K = 32;
 
-let listaMCs = []; let miGrafico = null; let batallasUniverso = []; let mcActualID = null;
+let listaMCs = []; let miGrafico = null; let batallasUniverso = []; let mcActualID = null; let errorCargaBatallasPerfil = null;
 
 async function inicializar() {
     const { data: mcs, error: errorMcs } = await supabase.from('competidores').select('*').order('aka', { ascending: true });
@@ -14,12 +15,17 @@ async function inicializar() {
     listaMCs = mcs || [];
     renderizarCompetidores(listaMCs);
     
-    const { data: bts } = await supabase.from('batallas').select(`*, torneos(nombre, franquicia, fecha_evento)`);
-    batallasUniverso = (bts || []).sort((a,b) => {
-        let fA = a.torneos ? new Date(a.torneos.fecha_evento) : new Date(0);
-        let fB = b.torneos ? new Date(b.torneos.fecha_evento) : new Date(0);
-        return fA - fB;
-    });
+    try {
+        const consulta = supabase.from('batallas').select(`*, torneos(nombre, franquicia, fecha_evento)`).order('id', { ascending: true });
+        batallasUniverso = (await cargarTodasLasFilas(consulta)).sort((a, b) => {
+            const fechaA = a.torneos ? new Date(a.torneos.fecha_evento) : new Date(0);
+            const fechaB = b.torneos ? new Date(b.torneos.fecha_evento) : new Date(0);
+            return fechaA - fechaB;
+        });
+    } catch (error) {
+        console.error('Error al cargar batallas del perfil:', error);
+        errorCargaBatallasPerfil = error;
+    }
 
     await cargarFranquiciasSelect('filtroFranqPerfil', true);
 
@@ -170,6 +176,32 @@ function aplicarFiltroPerfil() {
         let modo = document.getElementById('modoAnalisisPerfil').value;
         let d = document.getElementById('filtroDesdePerfil').value;
         let h = document.getElementById('filtroHastaPerfil').value;
+
+        if (modo === 'actual') {
+            const fechaCorte = h || new Date().toISOString().slice(0, 10);
+            if (errorCargaBatallasPerfil) {
+                renderErrorActualPerfil();
+                return;
+            }
+            const franquiciasPermitidas = obtenerFranquiciasValidas(f);
+            const batallasActuales = filtrarBatallasActuales(batallasUniverso, {
+                franquicia: f,
+                franquiciasPermitidas,
+                desde: d,
+                hasta: h
+            }).sort((a, b) => (fechaEventoActual(a) || '').localeCompare(fechaEventoActual(b) || ''));
+            const rankingActual = calcularRankingActual(listaMCs, batallasActuales, fechaCorte);
+            renderizarPerfilActual(batallasActuales, rankingActual, fechaCorte);
+            return;
+        }
+
+        document.getElementById('infoFiltroActual').hidden = true;
+        document.getElementById('statEloLabel').innerText = 'Power Rating (Elo)';
+        document.getElementById('statPeakLabel').innerText = 'Pico Histórico';
+        document.getElementById('cambioPrevioLabel').innerText = 'Elo Previo';
+        document.getElementById('cambioActualLabel').innerText = '+/-';
+        const mcSeleccionado = listaMCs.find(mc => mc.id == mcActualID);
+        document.getElementById('statEloActual').innerText = mcSeleccionado?.elo_actual ?? 1500;
 
         let franquiciasPermitidas = obtenerFranquiciasValidas(f);
 
@@ -446,6 +478,125 @@ function aplicarFiltroPerfil() {
 
     } catch (e) {
         console.error("Error al aplicar filtros o dibujar:", e);
+    }
+}
+
+function renderErrorActualPerfil() {
+    document.getElementById('infoFiltroActual').hidden = false;
+    document.getElementById('infoFiltroActual').innerText = 'No se pudo cargar el historial completo; no se muestran resultados parciales.';
+    document.getElementById('statRank').innerText = '-';
+    document.getElementById('statEloLabel').innerText = 'Puntaje Actual';
+    document.getElementById('statPeakLabel').innerText = 'Pico del corte';
+    document.getElementById('statEloActual').innerText = '—';
+    document.getElementById('statPeakElo').innerText = '—';
+    document.getElementById('statBatallas').innerText = '—';
+    document.getElementById('statWinRate').innerText = '—';
+    document.getElementById('cuerpoHistorial').innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px; color:#ff4757;">No se pudo cargar el historial completo.</td></tr>';
+    if (miGrafico) miGrafico.destroy();
+}
+
+function renderizarPerfilActual(batallas, ranking, fechaCorte) {
+    const eventos = batallas.filter(b => (b.mc1_id == mcActualID || b.mc2_id == mcActualID)
+        && contribucionActual(b, mcActualID, fechaCorte) !== null);
+    let saldo = 1500;
+    let pico = saldo;
+    let victorias = 0;
+    let derrotas = 0;
+    const etiquetas = ['Base'];
+    const puntos = [saldo];
+    const filas = [];
+
+    eventos.forEach(batalla => {
+        const contribucion = contribucionActual(batalla, mcActualID, fechaCorte);
+        saldo += contribucion.cambioActual;
+        pico = Math.max(pico, saldo);
+        etiquetas.push(batalla.resultado === 'bono' ? 'Bono' : (batalla.fase || 'Batalla'));
+        puntos.push(saldo);
+
+        if (batalla.resultado !== 'bono' && contribucion.peso > 0) {
+            const esMC1 = batalla.mc1_id == mcActualID;
+            const resultadoPositivo = esMC1
+                ? ['victoria', 'victoria_replica', 'victoria_total'].includes(batalla.resultado)
+                : ['derrota', 'derrota_replica', 'derrota_total'].includes(batalla.resultado);
+            if (resultadoPositivo) victorias++; else derrotas++;
+        }
+        filas.push({ batalla, contribucion, saldoPrevio: saldo - contribucion.cambioActual });
+    });
+
+    document.getElementById('infoFiltroActual').hidden = false;
+    const sinFecha = batallasUniverso.filter(b => !fechaEventoActual(b)).length;
+    document.getElementById('infoFiltroActual').innerText = `Puntaje Actual derivado al ${fechaCorte}. Cada aporte conserva el 100% hasta 24 meses y pierde 10 puntos porcentuales por mes completo posterior.${sinFecha ? ` ${sinFecha} registros sin fecha excluidos.` : ''}`;
+    document.getElementById('statEloLabel').innerText = 'Puntaje Actual';
+    document.getElementById('statPeakLabel').innerText = 'Pico del corte';
+    document.getElementById('statEloActual').innerText = Math.round(saldo);
+    document.getElementById('statPeakElo').innerText = Math.round(pico);
+    document.getElementById('statBatallas').innerText = eventos.filter(b => b.resultado !== 'bono' && contribucionActual(b, mcActualID, fechaCorte).peso > 0).length;
+    document.getElementById('statWinRate').innerText = victorias + derrotas > 0 ? `${Math.round((victorias / (victorias + derrotas)) * 100)}%` : '0%';
+    const posicion = ranking.findIndex(mc => mc.id == mcActualID);
+    document.getElementById('statRank').innerText = posicion >= 0 ? `#${posicion + 1}` : '-';
+    document.getElementById('cambioPrevioLabel').innerText = 'Puntaje previo';
+    document.getElementById('cambioActualLabel').innerText = 'Original → Actual';
+
+    let html = '';
+    [...filas].reverse().forEach(({ batalla, contribucion, saldoPrevio }) => {
+        const fecha = fechaEventoActual(batalla) || 'Sin fecha';
+        const franquicia = batalla.torneos?.franquicia || '';
+        const nombreTorneo = batalla.torneos?.nombre || 'Torneo eliminado';
+        const evento = franquicia ? `<span style="color:#00d2d3">${franquicia}</span> ${nombreTorneo.replace(franquicia, '')}` : nombreTorneo;
+        const pesoTxt = `${Math.round(contribucion.peso * 100)}%`;
+        const originalTxt = contribucion.cambioOriginal > 0 ? `+${contribucion.cambioOriginal}` : `${contribucion.cambioOriginal}`;
+        const actualTxt = contribucion.cambioActual > 0
+            ? `+${contribucion.cambioActual.toFixed(2).replace(/\.00$/, '')}`
+            : contribucion.cambioActual.toFixed(2).replace(/\.00$/, '');
+        const color = contribucion.cambioActual > 0 ? '#2ed573' : (contribucion.cambioActual < 0 ? '#ff4757' : '#a4b0be');
+
+        if (batalla.resultado === 'bono') {
+            html += `<tr class="fila-bono"><td>${fecha}</td><td>${evento}</td><td colspan="4" style="text-align:center; color:var(--neon-green);">✨ ${batalla.fase || 'Bono'} · ${pesoTxt}</td><td style="color:${color}; font-weight:bold;" title="Original ${originalTxt}; peso ${pesoTxt}">${originalTxt} → ${actualTxt}</td></tr>`;
+            return;
+        }
+
+        const esMC1 = batalla.mc1_id == mcActualID;
+        const oponenteId = esMC1 ? batalla.mc2_id : batalla.mc1_id;
+        const oponente = listaMCs.find(mc => mc.id == oponenteId)?.aka || 'Desconocido';
+        const gano = esMC1
+            ? ['victoria', 'victoria_replica', 'victoria_total'].includes(batalla.resultado)
+            : ['derrota', 'derrota_replica', 'derrota_total'].includes(batalla.resultado);
+        const resultado = gano ? 'Victoria' : 'Derrota';
+        const colorResultado = gano ? 'var(--neon-green)' : 'var(--neon-red)';
+        html += `<tr><td>${fecha}</td><td>${evento}</td><td>${batalla.fase || '-'}</td><td>${oponente}</td><td style="color:${colorResultado}; font-weight:bold;">${resultado}</td><td style="color:#a4b0be;">${saldoPrevio.toFixed(2)}</td><td style="color:${color}; font-weight:bold;" title="Original ${originalTxt}; peso ${pesoTxt}">${originalTxt} → ${actualTxt} (${pesoTxt})</td></tr>`;
+    });
+    document.getElementById('cuerpoHistorial').innerHTML = html || '<tr><td colspan="7" style="text-align:center; padding:30px; color:#a4b0be;">Sin batallas elegibles en el registro.</td></tr>';
+
+    if (typeof Chart !== 'undefined') {
+        if (miGrafico) miGrafico.destroy();
+        const canvas = document.getElementById('eloChart');
+        if (canvas) {
+            miGrafico = new Chart(canvas.getContext('2d'), {
+                type: 'line',
+                data: { labels: etiquetas, datasets: [{
+                    label: `Puntaje Actual al ${fechaCorte}`,
+                    data: puntos,
+                    borderColor: '#eccc68',
+                    backgroundColor: 'rgba(236, 204, 104, 0.12)',
+                    borderWidth: 3,
+                    pointRadius: 4,
+                    pointBackgroundColor: ctx => etiquetas[ctx.dataIndex] === 'Bono' ? '#2ed573' : '#1e1e2f',
+                    pointBorderColor: ctx => etiquetas[ctx.dataIndex] === 'Bono' ? '#2ed573' : '#eccc68',
+                    pointHoverRadius: 6,
+                    fill: true,
+                    tension: 0.3
+                }] },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: true, labels: { color: '#a4b0be' } } },
+                    scales: {
+                        x: { ticks: { color: '#a4b0be', font: { family: 'Montserrat', size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                        y: { ticks: { color: '#eccc68', font: { family: 'Rajdhani', size: 14, weight: 'bold' } }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                    }
+                }
+            });
+        }
     }
 }
 
