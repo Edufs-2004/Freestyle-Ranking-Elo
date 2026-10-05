@@ -1,6 +1,7 @@
 import { supabase, cargarFranquiciasSelect, obtenerFranquiciasValidas } from './supabase.js';
 import { construirRankingHistorico, posicionRankingHistorico } from './ranking-historico.mjs';
 import { calcularBonosDeUltimaBatalla } from './bonos-ficha.mjs';
+import { obtenerFactorK } from './factor-k.mjs';
 import { configurarSesion } from './auth.js';
 const K = 32;
 
@@ -167,7 +168,8 @@ async function repararEloGlobal(silent = false) {
                 else if (b.resultado === "victoria_replica") { S1 = 0.75; S2 = 0.25; } else if (b.resultado === "derrota_replica") { S1 = 0.25; S2 = 0.75; } 
                 else if (b.resultado === "derrota") { S1 = 0.0; S2 = 1.0; } else if (b.resultado === "derrota_total") { S1 = 0.0; S2 = 1.0; bono2 = true; }
 
-                let p1 = Math.round(K * (S1 - E1) * (bono1 ? 1.2 : 1)); let p2 = Math.round(K * (S2 - E2) * (bono2 ? 1.2 : 1));
+                const factorK = obtenerFactorK(b.fase, K);
+                let p1 = Math.round(factorK * (S1 - E1) * (bono1 ? 1.2 : 1)); let p2 = Math.round(factorK * (S2 - E2) * (bono2 ? 1.2 : 1));
                 await supabase.from('batallas').update({ elo_previo_mc1: R1, elo_previo_mc2: R2, cambio_mc1: p1, cambio_mc2: p2 }).eq('id', b.id);
 
                 rankingNube[b.mc1_id].elo = R1 + p1; rankingNube[b.mc2_id].elo = R2 + p2;
@@ -357,8 +359,9 @@ async function abrirAnalisisBatalla(idBatalla) {
                     else if (b.resultado === "derrota") { S1 = 0.0; S2 = 1.0; }
                     else if (b.resultado === "derrota_total") { S1 = 0.0; S2 = 1.0; bono2 = true; }
 
-                    cambio1 = Math.round(K * (S1 - E1) * (bono1 ? 1.2 : 1));
-                    cambio2 = Math.round(K * (S2 - E2) * (bono2 ? 1.2 : 1));
+                    const factorK = obtenerFactorK(b.fase, K);
+                    cambio1 = Math.round(factorK * (S1 - E1) * (bono1 ? 1.2 : 1));
+                    cambio2 = Math.round(factorK * (S2 - E2) * (bono2 ? 1.2 : 1));
                 }
             }
 

@@ -2,6 +2,7 @@ import { supabase, cargarFranquiciasSelect, obtenerFranquiciasValidas } from './
 import { cargarTodasLasFilas, calcularRankingActual, capturarRankingsActualesPorEvento, fechaEventoActual, filtrarBatallasActuales } from './actual.mjs';
 import { capturarRankingsPorEvento } from './ranking-historico.mjs';
 import { crearMovimientosRanking, renderMovimientoRanking } from './movimiento-ranking.mjs';
+import { obtenerFactorK } from './factor-k.mjs';
 
 const K = 32;
 let listaMCsGlobal = [];
@@ -175,7 +176,8 @@ async function aplicarFiltros() {
                     let E1 = 1 / (1 + Math.pow(10, (R2 - R1) / 400)); let E2 = 1 / (1 + Math.pow(10, (R1 - R2) / 400));
                     let S1 = 0, S2 = 0; let bono1 = false, bono2 = false;
                     if (b.resultado === "victoria_total") { S1 = 1.0; S2 = 0.0; bono1 = true; } else if (b.resultado === "victoria") { S1 = 1.0; S2 = 0.0; } else if (b.resultado === "victoria_replica") { S1 = 0.75; S2 = 0.25; } else if (b.resultado === "derrota_replica") { S1 = 0.25; S2 = 0.75; } else if (b.resultado === "derrota") { S1 = 0.0; S2 = 1.0; } else if (b.resultado === "derrota_total") { S1 = 0.0; S2 = 1.0; bono2 = true; }
-                    let c1 = Math.round(K * (S1 - E1) * (bono1 ? 1.2 : 1)); let c2 = Math.round(K * (S2 - E2) * (bono2 ? 1.2 : 1));
+                    const factorK = obtenerFactorK(b.fase, K);
+                    let c1 = Math.round(factorK * (S1 - E1) * (bono1 ? 1.2 : 1)); let c2 = Math.round(factorK * (S2 - E2) * (bono2 ? 1.2 : 1));
 
                     rankingTemp[b.mc1_id].elo_actual = R1 + c1; rankingTemp[b.mc1_id].batallas_totales += 1;
                     if (rankingTemp[b.mc2_id]) { rankingTemp[b.mc2_id].elo_actual = R2 + c2; rankingTemp[b.mc2_id].batallas_totales += 1; }

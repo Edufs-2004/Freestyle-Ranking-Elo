@@ -1,5 +1,6 @@
 import { supabase, cargarFranquiciasSelect } from './supabase.js';
 import { configurarSesion } from './auth.js';
+import { obtenerFactorK } from './factor-k.mjs';
 const K = 32;
 
 const RUTA_TORNEO = {
@@ -323,6 +324,7 @@ async function iniciarTorneo() {
 
 async function procesarBatallaAuto(faseStr, esLiga = false) {
     let llave = evento[faseStr]; let resultado = document.getElementById(`${faseStr}_res`).value; let btn = document.getElementById(`btn_${faseStr}`);
+    let stringFase = esLiga ? llave.faseReal : (faseStr === '3P' ? '3er Puesto' : faseStr);
     
     const { data: db1 } = await supabase.from('competidores').select('elo_actual, batallas_totales').eq('id', llave.mc1.id).single();
     const { data: db2 } = await supabase.from('competidores').select('elo_actual, batallas_totales').eq('id', llave.mc2.id).single();
@@ -335,12 +337,11 @@ async function procesarBatallaAuto(faseStr, esLiga = false) {
     else if (resultado === "victoria_replica") { S1 = 0.75; S2 = 0.25; } else if (resultado === "derrota_replica") { S1 = 0.25; S2 = 0.75; } 
     else if (resultado === "derrota") { S1 = 0.0; S2 = 1.0; } else if (resultado === "derrota_total") { S1 = 0.0; S2 = 1.0; bonoTotal2 = true; }
 
-    let p1 = Math.round(K * (S1 - E1) * (bonoTotal1 ? 1.2 : 1)); let p2 = Math.round(K * (S2 - E2) * (bonoTotal2 ? 1.2 : 1));
+    const factorK = obtenerFactorK(stringFase, K);
+    let p1 = Math.round(factorK * (S1 - E1) * (bonoTotal1 ? 1.2 : 1)); let p2 = Math.round(factorK * (S2 - E2) * (bonoTotal2 ? 1.2 : 1));
 
     await supabase.from('competidores').update({ elo_actual: R1 + p1, batallas_totales: db1.batallas_totales + 1 }).eq('id', llave.mc1.id);
     await supabase.from('competidores').update({ elo_actual: R2 + p2, batallas_totales: db2.batallas_totales + 1 }).eq('id', llave.mc2.id);
-
-    let stringFase = esLiga ? llave.faseReal : (faseStr === '3P' ? '3er Puesto' : faseStr);
 
     await supabase.from('batallas').insert([{ torneo_id: evento.id, fase: stringFase, mc1_id: llave.mc1.id, mc2_id: llave.mc2.id, resultado: resultado, elo_previo_mc1: R1, elo_previo_mc2: R2, cambio_mc1: p1, cambio_mc2: p2 }]);
 
