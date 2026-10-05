@@ -290,6 +290,7 @@ async function abrirAnalisisBatalla(idBatalla) {
 
         const { data: torneosData } = await supabase.from('torneos').select('id, fecha_evento, franquicia').order('fecha_evento', { ascending: true });
         const { data: batallasData } = await supabase.from('batallas').select('id, torneo_id, fase, mc1_id, mc2_id, cambio_mc1, cambio_mc2, resultado');
+        const batallasDelTorneoObjetivo = (batallasData || []).filter(batalla => String(batalla.torneo_id) === String(bTarget.torneo_id));
 
         let torneosAProcesar = torneosData;
         if (modoAislado) {
@@ -322,7 +323,9 @@ async function abrirAnalisisBatalla(idBatalla) {
             elo_previo_mc1: bTarget.elo_previo_mc1,
             elo_previo_mc2: bTarget.elo_previo_mc2,
             cambio_mc1: bTarget.cambio_mc1,
-            cambio_mc2: bTarget.cambio_mc2
+            cambio_mc2: bTarget.cambio_mc2,
+            bono_mc1: 0,
+            bono_mc2: 0
         };
 
         for (let i = 0; i < todasBatallasOrdenadas.length; i++) {
@@ -373,6 +376,15 @@ async function abrirAnalisisBatalla(idBatalla) {
                     objBatalla.cambio_mc1 = cambio1;
                     objBatalla.cambio_mc2 = cambio2;
                 }
+                const bonosAtribuidos = calcularBonosDeUltimaBatalla(
+                    batallasDelTorneoObjetivo,
+                    bTarget.id,
+                    mc1.id,
+                    mc2.id,
+                    modoAislado
+                );
+                objBatalla.bono_mc1 = bonosAtribuidos.mc1;
+                objBatalla.bono_mc2 = bonosAtribuidos.mc2;
             }
 
             let huboCambio = false;
@@ -424,6 +436,16 @@ async function abrirAnalisisBatalla(idBatalla) {
         
         let difPos2 = (snapshotPre.rank2 !== '-' && snapshotPost.rank2 !== '-') ? snapshotPre.rank2 - snapshotPost.rank2 : 0;
         let flechaPos2 = difPos2 > 0 ? `<span style="color:#2ed573; font-size: 12px;">(Subió ${difPos2}) ⬆️</span>` : (difPos2 < 0 ? `<span style="color:#ff4757; font-size: 12px;">(Bajó ${Math.abs(difPos2)}) ⬇️</span>` : `<span style="color:#a4b0be; font-size: 12px;">(Se mantuvo) ➖</span>`);
+
+        const renderizarEloPost = (eloPrevio, cambioBatalla, bonoPuesto) => {
+            const eloBase = eloPrevio == null || !Number.isFinite(Number(eloPrevio)) ? 1500 : Number(eloPrevio);
+            const cambio = Number(cambioBatalla) || 0;
+            const bono = Number(bonoPuesto) || 0;
+            const eloPost = eloBase + cambio + bono;
+            const textoCambio = cambio > 0 ? `+${cambio}` : `${cambio}`;
+            const textoBono = bono === 0 ? '' : `<br><span style="font-size:12px; color:#1e90ff;">(${bono > 0 ? '+' : ''}${bono} bono por puesto)</span>`;
+            return `${eloPost} <br><span style="font-size:13px; color:${cambio > 0 ? '#2ed573' : '#ff4757'}">(${textoCambio})</span>${textoBono}`;
+        };
 
         let logoEventoHtml = logoFranquicia ? `<img src="${logoFranquicia}" crossorigin="anonymous" style="height: 50px; max-width: 150px; object-fit: contain;">` : `<div></div>`;
 
@@ -478,9 +500,9 @@ async function abrirAnalisisBatalla(idBatalla) {
                 </tr>
 
                 <tr style="border-bottom: 1px solid #373752; background: rgba(46, 213, 115, 0.05);">
-                    <td style="padding: 12px; font-size: 16px; color: #fff; font-weight: bold; border: none;">${objBatalla.elo_previo_mc1 + objBatalla.cambio_mc1} <br><span style="font-size: 13px; color: ${objBatalla.cambio_mc1 > 0 ? '#2ed573' : '#ff4757'}">(${objBatalla.cambio_mc1 > 0 ? '+'+objBatalla.cambio_mc1 : objBatalla.cambio_mc1})</span></td>
+                    <td style="padding: 12px; font-size: 16px; color: #fff; font-weight: bold; border: none;">${renderizarEloPost(objBatalla.elo_previo_mc1, objBatalla.cambio_mc1, objBatalla.bono_mc1)}</td>
                     <td style="padding: 12px; font-weight: bold; color: #2ed573; background: rgba(0,0,0,0.2); border: none;">Elo Post Batalla</td>
-                    <td style="padding: 12px; font-size: 16px; color: #fff; font-weight: bold; border: none;">${objBatalla.elo_previo_mc2 + objBatalla.cambio_mc2} <br><span style="font-size: 13px; color: ${objBatalla.cambio_mc2 > 0 ? '#2ed573' : '#ff4757'}">(${objBatalla.cambio_mc2 > 0 ? '+'+objBatalla.cambio_mc2 : objBatalla.cambio_mc2})</span></td>
+                    <td style="padding: 12px; font-size: 16px; color: #fff; font-weight: bold; border: none;">${renderizarEloPost(objBatalla.elo_previo_mc2, objBatalla.cambio_mc2, objBatalla.bono_mc2)}</td>
                 </tr>
 
                 <tr style="border-bottom: 1px solid #373752;">
