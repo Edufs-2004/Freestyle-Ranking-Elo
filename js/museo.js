@@ -1,7 +1,10 @@
 import { supabase, cargarFranquiciasSelect, obtenerFranquiciasValidas } from './supabase.js';
+<<<<<<< HEAD
 import { construirRankingHistorico, posicionRankingHistorico } from './ranking-historico.mjs';
 import { calcularBonosDeUltimaBatalla } from './bonos-ficha.mjs';
 import { obtenerFactorK } from './factor-k.mjs';
+=======
+>>>>>>> 94e53b21185b905a4f8194d973f37f00eceab7ef
 import { configurarSesion } from './auth.js';
 const K = 32;
 
@@ -168,8 +171,16 @@ async function repararEloGlobal(silent = false) {
                 else if (b.resultado === "victoria_replica") { S1 = 0.75; S2 = 0.25; } else if (b.resultado === "derrota_replica") { S1 = 0.25; S2 = 0.75; } 
                 else if (b.resultado === "derrota") { S1 = 0.0; S2 = 1.0; } else if (b.resultado === "derrota_total") { S1 = 0.0; S2 = 1.0; bono2 = true; }
 
+<<<<<<< HEAD
                 const factorK = obtenerFactorK(b.fase, K);
                 let p1 = Math.round(factorK * (S1 - E1) * (bono1 ? 1.2 : 1)); let p2 = Math.round(factorK * (S2 - E2) * (bono2 ? 1.2 : 1));
+=======
+                // 🟢 FIX DEL BRONCE PARA EL MOTOR HISTÓRICO
+                let kAplicado = (b.fase && b.fase.includes('Tercer')) ? K / 2 : K;
+                let p1 = Math.round(kAplicado * (S1 - E1) * (bono1 ? 1.2 : 1)); 
+                let p2 = Math.round(kAplicado * (S2 - E2) * (bono2 ? 1.2 : 1));
+                
+>>>>>>> 94e53b21185b905a4f8194d973f37f00eceab7ef
                 await supabase.from('batallas').update({ elo_previo_mc1: R1, elo_previo_mc2: R2, cambio_mc1: p1, cambio_mc2: p2 }).eq('id', b.id);
 
                 rankingNube[b.mc1_id].elo = R1 + p1; rankingNube[b.mc2_id].elo = R2 + p2;
@@ -261,9 +272,6 @@ async function guardarEdicionBatalla(recalcular = true) {
     cargarMcsParaEdicion(); verTorneo(torneoAbiertoId, torneoAbiertoNombre);
 }
 
-// ====================================================================
-// HEAD TO HEAD: AHORA SOPORTA CÁLCULO DE "UNIVERSO AISLADO" EN TIEMPO REAL
-// ====================================================================
 async function abrirAnalisisBatalla(idBatalla) {
     document.getElementById('overlayAnalisis').style.display = 'block';
     document.getElementById('modalAnalisis').style.display = 'block';
@@ -282,7 +290,6 @@ async function abrirAnalisisBatalla(idBatalla) {
         let franqObj = franquiciasGlobal.find(f => f.nombre === franquiciaTorneo);
         let logoFranquicia = (franqObj && franqObj.logo) ? franqObj.logo : null;
 
-        // 🟢 DETECTAR MODO AISLADO Y OBTENER LOS FILTROS ACTUALES
         let selectModo = document.getElementById('modoAnalisisMuseo');
         let modoAislado = selectModo && selectModo.value === 'aislado';
         let fFranq = document.getElementById('filtroFranqMuseo').value;
@@ -294,9 +301,7 @@ async function abrirAnalisisBatalla(idBatalla) {
 
         const { data: torneosData } = await supabase.from('torneos').select('id, fecha_evento, franquicia').order('fecha_evento', { ascending: true });
         const { data: batallasData } = await supabase.from('batallas').select('id, torneo_id, fase, mc1_id, mc2_id, cambio_mc1, cambio_mc2, resultado');
-        const batallasDelTorneoObjetivo = (batallasData || []).filter(batalla => String(batalla.torneo_id) === String(bTarget.torneo_id));
 
-        // 🟢 FILTRAR TORNEOS A PROCESAR SI ESTÁ AISLADO
         let torneosAProcesar = torneosData;
         if (modoAislado) {
             let franquiciasPermitidas = fFranq ? obtenerFranquiciasValidas(fFranq) : ['TODAS'];
@@ -322,16 +327,13 @@ async function abrirAnalisisBatalla(idBatalla) {
         let ledger = {};
         listaMcsGlobal.forEach(m => ledger[m.id] = { elo: 1500, maxElo: 1500, bestRank: 99999, batallas: 0 });
 
-        let snapshotPre = null; let snapshotPost = null;
+        let snapshotPre = null; let snapshotPost = null; let objetivoEncontrado = false;
         
-        // El objeto de la batalla que usaremos para pintar la ficha
         let objBatalla = {
             elo_previo_mc1: bTarget.elo_previo_mc1,
             elo_previo_mc2: bTarget.elo_previo_mc2,
             cambio_mc1: bTarget.cambio_mc1,
-            cambio_mc2: bTarget.cambio_mc2,
-            bono_mc1: 0,
-            bono_mc2: 0
+            cambio_mc2: bTarget.cambio_mc2
         };
 
         for (let i = 0; i < todasBatallasOrdenadas.length; i++) {
@@ -342,10 +344,9 @@ async function abrirAnalisisBatalla(idBatalla) {
             let eloPrev1 = ledger[b.mc1_id] ? ledger[b.mc1_id].elo : 1500;
             let eloPrev2 = ledger[b.mc2_id] ? ledger[b.mc2_id].elo : 1500;
 
-            // 🟢 SI ESTÁ AISLADO: IGNORAR BASE DE DATOS Y CALCULAR EN TIEMPO REAL
             if (modoAislado) {
                 if (b.resultado === 'bono') {
-                    cambio1 = 0; cambio2 = 0; // Se ignoran los pozos de torneo para aislar solo 1v1
+                    cambio1 = 0; cambio2 = 0; 
                 } else {
                     let R1 = eloPrev1; let R2 = eloPrev2;
                     let E1 = 1 / (1 + Math.pow(10, (R2 - R1) / 400));
@@ -359,17 +360,25 @@ async function abrirAnalisisBatalla(idBatalla) {
                     else if (b.resultado === "derrota") { S1 = 0.0; S2 = 1.0; }
                     else if (b.resultado === "derrota_total") { S1 = 0.0; S2 = 1.0; bono2 = true; }
 
+<<<<<<< HEAD
                     const factorK = obtenerFactorK(b.fase, K);
                     cambio1 = Math.round(factorK * (S1 - E1) * (bono1 ? 1.2 : 1));
                     cambio2 = Math.round(factorK * (S2 - E2) * (bono2 ? 1.2 : 1));
+=======
+                    // 🟢 FIX DEL BRONCE EN MODO AISLADO
+                    let kAplicado = (b.fase && b.fase.includes('Tercer')) ? K / 2 : K;
+                    cambio1 = Math.round(kAplicado * (S1 - E1) * (bono1 ? 1.2 : 1));
+                    cambio2 = Math.round(kAplicado * (S2 - E2) * (bono2 ? 1.2 : 1));
+>>>>>>> 94e53b21185b905a4f8194d973f37f00eceab7ef
                 }
             }
 
             if (b.id === idBatalla) {
-                let tablaRank = construirRankingHistorico(listaMcsGlobal, ledger);
+                objetivoEncontrado = true;
+                let tablaRank = Object.keys(ledger).map(id => ({id: parseInt(id), elo: ledger[id].elo, bts: ledger[id].batallas})).sort((x,y) => y.elo - x.elo);
                 snapshotPre = {
-                    rank1: posicionRankingHistorico(tablaRank, mc1.id),
-                    rank2: posicionRankingHistorico(tablaRank, mc2.id),
+                    rank1: tablaRank.findIndex(r => r.id === mc1.id) + 1,
+                    rank2: tablaRank.findIndex(r => r.id === mc2.id) + 1,
                     max1: ledger[mc1.id].maxElo,
                     max2: ledger[mc2.id].maxElo,
                     bestRank1: ledger[mc1.id].bestRank === 99999 ? '-' : ledger[mc1.id].bestRank,
@@ -382,15 +391,6 @@ async function abrirAnalisisBatalla(idBatalla) {
                     objBatalla.cambio_mc1 = cambio1;
                     objBatalla.cambio_mc2 = cambio2;
                 }
-                const bonosAtribuidos = calcularBonosDeUltimaBatalla(
-                    batallasDelTorneoObjetivo,
-                    bTarget.id,
-                    mc1.id,
-                    mc2.id,
-                    modoAislado
-                );
-                objBatalla.bono_mc1 = bonosAtribuidos.mc1;
-                objBatalla.bono_mc2 = bonosAtribuidos.mc2;
             }
 
             let huboCambio = false;
@@ -408,22 +408,26 @@ async function abrirAnalisisBatalla(idBatalla) {
             }
 
             if (huboCambio) {
-                let tablaRankTemp = construirRankingHistorico(listaMcsGlobal, ledger);
+                let tablaRankTemp = Object.keys(ledger).map(id => ({id: parseInt(id), elo: ledger[id].elo, bts: ledger[id].batallas})).sort((x,y) => y.elo - x.elo);
                 tablaRankTemp.forEach((r, index) => {
                     let rnk = index + 1;
-                    if (rnk < ledger[r.id].bestRank) {
+                    if (r.bts > 0 && rnk < ledger[r.id].bestRank) {
                         ledger[r.id].bestRank = rnk;
                     }
                 });
             }
 
-            if (b.id === idBatalla) {
-                let tablaRankPost = construirRankingHistorico(listaMcsGlobal, ledger);
-                snapshotPost = {
-                    rank1: posicionRankingHistorico(tablaRankPost, mc1.id),
-                    rank2: posicionRankingHistorico(tablaRankPost, mc2.id)
-                };
-                break;
+            if (objetivoEncontrado && !snapshotPost) {
+                let sigBat = todasBatallasOrdenadas[i+1];
+                let finDeFase = !sigBat || sigBat.torneo_id !== bTarget.torneo_id || sigBat.fase !== bTarget.fase;
+                if (finDeFase) {
+                    let tablaRankPost = Object.keys(ledger).map(id => ({id: parseInt(id), elo: ledger[id].elo})).sort((x,y) => y.elo - x.elo);
+                    snapshotPost = {
+                        rank1: tablaRankPost.findIndex(r => r.id === mc1.id) + 1,
+                        rank2: tablaRankPost.findIndex(r => r.id === mc2.id) + 1
+                    };
+                    break;
+                }
             }
         }
 
@@ -433,28 +437,11 @@ async function abrirAnalisisBatalla(idBatalla) {
         let img1 = mc1.foto || 'https://via.placeholder.com/150/373752/FFFFFF?text=MC1';
         let img2 = mc2.foto || 'https://via.placeholder.com/150/373752/FFFFFF?text=MC2';
         
-        const indicadorCambioRanking = (rankPrevio, rankPosterior) => {
-            if (rankPrevio === '-' && rankPosterior !== '-') return `<span style="color:#2ed573; font-size:12px;">(Debutó) ✨</span>`;
-            if (rankPrevio === '-' || rankPosterior === '-') return `<span style="color:#a4b0be; font-size:12px;">(Sin referencia) ➖</span>`;
-            const diferencia = rankPrevio - rankPosterior;
-            return diferencia > 0
-                ? `<span style="color:#2ed573; font-size:12px;">(Subió ${diferencia}) ⬆️</span>`
-                : diferencia < 0
-                    ? `<span style="color:#ff4757; font-size:12px;">(Bajó ${Math.abs(diferencia)}) ⬇️</span>`
-                    : `<span style="color:#a4b0be; font-size:12px;">(Se mantuvo) ➖</span>`;
-        };
-        const flechaPos1 = indicadorCambioRanking(snapshotPre.rank1, snapshotPost.rank1);
-        const flechaPos2 = indicadorCambioRanking(snapshotPre.rank2, snapshotPost.rank2);
-        const etiquetaRanking = posicion => posicion === '-' ? '-' : `#${posicion}`;
-        const renderizarEloPost = (eloPrevio, cambioBatalla, bonoPuesto) => {
-            const eloBase = eloPrevio == null || !Number.isFinite(Number(eloPrevio)) ? 1500 : Number(eloPrevio);
-            const cambio = Number(cambioBatalla) || 0;
-            const bono = Number(bonoPuesto) || 0;
-            const eloPost = eloBase + cambio + bono;
-            const cambioTexto = cambio > 0 ? `+${cambio}` : `${cambio}`;
-            const bonoTexto = bono === 0 ? '' : `<br><span style="font-size:12px; color:#1e90ff;">(${bono > 0 ? '+' : ''}${bono} bono por puesto)</span>`;
-            return `${eloPost} <br><span style="font-size:13px; color:${cambio > 0 ? '#2ed573' : '#ff4757'}">(${cambioTexto})</span>${bonoTexto}`;
-        };
+        let difPos1 = (snapshotPre.rank1 !== '-' && snapshotPost.rank1 !== '-') ? snapshotPre.rank1 - snapshotPost.rank1 : 0; 
+        let flechaPos1 = difPos1 > 0 ? `<span style="color:#2ed573; font-size: 12px;">(Subió ${difPos1}) ⬆️</span>` : (difPos1 < 0 ? `<span style="color:#ff4757; font-size: 12px;">(Bajó ${Math.abs(difPos1)}) ⬇️</span>` : `<span style="color:#a4b0be; font-size: 12px;">(Se mantuvo) ➖</span>`);
+        
+        let difPos2 = (snapshotPre.rank2 !== '-' && snapshotPost.rank2 !== '-') ? snapshotPre.rank2 - snapshotPost.rank2 : 0;
+        let flechaPos2 = difPos2 > 0 ? `<span style="color:#2ed573; font-size: 12px;">(Subió ${difPos2}) ⬆️</span>` : (difPos2 < 0 ? `<span style="color:#ff4757; font-size: 12px;">(Bajó ${Math.abs(difPos2)}) ⬇️</span>` : `<span style="color:#a4b0be; font-size: 12px;">(Se mantuvo) ➖</span>`);
 
         let logoEventoHtml = logoFranquicia ? `<img src="${logoFranquicia}" crossorigin="anonymous" style="height: 50px; max-width: 150px; object-fit: contain;">` : `<div></div>`;
 
@@ -503,21 +490,21 @@ async function abrirAnalisisBatalla(idBatalla) {
                 </tr>
                 
                 <tr style="border-bottom: 1px solid #373752;">
-                    <td style="padding: 12px; font-size: 16px; font-weight: bold; color: #fff; border: none;">${etiquetaRanking(snapshotPre.rank1)}</td>
+                    <td style="padding: 12px; font-size: 16px; font-weight: bold; color: #fff; border: none;">#${snapshotPre.rank1}</td>
                     <td style="padding: 12px; font-weight: bold; color: #a4b0be; background: rgba(0,0,0,0.2); border: none;">Ranking Previo</td>
-                    <td style="padding: 12px; font-size: 16px; font-weight: bold; color: #fff; border: none;">${etiquetaRanking(snapshotPre.rank2)}</td>
+                    <td style="padding: 12px; font-size: 16px; font-weight: bold; color: #fff; border: none;">#${snapshotPre.rank2}</td>
                 </tr>
 
                 <tr style="border-bottom: 1px solid #373752; background: rgba(46, 213, 115, 0.05);">
-                    <td style="padding: 12px; font-size: 16px; color: #fff; font-weight: bold; border: none;">${renderizarEloPost(objBatalla.elo_previo_mc1, objBatalla.cambio_mc1, objBatalla.bono_mc1)}</td>
+                    <td style="padding: 12px; font-size: 16px; color: #fff; font-weight: bold; border: none;">${objBatalla.elo_previo_mc1 + objBatalla.cambio_mc1} <br><span style="font-size: 13px; color: ${objBatalla.cambio_mc1 > 0 ? '#2ed573' : '#ff4757'}">(${objBatalla.cambio_mc1 > 0 ? '+'+objBatalla.cambio_mc1 : objBatalla.cambio_mc1})</span></td>
                     <td style="padding: 12px; font-weight: bold; color: #2ed573; background: rgba(0,0,0,0.2); border: none;">Elo Post Batalla</td>
-                    <td style="padding: 12px; font-size: 16px; color: #fff; font-weight: bold; border: none;">${renderizarEloPost(objBatalla.elo_previo_mc2, objBatalla.cambio_mc2, objBatalla.bono_mc2)}</td>
+                    <td style="padding: 12px; font-size: 16px; color: #fff; font-weight: bold; border: none;">${objBatalla.elo_previo_mc2 + objBatalla.cambio_mc2} <br><span style="font-size: 13px; color: ${objBatalla.cambio_mc2 > 0 ? '#2ed573' : '#ff4757'}">(${objBatalla.cambio_mc2 > 0 ? '+'+objBatalla.cambio_mc2 : objBatalla.cambio_mc2})</span></td>
                 </tr>
 
                 <tr style="border-bottom: 1px solid #373752;">
-                    <td style="padding: 12px; font-size: 16px; font-weight: bold; color: #fff; border: none;">${etiquetaRanking(snapshotPost.rank1)}<br>${flechaPos1}</td>
-                    <td style="padding: 12px; font-weight: bold; color: #a4b0be; background: rgba(0,0,0,0.2); border: none;">Ranking Post-Batalla</td>
-                    <td style="padding: 12px; font-size: 16px; font-weight: bold; color: #fff; border: none;">${etiquetaRanking(snapshotPost.rank2)}<br>${flechaPos2}</td>
+                    <td style="padding: 12px; font-size: 16px; font-weight: bold; color: #fff; border: none;">#${snapshotPost.rank1}<br>${flechaPos1}</td>
+                    <td style="padding: 12px; font-weight: bold; color: #a4b0be; background: rgba(0,0,0,0.2); border: none;">Ranking al Finalizar</td>
+                    <td style="padding: 12px; font-size: 16px; font-weight: bold; color: #fff; border: none;">#${snapshotPost.rank2}<br>${flechaPos2}</td>
                 </tr>
 
                 <tr style="border-bottom: 1px solid #373752; border-top: 2px dashed #373752;">
@@ -527,9 +514,9 @@ async function abrirAnalisisBatalla(idBatalla) {
                 </tr>
 
                 <tr>
-                    <td style="padding: 12px; font-size: 15px; color: #eccc68; font-weight: bold; border: none;">${etiquetaRanking(snapshotPre.bestRank1)}</td>
+                    <td style="padding: 12px; font-size: 15px; color: #eccc68; font-weight: bold; border: none;">#${snapshotPre.bestRank1}</td>
                     <td style="padding: 12px; font-weight: bold; color: #eccc68; background: rgba(0,0,0,0.2); border: none;">Mejor Ranking Histórico</td>
-                    <td style="padding: 12px; font-size: 15px; color: #eccc68; font-weight: bold; border: none;">${etiquetaRanking(snapshotPre.bestRank2)}</td>
+                    <td style="padding: 12px; font-size: 15px; color: #eccc68; font-weight: bold; border: none;">#${snapshotPre.bestRank2}</td>
                 </tr>
             </table>
         </div>

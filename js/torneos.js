@@ -337,8 +337,15 @@ async function procesarBatallaAuto(faseStr, esLiga = false) {
     else if (resultado === "victoria_replica") { S1 = 0.75; S2 = 0.25; } else if (resultado === "derrota_replica") { S1 = 0.25; S2 = 0.75; } 
     else if (resultado === "derrota") { S1 = 0.0; S2 = 1.0; } else if (resultado === "derrota_total") { S1 = 0.0; S2 = 1.0; bonoTotal2 = true; }
 
+<<<<<<< HEAD
     const factorK = obtenerFactorK(stringFase, K);
     let p1 = Math.round(factorK * (S1 - E1) * (bonoTotal1 ? 1.2 : 1)); let p2 = Math.round(factorK * (S2 - E2) * (bonoTotal2 ? 1.2 : 1));
+=======
+    // 🟢 FIX DEL BRONCE: Si es el 3er Puesto (3P), bajamos K a la mitad (16) para no castigar tan fuerte al 4to.
+    let kAplicado = (faseStr === '3P') ? K / 2 : K;
+    let p1 = Math.round(kAplicado * (S1 - E1) * (bonoTotal1 ? 1.2 : 1)); 
+    let p2 = Math.round(kAplicado * (S2 - E2) * (bonoTotal2 ? 1.2 : 1));
+>>>>>>> 94e53b21185b905a4f8194d973f37f00eceab7ef
 
     await supabase.from('competidores').update({ elo_actual: R1 + p1, batallas_totales: db1.batallas_totales + 1 }).eq('id', llave.mc1.id);
     await supabase.from('competidores').update({ elo_actual: R2 + p2, batallas_totales: db2.batallas_totales + 1 }).eq('id', llave.mc2.id);
