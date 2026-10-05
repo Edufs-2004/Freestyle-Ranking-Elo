@@ -2,6 +2,7 @@ import { supabase, cargarFranquiciasSelect, obtenerFranquiciasValidas } from './
 import { construirRankingHistorico, posicionRankingHistorico } from './ranking-historico.mjs';
 import { calcularBonosDeUltimaBatalla } from './bonos-ficha.mjs';
 import { obtenerFactorK } from './factor-k.mjs';
+import { aplicarCierreTorneo, reconstruirPremiosCierre } from './premios-torneo.mjs';
 import { configurarSesion } from './auth.js';
 const K = 32;
 
@@ -45,6 +46,13 @@ function renderizarTablaTorneos(listaTorneos) {
     let html = '';
     listaTorneos.forEach(t => {
         let colorEstado = t.estado === 'Finalizado' ? '#2ed573' : '#ffa502';
+        const estadoEnCurso = String(t.estado || '').toLocaleLowerCase() === 'en curso';
+        const formatoNoCompatible = /^\s*32\b/.test(String(t.formato || ''));
+        const botonCerrar = estadoEnCurso
+            ? formatoNoCompatible
+                ? '<button class="btn-cerrar-evento" disabled title="El cierre desde el Museo no admite el formato de 32 participantes">⚠ Formato 32</button>'
+                : `<button class="btn-cerrar-evento" onclick="cerrarTorneoDesdeMuseo(${t.id}, this)" title="Cerrar y repartir premios según resultados guardados">🏁 Cerrar</button>`
+            : '';
         
         html += `<tr>
             <td>${t.fecha_evento || 'Sin fecha'}</td>
@@ -54,6 +62,7 @@ function renderizarTablaTorneos(listaTorneos) {
             <td>
                 <div class="action-group">
                     <button class="btn-ver" onclick="verTorneo(${t.id}, '${t.nombre}')" title="Ver Torneo">👁️ Ver</button> 
+                    ${botonCerrar}
                     <button class="btn-editar" onclick="abrirEdicionTorneo(${t.id})" title="Editar Evento">✏️ Edit</button> 
                     <button class="btn-borrar" onclick="eliminarTorneo(${t.id}, '${t.nombre}')" title="Eliminar">🗑️ Borrar</button>
                 </div>
@@ -61,6 +70,53 @@ function renderizarTablaTorneos(listaTorneos) {
         </tr>`;
     });
     document.getElementById('cuerpoTorneos').innerHTML = html || '<tr><td colspan="5" style="text-align:center; color: #a4b0be; padding: 30px;">No se encontraron torneos registrados.</td></tr>';
+}
+
+async function cerrarTorneoDesdeMuseo(idTorneo, boton) {
+    const textoOriginal = boton.innerText;
+    boton.disabled = true;
+    boton.innerText = '⏳ Cerrando...';
+
+    try {
+        const { data: torneo, error: errorTorneo } = await supabase.from('torneos')
+            .select('id, nombre, formato, estado, pozo_total')
+            .eq('id', idTorneo)
+            .single();
+        if (errorTorneo || !torneo) throw errorTorneo || new Error('No se encontró el torneo.');
+        if (String(torneo.estado || '').toLocaleLowerCase() !== 'en curso') {
+            throw new Error('Este torneo ya no está marcado como En Curso.');
+        }
+
+        const [respuestaBatallas, respuestaInscripciones] = await Promise.all([
+            supabase.from('batallas')
+                .select('id, fase, mc1_id, mc2_id, resultado')
+                .eq('torneo_id', idTorneo)
+                .order('id', { ascending: true }),
+            supabase.from('inscripciones')
+                .select('competidor_id')
+                .eq('torneo_id', idTorneo)
+        ]);
+        if (respuestaBatallas.error) throw respuestaBatallas.error;
+        if (respuestaInscripciones.error) throw respuestaInscripciones.error;
+
+        const cierre = reconstruirPremiosCierre(torneo, respuestaInscripciones.data || [], respuestaBatallas.data || []);
+        const descripcion = cierre.esLiga
+            ? `Se marcará "${torneo.nombre}" como Finalizado. Las ligas se cierran sin reparto de pozo.`
+            : `Se cerrará "${torneo.nombre}" y se aplicarán los premios del pozo de ${torneo.pozo_total || 0} puntos según los resultados registrados. Los bonos ya guardados no se duplicarán.`;
+        if (!confirm(descripcion)) return;
+
+        const resultado = await aplicarCierreTorneo(supabase, idTorneo, cierre.premios);
+        alert(`Torneo finalizado. Premios nuevos aplicados: ${resultado.aplicados}; ya registrados: ${resultado.omitidos}.`);
+        await cargarTorneos();
+    } catch (error) {
+        console.error('Error al cerrar torneo desde el Museo:', error);
+        alert(error.message || 'No se pudo cerrar el torneo. No se marcó como Finalizado.');
+    } finally {
+        if (boton.isConnected) {
+            boton.disabled = false;
+            boton.innerText = textoOriginal;
+        }
+    }
 }
 
 async function eliminarTorneo(id, nombre) {
@@ -699,7 +755,7 @@ async function guardarEdicionTorneo() {
 }
 function cerrarEdicionTorneo() { document.getElementById('panelEdicion').style.display = 'none'; document.getElementById('panelLista').style.display = 'block'; }
 
-window.verTorneo = verTorneo; window.eliminarTorneo = eliminarTorneo; window.repararEloGlobal = repararEloGlobal; window.cerrarDetalle = cerrarDetalle; window.agregarFranquicia = agregarFranquicia; window.borrarFranquicia = borrarFranquicia; window.abrirEdicionTorneo = abrirEdicionTorneo; window.guardarEdicionTorneo = guardarEdicionTorneo; window.cerrarEdicionTorneo = cerrarEdicionTorneo; window.abrirEdicionBatalla = abrirEdicionBatalla; window.cerrarEdicionBatalla = cerrarEdicionBatalla; window.guardarEdicionBatalla = guardarEdicionBatalla; 
+window.verTorneo = verTorneo; window.cerrarTorneoDesdeMuseo = cerrarTorneoDesdeMuseo; window.eliminarTorneo = eliminarTorneo; window.repararEloGlobal = repararEloGlobal; window.cerrarDetalle = cerrarDetalle; window.agregarFranquicia = agregarFranquicia; window.borrarFranquicia = borrarFranquicia; window.abrirEdicionTorneo = abrirEdicionTorneo; window.guardarEdicionTorneo = guardarEdicionTorneo; window.cerrarEdicionTorneo = cerrarEdicionTorneo; window.abrirEdicionBatalla = abrirEdicionBatalla; window.cerrarEdicionBatalla = cerrarEdicionBatalla; window.guardarEdicionBatalla = guardarEdicionBatalla;
 window.aplicarFiltroMuseo = aplicarFiltroMuseo;
 window.abrirAnalisisBatalla = abrirAnalisisBatalla; window.cerrarAnalisisBatalla = cerrarAnalisisBatalla; window.descargarCaraACara = descargarCaraACara;
 

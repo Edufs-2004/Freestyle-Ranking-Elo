@@ -65,12 +65,15 @@
         tr td:last-child { border-right: 1px solid rgba(255, 255, 255, 0.03); border-top-right-radius: 8px; border-bottom-right-radius: 8px; }
         tbody tr:hover td { background: rgba(255, 255, 255, 0.05); }
 
-        .action-group { display: flex; gap: 8px; align-items: center; justify-content: flex-start; }
-        .btn-ver, .btn-editar, .btn-borrar { background: rgba(0,0,0,0.5) !important; border: 1px solid !important; padding: 6px 12px !important; border-radius: 6px !important; font-size: 11px !important; font-weight: bold; cursor: pointer; transition: 0.3s; display: flex; align-items: center; gap: 5px; font-family: 'Montserrat', sans-serif; text-transform: uppercase; width: auto; margin: 0; }
+        .action-group { display: flex; gap: 8px; align-items: center; justify-content: flex-start; flex-wrap: wrap; }
+        .btn-ver, .btn-editar, .btn-borrar, .btn-cerrar-evento { background: rgba(0,0,0,0.5) !important; border: 1px solid !important; padding: 6px 12px !important; border-radius: 6px !important; font-size: 11px !important; font-weight: bold; cursor: pointer; transition: 0.3s; display: flex; align-items: center; gap: 5px; font-family: 'Montserrat', sans-serif; text-transform: uppercase; width: auto; margin: 0; }
         .btn-ver { border-color: var(--neon-cyan) !important; color: var(--neon-cyan) !important; }
         .btn-ver:hover { background: var(--neon-cyan) !important; color: var(--bg-color) !important; box-shadow: 0 0 10px rgba(0, 210, 211, 0.5); }
         .btn-editar { border-color: var(--neon-gold) !important; color: var(--neon-gold) !important; }
         .btn-editar:hover { background: var(--neon-gold) !important; color: #000 !important; box-shadow: 0 0 10px rgba(236, 204, 104, 0.5); }
+        .btn-cerrar-evento { border-color: var(--neon-green) !important; color: var(--neon-green) !important; }
+        .btn-cerrar-evento:hover { background: var(--neon-green) !important; color: #000 !important; box-shadow: 0 0 10px rgba(46, 213, 115, 0.4); }
+        .btn-cerrar-evento:disabled { opacity: 0.6; cursor: wait; }
         .btn-borrar { border-color: var(--neon-red) !important; color: var(--neon-red) !important; }
         .btn-borrar:hover { background: var(--neon-red) !important; color: white !important; box-shadow: 0 0 10px rgba(255, 71, 87, 0.5); }
 
@@ -221,6 +224,6 @@
     </div>
 
     <div class="footer">FREESTYLE POWER RANKING ELO V3.0 © 2026 | Área Administrativa</div>
-    <script type="module" src="js/museo.js?v=14.2"></script>
+    <script type="module" src="js/museo.js?v=14.3"></script>
 </body>
 </html>
